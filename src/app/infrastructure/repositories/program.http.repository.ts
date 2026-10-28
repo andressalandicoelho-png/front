@@ -20,4 +20,7 @@ export class HttpProgramRepository extends ProgramRepository {
   removeEntry(id: number, entryId: number): Observable<Program> {
     return this.http.delete<Program>(api(`/programs/${id}/entries/${entryId}`));
   }
+  delete(id: number): Observable<void> {
+    return this.http.delete<void>(api(`/programs/${id}`));
+  }
 }

@@ -9,7 +9,7 @@ import { IconComponent } from './icon.component';
   imports: [IconComponent],
   template: `
     @if (url(); as src) {
-      @if (type() === 'VIDEO') { <video [src]="src" muted preload="metadata"></video> }
+      @if (type() === 'VIDEO') { <video [src]="src" muted preload="metadata" playsinline [autoplay]="autoplay()"></video> }
       @else { <img [src]="src" alt=""> }
     } @else {
       <div class="media-ph"><app-icon [name]="type() === 'LINK' ? 'link' : type() === 'VIDEO' ? 'video' : 'image'" [size]="28"/></div>
@@ -23,6 +23,7 @@ import { IconComponent } from './icon.component';
 export class SecureMediaComponent implements OnDestroy {
   mediaId = input<number | null>(null);
   type = input<PublicationType>('IMAGE');
+  autoplay = input(false);
   url = signal<string | null>(null);
 
   private repo = inject(MediaRepository);

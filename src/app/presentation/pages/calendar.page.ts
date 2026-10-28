@@ -13,7 +13,7 @@ import { Publication } from '@domain/publication/publication.entity';
 import { Program } from '@domain/program/program.entity';
 import { monthGrid } from '@domain/schedule/calendar';
 import { NewScheduleEntry, ScheduleEntry } from '@domain/schedule/schedule.entity';
-import { toIsoDate } from '@domain/schedule/schedule.rules';
+import { datesBetweenInclusive, toMinutes } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@infra/http/auth.interceptor';
 import { ToastService } from '@presentation/core/toast.service';
 import { longDate, monthTitle } from '@presentation/core/format';
@@ -21,7 +21,7 @@ import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
 
-interface EntryForm { publicationId: number | null; programId: number | null; startTime: string; endTime: string; turnSeconds: number | null; }
+interface EntryForm { publicationId: number | null; programId: number | null; endDate: string; startTime: string; endTime: string; turnSeconds: number | null; }
 
 const businessDate = (): string => {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -68,14 +68,31 @@ const businessDate = (): string => {
         }
       </div>
       <div class="calendar-agenda">
-        @for (entry of agendaEntries(); track entry.id) {
-          <button type="button" class="agenda-row" (click)="select(entry.date)">
-            <span class="agenda-date"><strong>{{ entry.date | date:'dd' }}</strong><small>{{ entry.date | date:'MMM' }}</small></span>
-            <span class="grow"><strong>{{ titleOf(entry) }}</strong><small>{{ entry.startTime }}–{{ entry.endTime }}</small></span>
-            <app-icon name="right" [size]="18"/>
-          </button>
-        } @empty { <p class="empty">Nenhum conteúdo agendado neste mês.</p> }
-        <div class="agenda-pagination"><button class="btn small" type="button" (click)="previousAgendaPage()" [disabled]="agendaPage() === 0">Anterior</button><span>{{ agendaPage() + 1 }} / {{ agendaPageCount() }}</span><button class="btn small" type="button" (click)="nextAgendaPage()" [disabled]="agendaPage() + 1 >= agendaPageCount()">Próxima</button></div>
+        @if (loadingEntries()) {
+          <p class="calendar-load-state" role="status">Carregando os agendamentos…</p>
+        } @else if (loadError()) {
+          <div class="calendar-load-state calendar-load-error" role="alert">
+            <span>{{ loadError() }}</span>
+            <button class="btn small" type="button" (click)="load()">Tentar carregar novamente</button>
+          </div>
+        } @else {
+          @for (entry of agendaEntries(); track entry.id) {
+            <button type="button" class="agenda-row" (click)="select(entry.date)">
+              <span class="agenda-date"><strong>{{ entry.date | date:'dd' }}</strong><small>{{ entry.date | date:'MMM' }}</small></span>
+              <span class="grow"><strong>{{ titleOf(entry) }}</strong><small>{{ entry.startTime }}–{{ entry.endTime }}</small></span>
+              <app-icon name="right" [size]="18"/>
+            </button>
+          } @empty {
+            <div class="calendar-agenda-empty">
+              <strong>Seu calendário ainda está livre</strong>
+              <span>Agende conteúdos para deixar a programação da TV pronta.</span>
+              @if (!isPast(today)) { <button class="btn primary small" type="button" (click)="addContent(today)"><app-icon name="plus" [size]="15"/> Agendar conteúdo hoje</button> }
+            </div>
+          }
+          @if (monthEntries().length) {
+            <div class="agenda-pagination"><button class="btn small" type="button" (click)="previousAgendaPage()" [disabled]="agendaPage() === 0">Anterior</button><span>{{ agendaPage() + 1 }} / {{ agendaPageCount() }}</span><button class="btn small" type="button" (click)="nextAgendaPage()" [disabled]="agendaPage() + 1 >= agendaPageCount()">Próxima</button></div>
+          }
+        }
       </div>
     </section>
     <footer class="calendar-footer"><span><i></i> Conteúdo agendado</span><span>Horário de Brasília · GMT−3</span></footer>
@@ -100,6 +117,9 @@ const businessDate = (): string => {
         <app-modal [title]="'Conteúdos · ' + dayLabel()" (closed)="selected.set(null)">
           <div class="day-posts-dialog">
             <p class="day-posts-summary">{{ dayEntries().length }} {{ dayEntries().length === 1 ? 'conteúdo programado' : 'conteúdos programados' }}</p>
+            @if (dayEntries().length) {
+              <div class="day-timeline-axis" aria-hidden="true"><span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>24h</span></div>
+            }
             <div class="day-posts-list" role="list" aria-label="Conteúdos programados neste dia">
               @for (entry of dayEntries(); track entry.id) {
                 @let publication = publicationOf(entry.publicationId);
@@ -114,11 +134,20 @@ const businessDate = (): string => {
                     @if (entry.turnSeconds) { <small>{{ entry.turnSeconds }} s previstos</small> }
                     @else if (publication?.displaySeconds) { <small>{{ publication?.displaySeconds }} s de exibição</small> }
                   </span>
+                  <span class="day-post-timeline" [attr.aria-label]="'Exibição das ' + entry.startTime + ' às ' + entry.endTime">
+                    <i class="day-post-window" [style.left.%]="timelineLeft(entry)" [style.width.%]="timelineWidth(entry)"></i>
+                  </span>
+                  <button class="icon-btn danger day-post-remove" type="button" [attr.aria-label]="'Remover agendamento de ' + titleOf(entry)" title="Remover agendamento" (click)="remove(entry)">
+                    <app-icon name="trash" [size]="17"/>
+                  </button>
                 </article>
               } @empty {
                 <div class="day-posts-empty">
                   <strong>Nenhum conteúdo neste dia</strong>
                   <span>Não há posts programados para esta data.</span>
+                  @if (!isPast(day)) {
+                    <button class="btn primary small" type="button" (click)="scheduleDay(day)"><app-icon name="plus" [size]="15"/> Agendar conteúdo</button>
+                  }
                 </div>
               }
             </div>
@@ -141,7 +170,21 @@ const businessDate = (): string => {
 
         @if (!viewOnly()) {
         <form class="stack" (ngSubmit)="save(day)">
-          <strong>{{ editing() ? 'Editar agendamento' : 'Adicionar ao dia' }}</strong>
+          <strong>{{ editing() ? 'Editar agendamento' : reviewingEntry() ? 'Revisar agendamento' : 'Adicionar ao dia' }}</strong>
+          @if (reviewingEntry()) {
+            <div class="program-review">
+              <p class="muted">A sequência define a ordem de reprodução; este horário define quando o conteúdo pode aparecer. A API ainda verifica conflitos antes de confirmar.</p>
+              <div class="program-review-heading">
+                <strong>{{ publicationTitle(form.publicationId) }}</strong>
+                <span>{{ programName(form.programId) }}</span>
+              </div>
+              <p class="program-review-period">{{ popupFullDate(day) }}{{ form.endDate !== day ? ' a ' + popupFullDate(form.endDate) : '' }} · {{ form.startTime }}–{{ form.endTime }}</p>
+              <div class="actions">
+                <button class="btn" type="button" (click)="reviewingEntry.set(false)">Voltar e ajustar</button>
+                <button class="btn primary" type="submit" [disabled]="isPast(day)">Confirmar agendamento</button>
+              </div>
+            </div>
+          } @else {
           @if (isPast(day)) { <p class="muted">Não é possível adicionar programação para uma data passada.</p> }
           <label class="field">Programação
             <select class="input" name="editProgram" [(ngModel)]="form.programId" required>
@@ -153,6 +196,11 @@ const businessDate = (): string => {
             <option [ngValue]="null" disabled>Conteúdo publicado</option>
             @for (p of readyPubs(); track p.id) { <option [ngValue]="p.id">{{ p.title }}</option> }
           </select>
+          @if (!editing()) {
+            <label class="field">Repetir até (inclusive)
+              <input class="input" type="date" name="scheduleEndDate" [min]="day" [(ngModel)]="form.endDate" required>
+            </label>
+          }
           <div class="grid-2">
             <label class="field">Início<input class="input" type="time" name="start" [(ngModel)]="form.startTime"></label>
             <label class="field">Fim<input class="input" type="time" name="end" [(ngModel)]="form.endTime"></label>
@@ -163,15 +211,16 @@ const businessDate = (): string => {
           @if (error()) { <p class="error">{{ error() }}</p> }
           <div class="actions">
             @if (editing()) { <button class="btn" type="button" (click)="resetForm()">Cancelar</button> }
-            <button class="btn primary" type="submit" [disabled]="isPast(day)">{{ editing() ? 'Salvar alterações' : 'Adicionar' }}</button>
+            <button class="btn primary" type="submit" [disabled]="isPast(day)">{{ editing() ? 'Salvar alterações' : 'Revisar agendamento' }}</button>
           </div>
+          }
         </form>
         }
       </app-modal>
       }
     }
     @if (pendingRemoval(); as entry) {
-      <app-modal title="Remover agendamento?" (closed)="pendingRemoval.set(null)">
+      <app-modal class="calendar-removal-confirmation" title="Remover agendamento?" (closed)="pendingRemoval.set(null)">
         <div class="confirm-content"><span class="confirm-icon danger"><app-icon name="trash" [size]="22"/></span>
           <h2>Remover este conteúdo do calendário?</h2>
           <p class="muted">“{{ titleOf(entry) }}” será removido do calendário em {{ entry.date | date:'dd/MM/yyyy' }}. A publicação continuará na biblioteca.</p>
@@ -182,14 +231,47 @@ const businessDate = (): string => {
     @if (addContentDate(); as date) {
       <app-modal title="Adicionar conteúdos" (closed)="closeAddContent()">
         <div class="add-content-dialog">
+          @if (reviewingCalendarSchedule()) {
+            <section class="program-review">
+              <p class="muted">Confira a programação e os períodos antes de aplicar. O app verificará cada dia; se houver conflito não carregado no calendário, a API informará o conteúdo e a data, mantendo os dias concluídos.</p>
+              <div class="program-review-heading">
+                <strong>{{ selectedProgramName() }}</strong>
+                <span>{{ selectedNewContentCount() }} conteúdos · {{ calendarReviewCount() }} períodos diários</span>
+              </div>
+              <p class="program-review-period">{{ popupFullDate(date) }}{{ addEndDate() !== date ? ' a ' + popupFullDate(addEndDate()) : '' }} · {{ addStartTime() }}–{{ addEndTime() }}</p>
+              <ol class="program-review-list">
+                @for (publication of calendarReviewItems(); track publication.id) {
+                  <li><span><strong>{{ publication.title }}</strong><small>{{ publication.scheduledDays }} de {{ addDates().length }} dias já agendados</small></span></li>
+                }
+              </ol>
+              @if (knownScheduleConflicts().length) {
+                <div class="notice warning-notice" role="alert">
+                  <strong>Há horários sobrepostos conhecidos:</strong>
+                  @for (conflict of knownScheduleConflicts(); track conflict.publicationId + conflict.date) {
+                    <span>{{ conflict.title }} · {{ popupFullDate(conflict.date) }} · {{ conflict.startTime }}–{{ conflict.endTime }} já está agendado.</span>
+                  }
+                  <small>Volte e altere as datas ou o horário antes de continuar.</small>
+                </div>
+              }
+              <div class="actions">
+                <button class="btn" type="button" [disabled]="addingContents()" (click)="reviewingCalendarSchedule.set(false)">Voltar e ajustar</button>
+                <button class="btn primary" type="button" [disabled]="addingContents() || !selectedNewContentCount() || knownScheduleConflicts().length || addEndDate() < date || toMinutes(addEndTime()) <= toMinutes(addStartTime())" (click)="confirmScheduleSelectedContent(date)">
+                  {{ addingContents() ? 'Agendando…' : addContentError() ? 'Tentar novamente' : 'Confirmar agendamento' }}
+                </button>
+              </div>
+            </section>
+          } @else {
           <div class="add-content-context">
             <div class="add-content-section-title">Escolha a programação</div>
             <div class="add-content-date">
               <span>Data</span>
               <strong>{{ popupFullDate(date) }}</strong>
             </div>
-            <label class="calendar-schedule-time">De<input class="input" type="time" aria-label="Horário de início do agendamento" [(ngModel)]="addStartTime"></label>
-            <label class="calendar-schedule-time">Até<input class="input" type="time" aria-label="Horário de fim do agendamento" [(ngModel)]="addEndTime"></label>
+            <label class="calendar-schedule-time">Repetir até (inclusive)
+              <input class="input" type="date" aria-label="Último dia do agendamento" [min]="date" [ngModel]="addEndDate()" (ngModelChange)="addEndDate.set($event)" required>
+            </label>
+            <label class="calendar-schedule-time">De<input class="input" type="time" aria-label="Horário de início do agendamento" [ngModel]="addStartTime()" (ngModelChange)="addStartTime.set($event)"></label>
+            <label class="calendar-schedule-time">Até<input class="input" type="time" aria-label="Horário de fim do agendamento" [ngModel]="addEndTime()" (ngModelChange)="addEndTime.set($event)"></label>
           </div>
           @if (programs().length) {
             <div class="calendar-program-options" role="group" aria-label="Programações de destino">
@@ -240,7 +322,7 @@ const businessDate = (): string => {
                   <small>{{ typeName(publication.type) }} · {{ publication.displaySeconds ?? 10 }} s</small>
                 </span>
                 <span class="add-content-status">
-                  @if (alreadyScheduled().has(publication.id)) { Já agendado nesta programação }
+                  @if (alreadyScheduled().has(publication.id)) { Já agendado neste período }
                   @else if (isContentSelected(publication.id)) { Selecionado }
                 </span>
               </label>
@@ -258,16 +340,20 @@ const businessDate = (): string => {
               <strong>{{ selectedNewContentCount() }} {{ selectedNewContentCount() === 1 ? 'novo conteúdo selecionado' : 'novos conteúdos selecionados' }}</strong>
               <button type="button" class="link-button" [disabled]="selectedNewContentCount() === 0 || addingContents()" (click)="clearContentSelection()">Limpar seleção</button>
               <small>{{ selectedContentSummary() || 'Selecione conteúdos para montar a sequência.' }}</small>
-              <small class="add-content-schedule-note">{{ selectedProgramName() || 'Escolha uma programação' }} · {{ addStartTime }}–{{ addEndTime }}</small>
+              <small class="add-content-schedule-note">{{ selectedProgramName() || 'Escolha uma programação' }} · {{ addStartTime() }}–{{ addEndTime() }}</small>
+              @if (addingContents()) {
+                <small class="add-content-progress" role="status" aria-live="polite">Agendando {{ addProgress().completed }} de {{ addProgress().total }} períodos diários…</small>
+              }
             </div>
             <div class="actions">
               <button class="btn" type="button" [disabled]="addingContents()" (click)="closeAddContent()">Cancelar</button>
-              <button class="btn primary" type="button" [disabled]="!selectedProgramId() || !selectedNewContentCount() || isPast(date) || addingContents()" (click)="scheduleSelectedContent(date)">
-                {{ addingContents() ? 'Adicionando…' : 'Adicionar ' + selectedNewContentCount() + (selectedNewContentCount() === 1 ? ' conteúdo' : ' conteúdos') }}
+              <button class="btn primary" type="button" [disabled]="!selectedProgramId() || !selectedNewContentCount() || isPast(date) || addEndDate() < date || toMinutes(addEndTime()) <= toMinutes(addStartTime()) || addingContents()" (click)="scheduleSelectedContent(date)">
+                {{ addingContents() ? 'Agendando…' : addContentError() ? 'Tentar novamente' : 'Agendar ' + selectedNewContentCount() + (selectedNewContentCount() === 1 ? ' conteúdo' : ' conteúdos') }}
               </button>
             </div>
           </div>
           @if (isPast(date)) { <p class="error add-content-error">Não é possível adicionar conteúdo a uma data passada.</p> }
+          }
         </div>
       </app-modal>
     }
@@ -301,10 +387,17 @@ export class CalendarPage implements OnInit {
   contentTypeFilter = signal<'ALL' | Publication['type']>('ALL');
   addingContents = signal(false);
   addContentError = signal('');
-  addStartTime = '08:00';
-  addEndTime = '18:00';
+  addStartTime = signal('08:00');
+  addEndTime = signal('18:00');
+  addEndDate = signal('');
   agendaPage = signal(0);
   error = signal('');
+  loadError = signal('');
+  loadingEntries = signal(false);
+  addProgress = signal({ completed: 0, total: 0 });
+  reviewingCalendarSchedule = signal(false);
+  reviewingEntry = signal(false);
+  private failedSchedule = signal<{ publicationId: number; date: string } | null>(null);
   form: EntryForm = this.emptyForm();
 
   grid = computed(() => monthGrid(this.cursor().getFullYear(), this.cursor().getMonth()));
@@ -327,8 +420,48 @@ export class CalendarPage implements OnInit {
   agendaPageCount = computed(() => Math.max(1, Math.ceil(this.monthEntries().length / 6)));
   dayLabel = computed(() => (this.selected() ? longDate(this.selected()!) : ''));
   selectedProgramName = computed(() => this.programs().find(program => program.id === this.selectedProgramId())?.name ?? '');
+  addDates = computed(() => datesBetweenInclusive(this.addContentDate() ?? '', this.addEndDate()));
+  calendarReviewItems = computed(() => this.pubs()
+    .filter(publication => this.selectedContentIds().includes(publication.id) && !this.alreadyScheduled().has(publication.id))
+    .map(publication => ({
+      id: publication.id,
+      title: publication.title,
+      scheduledDays: this.entries().filter(entry => entry.publicationId === publication.id &&
+        entry.programId === this.selectedProgramId() && this.addDates().includes(entry.date) &&
+        entry.startTime === this.addStartTime() && entry.endTime === this.addEndTime()).length,
+    })));
+  calendarReviewCount = computed(() => this.calendarReviewItems().reduce((count, item) => count + this.addDates().length - item.scheduledDays, 0));
+  knownScheduleConflicts = computed(() => {
+    const programId = this.selectedProgramId();
+    if (programId === null) return [];
+    return this.selectedContentIds().flatMap(publicationId => {
+      const publication = this.pubs().find(item => item.id === publicationId);
+      if (!publication) return [];
+      return this.entries().filter(entry =>
+        entry.publicationId === publicationId && entry.programId === programId &&
+        this.addDates().includes(entry.date) &&
+        toMinutes(entry.startTime) < toMinutes(this.addEndTime()) &&
+        toMinutes(entry.endTime) > toMinutes(this.addStartTime()) &&
+        !(entry.startTime === this.addStartTime() && entry.endTime === this.addEndTime()),
+      ).map(entry => ({
+        publicationId,
+        title: publication.title,
+        date: entry.date,
+        startTime: entry.startTime,
+        endTime: entry.endTime,
+      }));
+    });
+  });
   alreadyScheduled = computed(() => new Set(this.entries()
-    .filter(entry => this.selectedProgramId() !== null && entry.date === this.addContentDate() && entry.programId === this.selectedProgramId())
+    .filter(entry => {
+      const programId = this.selectedProgramId();
+      const dates = this.addDates();
+      return programId !== null && dates.length > 0 && entry.programId === programId &&
+        entry.startTime === this.addStartTime() && entry.endTime === this.addEndTime() &&
+        dates.every(date => this.entries().some(candidate => candidate.publicationId === entry.publicationId &&
+          candidate.programId === programId && candidate.date === date && candidate.startTime === this.addStartTime() &&
+          candidate.endTime === this.addEndTime()));
+    })
     .map(entry => entry.publicationId)));
   pickerPublications = computed(() => {
     const query = this.contentSearch().trim().toLocaleLowerCase();
@@ -356,7 +489,12 @@ export class CalendarPage implements OnInit {
 
   load(): void {
     const g = this.grid();
-    this.listUC.execute({ from: g[0].date, to: g[g.length - 1].date }).subscribe(list => this.entries.set(list));
+    this.loadingEntries.set(true);
+    this.loadError.set('');
+    this.listUC.execute({ from: g[0].date, to: g[g.length - 1].date }).subscribe({
+      next: list => { this.entries.set(list); this.loadingEntries.set(false); },
+      error: error => { this.loadError.set(errorMessage(error)); this.loadingEntries.set(false); },
+    });
   }
 
   move(delta: number): void {
@@ -392,12 +530,14 @@ export class CalendarPage implements OnInit {
     this.openMenuDate.set(null);
     this.addContentDate.set(date);
     this.selectedContentIds.set([]);
-    this.addStartTime = '08:00';
-    this.addEndTime = '18:00';
+    this.addStartTime.set('08:00');
+    this.addEndTime.set('18:00');
+    this.addEndDate.set(date);
     this.contentSearch.set('');
     this.contentTypeFilter.set('ALL');
     this.selectedProgramId.set(null);
     this.addContentError.set('');
+    this.reviewingCalendarSchedule.set(false);
   }
   closeAddContent(): void {
     if (this.addingContents()) return;
@@ -415,6 +555,7 @@ export class CalendarPage implements OnInit {
     this.selectedContentIds.update(ids => ids.includes(id) ? ids.filter(item => item !== id) : [...ids, id]);
   }
   clearContentSelection(): void { this.selectedContentIds.set([]); }
+  toMinutes = toMinutes;
   typeName(type: Publication['type']): string {
     return type === 'IMAGE' ? 'Imagem' : type === 'VIDEO' ? 'Vídeo' : 'Link';
   }
@@ -425,42 +566,74 @@ export class CalendarPage implements OnInit {
     return this.programs().find(program => program.id === id)?.name ?? 'Sem programação';
   }
   scheduleSelectedContent(date: string): void {
+    if (!this.reviewingCalendarSchedule()) {
+      this.reviewingCalendarSchedule.set(true);
+      return;
+    }
+    this.confirmScheduleSelectedContent(date);
+  }
+  confirmScheduleSelectedContent(date: string): void {
     this.addContentError.set('');
     const selected = this.selectedContentIds().filter(id => !this.alreadyScheduled().has(id));
+    const dates = datesBetweenInclusive(date, this.addEndDate());
     const programId = this.selectedProgramId();
-    if (!selected.length || !programId) return;
+    if (!selected.length || !programId || !dates.length || toMinutes(this.addEndTime()) <= toMinutes(this.addStartTime())) return;
     if (this.isPast(date)) {
       this.addContentError.set('Não é possível adicionar conteúdo a uma data passada.');
       return;
     }
     this.addingContents.set(true);
     let created = 0;
-    from(selected).pipe(
-      concatMap(publicationId => this.createUC.execute({
-        publicationId,
-        programId,
-        date,
-        startTime: this.addStartTime,
-        endTime: this.addEndTime,
-      })),
+    const pending = selected.flatMap(publicationId => dates
+      .filter(scheduledDate => !this.hasSchedule(publicationId, programId, scheduledDate, this.addStartTime(), this.addEndTime()))
+      .map(scheduledDate => ({ publicationId, date: scheduledDate })));
+    if (!pending.length) {
+      this.addingContents.set(false);
+      this.addContentDate.set(null);
+      this.toast.show('Os conteúdos selecionados já estão agendados nesse período e horário.');
+      return;
+    }
+    this.addProgress.set({ completed: 0, total: pending.length });
+    from(pending).pipe(
+      concatMap(({ publicationId, date: scheduledDate }) => {
+        this.failedSchedule.set({ publicationId, date: scheduledDate });
+        return this.createUC.execute({
+          publicationId, programId, date: scheduledDate,
+          startTime: this.addStartTime(), endTime: this.addEndTime(),
+        });
+      }),
     ).subscribe({
       next: entry => {
         created++;
+        this.addProgress.update(progress => ({ ...progress, completed: created }));
         this.entries.update(entries => [...entries, entry]);
-        this.selectedContentIds.update(ids => ids.filter(id => id !== entry.publicationId));
       },
       error: error => {
         this.addingContents.set(false);
-        this.addContentError.set(created
-          ? `${errorMessage(error)} ${created} conteúdo(s) adicionado(s) antes da falha.`
-          : errorMessage(error));
+        const failed = this.failedSchedule();
+        const title = failed ? this.pubs().find(publication => publication.id === failed.publicationId)?.title ?? `Conteúdo ${failed.publicationId}` : 'conteúdo';
+        const dateLabel = failed ? this.popupFullDate(failed.date) : '';
+        const partial = created ? ` ${created} agendamento(s) já concluídos.` : '';
+        this.addContentError.set(`${errorMessage(error)} Não foi possível agendar “${title}” em ${dateLabel}.${partial} Os dias concluídos serão mantidos; tente novamente para continuar.`);
       },
       complete: () => {
         this.addingContents.set(false);
         this.addContentDate.set(null);
-        this.toast.show(`${created} conteúdo(s) adicionado(s) à sequência`);
+        this.selectedContentIds.set([]);
+        this.reviewingCalendarSchedule.set(false);
+        this.toast.show(`${created} agendamento(s) criado(s): ${selected.length} conteúdo(s), ${dates.length} dia(s), ${this.addStartTime()}–${this.addEndTime()}.`);
       },
     });
+  }
+  scheduleDay(date: string): void {
+    this.selected.set(null);
+    this.addContent(date);
+  }
+  timelineLeft(entry: ScheduleEntry): number {
+    return Math.max(0, Math.min(100, toMinutes(entry.startTime) / 1440 * 100));
+  }
+  timelineWidth(entry: ScheduleEntry): number {
+    return Math.max(0, Math.min(100 - this.timelineLeft(entry), (toMinutes(entry.endTime) - toMinutes(entry.startTime)) / 1440 * 100));
   }
   viewPosts(date: string): void { this.openMenuDate.set(null); this.selected.set(date); this.viewOnly.set(true); this.resetForm(); }
   popupTitle(date: string): string {
@@ -489,38 +662,76 @@ export class CalendarPage implements OnInit {
   isPast = (date: string) => date < this.today;
 
   private emptyForm(): EntryForm {
-    return { publicationId: null, programId: null, startTime: '08:00', endTime: '18:00', turnSeconds: null };
+    return { publicationId: null, programId: null, endDate: this.selected() ?? '', startTime: '08:00', endTime: '18:00', turnSeconds: null };
   }
 
   resetForm(): void {
     this.editing.set(null);
     this.error.set('');
+    this.reviewingEntry.set(false);
     this.form = this.emptyForm();
   }
 
   edit(e: ScheduleEntry): void {
     this.editing.set(e);
-    this.form = { publicationId: e.publicationId, programId: e.programId, startTime: e.startTime, endTime: e.endTime, turnSeconds: e.turnSeconds };
+    this.reviewingEntry.set(false);
+    this.form = { publicationId: e.publicationId, programId: e.programId, endDate: e.date, startTime: e.startTime, endTime: e.endTime, turnSeconds: e.turnSeconds };
   }
 
   save(date: string): void {
+    if (!this.editing() && !this.reviewingEntry()) {
+      this.reviewingEntry.set(true);
+      return;
+    }
     this.error.set('');
     if (date < businessDate()) {
       this.error.set('Não é possível programar para uma data passada.');
       return;
     }
+    if (toMinutes(this.form.endTime) <= toMinutes(this.form.startTime)) {
+      this.error.set('O horário final precisa ser posterior ao horário inicial.');
+      return;
+    }
     const turn = this.form.turnSeconds ?? undefined;
     const current = this.editing();
-    const request = current
-      ? this.updateUC.execute(current.id, { date, programId: this.form.programId ?? undefined, startTime: this.form.startTime, endTime: this.form.endTime, turnSeconds: turn })
-      : this.createUC.execute({
-          publicationId: this.form.publicationId!, programId: this.form.programId!, date,
-          startTime: this.form.startTime, endTime: this.form.endTime, turnSeconds: turn,
-        } as NewScheduleEntry);
-    request.subscribe({
-      next: () => { this.toast.show(current ? 'Agendamento atualizado' : 'Agendamento adicionado'); this.resetForm(); this.load(); },
-      error: e => this.error.set(errorMessage(e)),
+    if (current) {
+      this.updateUC.execute(current.id, { date, programId: this.form.programId ?? undefined, startTime: this.form.startTime, endTime: this.form.endTime, turnSeconds: turn }).subscribe({
+        next: () => { this.toast.show('Agendamento atualizado'); this.resetForm(); this.load(); },
+        error: e => this.error.set(errorMessage(e)),
+      });
+      return;
+    }
+    const dates = datesBetweenInclusive(date, this.form.endDate);
+    if (!dates.length) {
+      this.error.set('A data final deve ser igual ou posterior à inicial.');
+      return;
+    }
+    const pending = dates.filter(scheduledDate =>
+      !this.hasSchedule(this.form.publicationId!, this.form.programId!, scheduledDate, this.form.startTime, this.form.endTime),
+    );
+    if (!pending.length) {
+      this.error.set('Este conteúdo já está agendado nesse período e horário.');
+      return;
+    }
+    let created = 0;
+    from(pending).pipe(
+      concatMap(scheduledDate => this.createUC.execute({
+        publicationId: this.form.publicationId!, programId: this.form.programId!, date: scheduledDate,
+        startTime: this.form.startTime, endTime: this.form.endTime, turnSeconds: turn,
+      } as NewScheduleEntry)),
+    ).subscribe({
+      next: entry => { created++; this.entries.update(entries => [...entries, entry]); },
+      error: err => this.error.set(`${errorMessage(err)}${created ? ` ${created} dia(s) já foram agendados.` : ''} Ajuste o período e tente novamente.`),
+      complete: () => { this.toast.show(`${created} agendamento(s) criado(s)`); this.resetForm(); this.load(); },
     });
+  }
+
+  private hasSchedule(publicationId: number, programId: number, date: string, startTime: string, endTime: string): boolean {
+    return this.entries().some(entry => entry.publicationId === publicationId && entry.programId === programId &&
+      entry.date === date && entry.startTime === startTime && entry.endTime === endTime);
+  }
+  publicationTitle(publicationId: number | null): string {
+    return this.pubs().find(publication => publication.id === publicationId)?.title ?? 'Conteúdo selecionado';
   }
 
   remove(e: ScheduleEntry): void {

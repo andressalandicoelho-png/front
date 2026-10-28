@@ -30,3 +30,9 @@ export class RemoveProgramEntryUseCase {
   private repository = inject(ProgramRepository);
   execute(id: number, entryId: number) { return this.repository.removeEntry(id, entryId); }
 }
+
+@Injectable({ providedIn: 'root' })
+export class DeleteProgramUseCase {
+  private repository = inject(ProgramRepository);
+  execute(id: number) { return this.repository.delete(id); }
+}

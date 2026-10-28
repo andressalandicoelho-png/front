@@ -3,28 +3,49 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AddProgramEntriesUseCase, CreateProgramUseCase } from '@application/program/program.usecases';
 import { ListPublicationsUseCase } from '@application/publication/publication.usecases';
+import { CreateScheduleEntryUseCase } from '@application/schedule/schedule.usecases';
 import { Program } from '@domain/program/program.entity';
 import { Publication } from '@domain/publication/publication.entity';
+import { datesBetweenInclusive, toMinutes } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@infra/http/auth.interceptor';
 import { ToastService } from '@presentation/core/toast.service';
 import { IconComponent } from '@presentation/ui/icon.component';
+import { ModalComponent } from '@presentation/ui/modal.component';
+import { ProgramPreviewComponent, ProgramPreviewItem } from '@presentation/ui/program-preview.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
+import { concatMap, from } from 'rxjs';
+
+interface PublicationScheduleInput { date: string; endDate: string; startTime: string; endTime: string; }
+
+const businessDate = (): string => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const value = (type: string) => parts.find(part => part.type === type)?.value ?? '';
+  return `${value('year')}-${value('month')}-${value('day')}`;
+};
 
 @Component({
   selector: 'app-create-program',
-  imports: [FormsModule, RouterLink, IconComponent, SecureMediaComponent],
+  imports: [FormsModule, RouterLink, IconComponent, ModalComponent, ProgramPreviewComponent, SecureMediaComponent],
   template: `
     <header class="page-head">
       <a class="program-breadcrumb" routerLink="/programacao">Programação / Nova programação</a>
       <h1>Criar programação</h1>
-      <p class="muted">Escolha um nome e organize os conteúdos que a TV vai reproduzir continuamente.</p>
+      <p class="muted">Escolha um nome, organize a sequência e defina quando cada conteúdo será exibido.</p>
     </header>
 
     @if (error()) { <div class="notice error-notice" role="alert">{{ error() }}</div> }
     @if (createdProgram(); as created) {
       <div class="notice program-created-notice" role="status">
         <strong>“{{ created.name }}” já foi criada.</strong>
-        <span>Não foi possível vincular os conteúdos. Tente novamente para concluir.</span>
+        <span>Conclua o vínculo e o agendamento dos conteúdos para finalizar.</span>
+      </div>
+    }
+    @if (saving() && scheduleProgress().total) {
+      <div class="program-progress" role="status" aria-live="polite">
+        <span>Agendando {{ scheduleProgress().completed }} de {{ scheduleProgress().total }} períodos diários…</span>
+        <span class="program-progress-track"><i [style.width.%]="scheduleProgressPercent()"></i></span>
       </div>
     }
 
@@ -53,7 +74,9 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
           <div class="program-create-card-head program-selected-head">
             <div>
               <h2>Conteúdos selecionados <span class="chip">{{ selectedPublications().length }}</span></h2>
-              <p class="muted">A ordem abaixo será a sequência de reprodução. Use as setas para reorganizar.</p>
+              <p class="muted">A sequência define a ordem de reprodução. O calendário define em quais datas e horários cada conteúdo pode aparecer.</p>
+              <p class="program-sequence-note">Exemplo: a posição define qual conteúdo vem primeiro; a faixa de horário define quando a TV pode iniciar a sequência. Fora dos horários agendados, o player aguarda.</p>
+              <p class="program-schedule-required">As datas inicial/final e os horários são obrigatórios; o fim deve ser posterior ao início.</p>
             </div>
           </div>
 
@@ -67,6 +90,39 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
                 <span class="program-selected-copy">
                   <strong>{{ publication.title }}</strong>
                   <small>{{ typeName(publication.type) }} · {{ duration(publication) }} s</small>
+                </span>
+                <span class="program-schedule-fields">
+                  @if (scheduleComplete(publication.id)) {
+                    <span class="program-scheduled-label"><app-icon name="check" [size]="14"/> Agendado</span>
+                  } @else {
+                    <label>Data
+                      <input class="input" type="date" [name]="'scheduleDate' + publication.id" [min]="today" required
+                        [disabled]="!!createdProgram() && saving()"
+                        [ngModel]="scheduleFor(publication.id).date"
+                        (ngModelChange)="updateSchedule(publication.id, 'date', $event)">
+                    </label>
+                    <label>Até (inclusive)
+                      <input class="input" type="date" [name]="'scheduleEndDate' + publication.id" [min]="scheduleFor(publication.id).date || today" required
+                        [disabled]="!!createdProgram() && saving()"
+                        [ngModel]="scheduleFor(publication.id).endDate"
+                        (ngModelChange)="updateSchedule(publication.id, 'endDate', $event)">
+                    </label>
+                    <label>Início
+                      <input class="input" type="time" [name]="'scheduleStart' + publication.id" required
+                        [disabled]="!!createdProgram() && saving()"
+                        [ngModel]="scheduleFor(publication.id).startTime"
+                        (ngModelChange)="updateSchedule(publication.id, 'startTime', $event)">
+                    </label>
+                    <label>Fim
+                      <input class="input" type="time" [name]="'scheduleEnd' + publication.id" required
+                        [disabled]="!!createdProgram() && saving()"
+                        [ngModel]="scheduleFor(publication.id).endTime"
+                        (ngModelChange)="updateSchedule(publication.id, 'endTime', $event)">
+                    </label>
+                    @if (scheduledCount(publication.id)) {
+                      <small class="program-scheduled-progress">{{ scheduledCount(publication.id) }} de {{ datesFor(publication.id).length }} dias já agendados</small>
+                    }
+                  }
                 </span>
                 <span class="program-order-actions">
                   <button class="icon-btn" type="button" aria-label="Mover conteúdo para cima" [disabled]="index === 0 || !!createdProgram()" (click)="movePublication(index, -1)">
@@ -89,7 +145,7 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
             }
           </div>
 
-          <p class="program-sequence-note">A TV repetirá esta sequência do início ao fim. Os horários do calendário não alteram a programação da TV.</p>
+          <p class="program-sequence-note">A TV percorre esta sequência continuamente, mas só exibe um conteúdo quando o respectivo horário do calendário está ativo. A ordem não altera as datas nem os horários.</p>
         </section>
 
         <section class="card program-create-card program-library">
@@ -138,18 +194,60 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
           <div class="program-summary-body">
             <small>{{ name.trim() || 'Nome da programação' }}</small>
             <strong>{{ selectedPublications().length }} {{ selectedPublications().length === 1 ? 'conteúdo' : 'conteúdos' }} · {{ totalDuration() }} s</strong>
+            <small>{{ scheduledEntryCount() }} agendamentos concluídos</small>
+            @if (selectedPublications().length) {
+              <button class="btn small" type="button" (click)="previewOpen.set(true)">
+                <app-icon name="play" [size]="15"/> Prévia na TV
+              </button>
+            }
           </div>
         </section>
         <div class="program-create-info">
           <app-icon name="info" [size]="18"/>
-          <p>Depois de criar, você poderá gerar o link exclusivo desta programação para abrir na TV.</p>
+          <p>Todos os conteúdos precisam de data, início e fim para serem exibidos na TV.</p>
         </div>
       </aside>
 
+      <app-program-preview
+        title="Prévia da programação"
+        [items]="previewItems()"
+        [open]="previewOpen()"
+        (closed)="previewOpen.set(false)"/>
+
+      @if (reviewOpen()) {
+        <app-modal title="Revise antes de criar" (closed)="reviewOpen.set(false)">
+          <div class="program-review">
+            <p class="muted">Confira a sequência e os períodos. Os agendamentos são criados dia a dia; se algum falhar, os concluídos serão mantidos e você poderá retomar.</p>
+            <div class="program-review-heading">
+              <strong>{{ name.trim() }}</strong>
+              <span>{{ selectedPublications().length }} conteúdos · {{ scheduledEntryCount() }} dias agendados</span>
+            </div>
+            @if (selectedPublications().length) {
+              <ol class="program-review-list">
+                @for (item of previewItems(); track $index; let index = $index) {
+                  <li>
+                    <span class="program-position">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                    <span><strong>{{ item.title }}</strong><small>{{ item.schedule || 'Período não definido' }} · {{ item.seconds }} s por exibição</small></span>
+                  </li>
+                }
+              </ol>
+            } @else {
+              <p class="program-review-empty">A programação será criada sem conteúdos. Você poderá adicioná-los depois.</p>
+            }
+            <div class="actions">
+              <button class="btn" type="button" (click)="reviewOpen.set(false)">Voltar e revisar</button>
+              <button class="btn primary" type="button" [disabled]="saving()" (click)="confirmSave()">
+                {{ saving() ? 'Criando…' : selectedPublications().length ? 'Confirmar programação' : 'Criar sem conteúdos' }}
+              </button>
+            </div>
+          </div>
+        </app-modal>
+      }
+
       <footer class="program-create-footer">
         <a class="btn" routerLink="/programacao">Cancelar</a>
-        <button class="btn primary" type="submit" [disabled]="saving() || (!createdProgram() && (name.trim().length < 2 || !selectedPublications().length))">
-          {{ saving() ? 'Salvando…' : createdProgram() ? 'Tentar novamente' : 'Criar programação' }}
+        <button class="btn primary" type="submit" [disabled]="saving() || (!createdProgram() && name.trim().length < 2) || !schedulesValid()">
+          {{ saving() ? 'Salvando…' : createdProgram() ? 'Concluir agendamentos' : 'Revisar programação' }}
         </button>
       </footer>
     </form>
@@ -159,10 +257,12 @@ export class CreateProgramPage implements OnInit {
   private readonly listPublications = inject(ListPublicationsUseCase);
   private readonly createProgram = inject(CreateProgramUseCase);
   private readonly addProgramEntries = inject(AddProgramEntriesUseCase);
+  private readonly createSchedule = inject(CreateScheduleEntryUseCase);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
   name = '';
+  today = businessDate();
   query = '';
   loading = signal(true);
   saving = signal(false);
@@ -170,6 +270,12 @@ export class CreateProgramPage implements OnInit {
   createdProgram = signal<Program | null>(null);
   readyPublications = signal<Publication[]>([]);
   selectedPublicationIds = signal<number[]>([]);
+  schedules = signal<Record<number, PublicationScheduleInput>>({});
+  scheduledScheduleKeys = signal<string[]>([]);
+  entriesAdded = signal(false);
+  previewOpen = signal(false);
+  reviewOpen = signal(false);
+  scheduleProgress = signal({ completed: 0, total: 0 });
 
   selectedPublications = computed(() => {
     const publicationsById = new Map(this.readyPublications().map(publication => [publication.id, publication]));
@@ -183,6 +289,28 @@ export class CreateProgramPage implements OnInit {
     return this.readyPublications().filter(publication => !query || publication.title.toLocaleLowerCase().includes(query));
   });
   totalDuration = computed(() => this.selectedPublications().reduce((sum, publication) => sum + this.duration(publication), 0));
+  previewItems = computed<ProgramPreviewItem[]>(() => this.selectedPublications().map(publication => {
+    const schedule = this.scheduleFor(publication.id);
+    const dates = this.datesFor(publication.id);
+    const range = dates.length ? `${this.formatDate(dates[0])}${dates.length > 1 ? ` a ${this.formatDate(dates[dates.length - 1])}` : ''}` : '';
+    const time = schedule.startTime && schedule.endTime ? `${schedule.startTime}–${schedule.endTime}` : '';
+    return {
+      title: publication.title,
+      type: publication.type,
+      mediaId: publication.mediaId,
+      linkUrl: publication.linkUrl,
+      seconds: this.duration(publication),
+      schedule: [range, time].filter(Boolean).join(' · '),
+    };
+  }));
+  schedulesValid = computed(() => this.selectedPublications().every(publication => {
+    if (this.scheduleComplete(publication.id)) return true;
+    const schedule = this.scheduleFor(publication.id);
+    const dates = datesBetweenInclusive(schedule.date, schedule.endDate);
+    return !!dates.length && schedule.date >= this.today &&
+      !!schedule.startTime && !!schedule.endTime &&
+      toMinutes(schedule.endTime) > toMinutes(schedule.startTime);
+  }));
 
   ngOnInit(): void {
     this.listPublications.execute({ status: 'READY' }).subscribe({
@@ -212,6 +340,37 @@ export class CreateProgramPage implements OnInit {
     return this.selectedPublicationIds().includes(publicationId);
   }
 
+  scheduleFor(publicationId: number): PublicationScheduleInput {
+    return this.schedules()[publicationId] ?? { date: '', endDate: '', startTime: '', endTime: '' };
+  }
+
+  scheduledCount(publicationId: number): number {
+    const schedule = this.scheduleFor(publicationId);
+    return this.datesFor(publicationId)
+      .filter(date => this.scheduledScheduleKeys().includes(this.scheduleKey(publicationId, date))).length;
+  }
+
+  datesFor(publicationId: number): string[] {
+    const schedule = this.scheduleFor(publicationId);
+    return datesBetweenInclusive(schedule.date, schedule.endDate);
+  }
+
+  scheduleComplete(publicationId: number): boolean {
+    const dates = this.datesFor(publicationId);
+    return dates.length > 0 && this.scheduledCount(publicationId) === dates.length;
+  }
+
+  scheduledEntryCount(): number {
+    return this.selectedPublications().reduce((count, publication) => count + this.scheduledCount(publication.id), 0);
+  }
+
+  updateSchedule(publicationId: number, field: keyof PublicationScheduleInput, value: string): void {
+    this.schedules.update(schedules => ({
+      ...schedules,
+      [publicationId]: { ...this.scheduleFor(publicationId), [field]: value },
+    }));
+  }
+
   selectedIndex(publicationId: number): number {
     return this.selectedPublicationIds().indexOf(publicationId) + 1;
   }
@@ -220,6 +379,12 @@ export class CreateProgramPage implements OnInit {
     this.selectedPublicationIds.update(ids => ids.includes(publicationId)
       ? ids.filter(id => id !== publicationId)
       : [...ids, publicationId]);
+    if (!this.isSelected(publicationId)) {
+      this.schedules.update(schedules => {
+        const { [publicationId]: _removed, ...remaining } = schedules;
+        return remaining;
+      });
+    }
   }
 
   movePublication(index: number, direction: -1 | 1): void {
@@ -233,21 +398,31 @@ export class CreateProgramPage implements OnInit {
   }
 
   save(): void {
+    if (!this.createdProgram()) {
+      this.reviewOpen.set(true);
+      return;
+    }
+    this.confirmSave();
+  }
+
+  confirmSave(): void {
+    this.reviewOpen.set(false);
     const existing = this.createdProgram();
     if (existing) {
-      this.addEntries(existing);
+      if (this.entriesAdded()) this.scheduleEntries(existing);
+      else this.addEntries(existing);
       return;
     }
     const name = this.name.trim();
-    const publicationIds = this.selectedPublicationIds();
-    if (name.length < 2 || !publicationIds.length) return;
+    if (name.length < 2) return;
 
     this.saving.set(true);
     this.error.set('');
     this.createProgram.execute(name).subscribe({
       next: program => {
         this.createdProgram.set(program);
-        this.addEntries(program);
+        if (this.selectedPublicationIds().length) this.addEntries(program);
+        else this.finish(program);
       },
       error: error => {
         this.saving.set(false);
@@ -259,14 +434,80 @@ export class CreateProgramPage implements OnInit {
   private addEntries(program: Program): void {
     this.addProgramEntries.execute(program.id, this.selectedPublicationIds()).subscribe({
       next: updatedProgram => {
-        this.saving.set(false);
-        this.toast.show('Programação criada com os conteúdos selecionados');
-        this.router.navigate(['/programacao'], { queryParams: { programId: updatedProgram.id } });
+        this.entriesAdded.set(true);
+        this.scheduleEntries(updatedProgram);
       },
       error: error => {
         this.saving.set(false);
         this.error.set(errorMessage(error));
       },
     });
+  }
+
+  private scheduleEntries(program: Program): void {
+    const pending = this.selectedPublications().flatMap(publication => {
+      const schedule = this.scheduleFor(publication.id);
+      return datesBetweenInclusive(schedule.date, schedule.endDate)
+        .filter(date => !this.scheduledScheduleKeys().includes(this.scheduleKey(publication.id, date)))
+        .map(date => ({ publication, date }));
+    });
+    if (!pending.length) {
+      this.finish(program);
+      return;
+    }
+
+    this.saving.set(true);
+    this.error.set('');
+    this.scheduleProgress.set({ completed: 0, total: pending.length });
+    let scheduledNow = 0;
+    let activeItem = pending[0];
+    from(pending).pipe(
+      concatMap(({ publication, date }) => {
+        activeItem = { publication, date };
+        const schedule = this.scheduleFor(publication.id);
+        return this.createSchedule.execute({
+          publicationId: publication.id,
+          programId: program.id,
+          date,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+        });
+      }),
+    ).subscribe({
+      next: entry => {
+        scheduledNow++;
+        this.scheduleProgress.update(progress => ({ ...progress, completed: scheduledNow }));
+        this.scheduledScheduleKeys.update(keys => [...keys, this.scheduleKey(entry.publicationId, entry.date)]);
+      },
+      error: error => {
+        this.saving.set(false);
+        const partial = scheduledNow ? ` ${scheduledNow} agendamento(s) já foram concluídos.` : '';
+        this.error.set(`${errorMessage(error)} Não foi possível agendar “${activeItem.publication.title}” em ${this.formatDate(activeItem.date)}.${partial} Corrija o período ou horário e tente concluir novamente.`);
+      },
+      complete: () => this.finish(program),
+    });
+  }
+
+  private finish(program: Program): void {
+    this.saving.set(false);
+    const contents = this.selectedPublications().length;
+    this.toast.show(contents
+      ? `Programação criada: ${contents} conteúdo(s) e ${this.scheduledEntryCount()} agendamento(s) concluídos.`
+      : 'Programação criada sem conteúdos. Você pode adicionar a sequência depois.');
+    this.router.navigate(['/programacao'], { queryParams: { programId: program.id } });
+  }
+
+  scheduleProgressPercent(): number {
+    const { completed, total } = this.scheduleProgress();
+    return total ? Math.round(completed / total * 100) : 0;
+  }
+
+  private formatDate(value: string): string {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
+  }
+
+  private scheduleKey(publicationId: number, date: string): string {
+    return `${publicationId}:${date}`;
   }
 }

@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
-import { PlayerItem } from './player.entity';
+import { PlayerPlaylist } from './player.entity';
 
 export abstract class PlayerRepository {
-  abstract playlist(token: string, programId: number): Observable<PlayerItem[]>;
+  abstract playlist(token: string, programId: number): Observable<PlayerPlaylist>;
 }

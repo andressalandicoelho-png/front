@@ -13,11 +13,13 @@ const dateInput = (date: Date): string =>
   selector: 'app-reports',
   imports: [DatePipe, FormsModule, IconComponent],
   template: `
-    <header class="page-head row-between"><div><span class="eyebrow">Histórico / Conteúdos</span><h1>Relatórios</h1><p class="muted">Consulte participações reais dos conteúdos nos agendamentos.</p></div>
-      <button class="btn" type="button" (click)="exportCsv()" [disabled]="!filtered().length">Exportar CSV</button></header>
+    <header class="page-head row-between">
+      <div><h1>Relatórios</h1><p class="muted">Consulte as participações dos conteúdos nos agendamentos.</p></div>
+      <button class="btn primary" type="button" (click)="exportCsv()" [disabled]="!filtered().length"><app-icon name="document" [size]="16"/> Exportar CSV</button>
+    </header>
 
     <section class="card report-filters">
-      <label class="search-field"><app-icon name="search" [size]="19"/><input class="input" type="search" placeholder="Buscar por título, autor ou e-mail" [(ngModel)]="query" (ngModelChange)="page.set(0)"></label>
+      <label class="search-field report-search"><app-icon name="search" [size]="17"/><input class="input" type="search" placeholder="Buscar por conteúdo, autor ou e-mail" aria-label="Buscar por conteúdo, autor ou e-mail" [(ngModel)]="query" (ngModelChange)="page.set(0)"></label>
       <div class="filter-grid">
         <label class="field">De<input class="input" type="date" [(ngModel)]="from" (ngModelChange)="load()"></label>
         <label class="field">Até<input class="input" type="date" [(ngModel)]="to" (ngModelChange)="load()"></label>
@@ -27,9 +29,11 @@ const dateInput = (date: Date): string =>
     </section>
 
     <section class="card report-table-card">
-      <div class="card-head"><strong>Posts e participações</strong><span class="chip">{{ filtered().length }} registros</span></div>
+      <div class="card-head report-table-card-head">
+        <div class="report-table-title"><strong>Participações agendadas</strong><span class="chip">{{ filtered().length }} {{ filtered().length === 1 ? 'registro' : 'registros' }}</span></div>
+      </div>
       <div class="report-table">
-        <div class="report-table-head"><span>Post</span><span>Criado por</span><span>Data agendada</span><span>Status</span><span>Horário</span></div>
+        <div class="report-table-head"><span>Conteúdo</span><span>Autor</span><span>Data agendada</span><span>Status</span><span>Horário</span></div>
         @for (item of pageItems(); track item.id) {
           <article class="report-row">
             <div class="report-title"><strong>{{ item.title }}</strong><small>{{ item.type }} · #{{ item.publicationId }}</small></div>
@@ -47,9 +51,18 @@ const dateInput = (date: Date): string =>
           </div>
         }
       </div>
-      <footer class="pagination"><small class="muted">Mostrando {{ pageItems().length }} de {{ filtered().length }} registros</small><div class="actions"><button class="btn small" type="button" [disabled]="page() === 0" (click)="previousPage()">Anterior</button><span>{{ page() + 1 }} / {{ pageCount() }}</span><button class="btn small" type="button" [disabled]="page() + 1 >= pageCount()" (click)="nextPage()">Próxima →</button></div></footer>
+      @if (filtered().length) {
+        <footer class="pagination report-pagination">
+          <small class="muted">Mostrando {{ pageItems().length }} de {{ filtered().length }} registros</small>
+          <div class="actions">
+            <button class="btn small" type="button" [disabled]="page() === 0" (click)="previousPage()">Anterior</button>
+            <span aria-live="polite">{{ page() + 1 }} / {{ pageCount() }}</span>
+            <button class="btn small" type="button" [disabled]="page() + 1 >= pageCount()" (click)="nextPage()">Próxima</button>
+          </div>
+        </footer>
+      }
     </section>
-    <p class="muted report-note">O relatório reflete os agendamentos cadastrados na agenda; não indica audiência nem confirma que um conteúdo foi visualizado na TV.</p>
+    <p class="muted report-note"><app-icon name="info" [size]="15"/> O relatório reflete os agendamentos cadastrados na agenda; não indica audiência nem confirma que um conteúdo foi visualizado na TV.</p>
   `,
 })
 export class ReportsPage implements OnInit {
