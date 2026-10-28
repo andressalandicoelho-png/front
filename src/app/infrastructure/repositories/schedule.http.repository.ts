@@ -10,8 +10,8 @@ import { api, cleanParams } from '../http/api';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const toEntry = (r: any): ScheduleEntry => ({
   id: r.id,
-  channelId: r.channelId ?? r.channel?.id,
   publicationId: r.publicationId ?? r.publication?.id,
+  programId: r.programId ?? null,
   date: String(r.date).slice(0, 10),
   startTime: String(r.startTime).slice(0, 5),
   endTime: String(r.endTime).slice(0, 5),

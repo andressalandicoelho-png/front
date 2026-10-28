@@ -18,6 +18,9 @@ const toPublication = (r: any): Publication => ({
   originalDurationSeconds: r.originalDurationSeconds ?? null,
   linkUrl: r.linkUrl ?? null,
   mediaId: r.mediaId ?? r.media?.id ?? (r.type === 'LINK' ? null : r.id),
+  createdByName: r.createdByName,
+  programNames: r.programNames ?? [],
+  createdAt: r.createdAt,
 });
 
 @Injectable()

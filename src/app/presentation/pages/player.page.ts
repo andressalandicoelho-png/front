@@ -2,14 +2,13 @@ import { Component, OnDestroy, OnInit, inject, input, signal } from '@angular/co
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { LoadPlayerPlaylistUseCase } from '@application/player/player.usecases';
 import { PlayerItem } from '@domain/player/player.entity';
-import { buildQueue } from '@domain/schedule/schedule.rules';
 
 const REFRESH_MS = 60_000;
 const IDLE_RETRY_MS = 5_000;
 
 /**
- * Player de TV: busca a programação do canal, monta a fila válida para o horário atual
- * e reproduz em loop, respeitando a duração de cada item. Sem conteúdo → tela de espera.
+ * Player de TV: busca uma programação e reproduz seus conteúdos em sequência contínua.
+ * Sem conteúdo → tela de espera.
  * Se a conexão cair, continua com a última programação carregada.
  */
 @Component({
@@ -29,7 +28,7 @@ const IDLE_RETRY_MS = 5_000;
 })
 export class PlayerPage implements OnInit, OnDestroy {
   token = input.required<string>();
-  channelId = input.required<string>();
+  programId = input.required<string>();
 
   private usecase = inject(LoadPlayerPlaylistUseCase);
   private sanitizer = inject(DomSanitizer);
@@ -40,7 +39,7 @@ export class PlayerPage implements OnInit, OnDestroy {
   private refreshTimer?: ReturnType<typeof setInterval>;
 
   ngOnInit(): void {
-    this.usecase.execute(this.token(), Number(this.channelId())).subscribe({
+    this.usecase.execute(this.token(), Number(this.programId())).subscribe({
       next: list => { this.playlist = list; this.advance(); },
       error: () => this.advance(),
     });
@@ -57,21 +56,20 @@ export class PlayerPage implements OnInit, OnDestroy {
   }
 
   private refresh(): void {
-    this.usecase.execute(this.token(), Number(this.channelId())).subscribe({
+    this.usecase.execute(this.token(), Number(this.programId())).subscribe({
       next: list => (this.playlist = list),
       error: () => { /* mantém a última programação conhecida */ },
     });
   }
 
   private advance(): void {
-    const queue = buildQueue(this.playlist, new Date());
-    if (!queue.length) {
+    if (!this.playlist.length) {
       this.current.set(null);
       this.advanceTimer = setTimeout(() => this.advance(), IDLE_RETRY_MS);
       return;
     }
-    const at = queue.findIndex(i => i.key === this.current()?.key);
-    const next = queue[(at + 1) % queue.length];
+    const at = this.playlist.findIndex(i => i.key === this.current()?.key);
+    const next = this.playlist[(at + 1) % this.playlist.length];
     this.current.set(next);
     this.advanceTimer = setTimeout(() => this.advance(), next.seconds * 1000);
   }

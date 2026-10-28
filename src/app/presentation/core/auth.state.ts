@@ -18,14 +18,14 @@ export class AuthState {
   readonly isAdmin = computed(() => isAdmin(this.user()));
 
   login(email: string, password: string): Observable<User> {
-    return this.loginUC.execute(email, password).pipe(tap(u => this.user.set(u)));
+    return this.loginUC.execute(email, password).pipe(tap(u => this.setUser(u)));
   }
 
   restore(): Observable<boolean> {
     if (!this.store.getToken()) return of(false);
     if (this.user()) return of(true);
     return this.meUC.execute().pipe(
-      tap(u => this.user.set(u)),
+      tap(u => this.setUser(u)),
       map(() => true),
       catchError(() => { this.logoutUC.execute(); return of(false); }),
     );
@@ -33,7 +33,15 @@ export class AuthState {
 
   setPlayerToken(token: string): void {
     const u = this.user();
-    if (u) this.user.set({ ...u, playerToken: token });
+    if (u) {
+      localStorage.setItem(`office-total.player-token.${u.id}`, token);
+      this.user.set({ ...u, playerToken: token, hasPlayerToken: true });
+    }
+  }
+
+  private setUser(user: User): void {
+    const playerToken = localStorage.getItem(`office-total.player-token.${user.id}`);
+    this.user.set({ ...user, playerToken });
   }
 
   logout(): void {

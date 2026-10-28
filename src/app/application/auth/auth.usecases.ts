@@ -29,3 +29,11 @@ export class GetCurrentUserUseCase {
   private users = inject(UserRepository);
   execute(): Observable<User> { return this.users.me(); }
 }
+
+@Injectable({ providedIn: 'root' })
+export class ChangeOwnPasswordUseCase {
+  private auth = inject(AuthRepository);
+  execute(currentPassword: string, newPassword: string): Observable<void> {
+    return this.auth.changePassword(currentPassword, newPassword);
+  }
+}

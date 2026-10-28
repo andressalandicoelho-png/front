@@ -1,7 +1,6 @@
 import { PublicationType } from '../publication/publication.entity';
-import { Windowed } from '../schedule/schedule.rules';
 
-export interface PlayerItem extends Windowed {
+export interface PlayerItem {
   key: string;
   title: string;
   type: PublicationType;

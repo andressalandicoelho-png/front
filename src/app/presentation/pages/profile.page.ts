@@ -1,68 +1,83 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
-import { ListChannelsUseCase } from '@application/channel/channel.usecases';
-import { GeneratePlayerTokenUseCase } from '@application/user/user.usecases';
-import { Channel } from '@domain/channel/channel.entity';
+import { Component, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { ChangeOwnPasswordUseCase } from '@application/auth/auth.usecases';
 import { errorMessage } from '@infra/http/auth.interceptor';
 import { AuthState } from '@presentation/core/auth.state';
-import { ToastService } from '@presentation/core/toast.service';
 import { IconComponent } from '@presentation/ui/icon.component';
 
 @Component({
   selector: 'app-profile',
-  imports: [IconComponent],
+  imports: [RouterLink, IconComponent, FormsModule],
   template: `
-    <header class="page-head"><h1>Perfil</h1></header>
+    <header class="page-head"><span class="eyebrow">Minha conta / Segurança</span><h1>Minha conta</h1><p class="muted">Gerencie seus dados e a segurança do seu acesso.</p></header>
+
+    <nav class="tabs" aria-label="Seções da conta"><a class="tab" routerLink="/perfil">Dados pessoais</a><a class="tab active" routerLink="/perfil">Segurança</a></nav>
 
     @if (auth.user(); as u) {
-      <section class="card profile">
-        <span class="avatar big">{{ u.name[0] }}</span>
-        <div>
-          <div class="title">{{ u.name }}</div>
-          <div class="muted">{{ u.email }}</div>
-          <div class="chips tight">@for (r of u.roles; track r) { <span class="chip">{{ r === 'ADMIN' ? 'Administrador' : 'Editor' }}</span> }</div>
-        </div>
+      <div class="account-grid">
+      <section class="card account-password">
+        <h2>Alterar minha senha</h2>
+        <p class="muted">Altere a senha da sua própria conta, sem depender de um administrador.</p>
+        <div class="account-user"><span class="avatar">{{ u.name[0] }}</span><div class="grow"><strong>{{ u.name }}</strong><div class="muted">{{ u.email }} · Conta Office Total</div></div></div>
+        <form class="stack" (ngSubmit)="changePassword()">
+          <label class="field">Senha atual<input class="input" type="password" name="current" autocomplete="current-password" [(ngModel)]="passwordForm.current" required></label>
+          <a class="link" href="mailto:suporte@officetotal.com.br?subject=Redefinir%20senha">Esqueci minha senha</a>
+          <label class="field">Nova senha<input class="input" type="password" name="next" autocomplete="new-password" [(ngModel)]="passwordForm.next" minlength="8" maxlength="72" required></label>
+          <small class="muted">Use no mínimo 8 caracteres, com letras e números.</small>
+          <label class="field">Confirmar nova senha<input class="input" type="password" name="confirm" autocomplete="new-password" [(ngModel)]="passwordForm.confirm" required></label>
+          @if (passwordError()) { <p class="error">{{ passwordError() }}</p> }
+          @if (passwordSuccess()) { <p class="success">{{ passwordSuccess() }}</p> }
+          <div class="actions"><button class="btn" type="button" (click)="resetPasswordForm()">Cancelar</button><button class="btn primary" type="submit" [disabled]="passwordSaving()">Salvar nova senha</button></div>
+        </form>
       </section>
+      <aside class="account-side">
+        <section class="card pad"><h2>Proteja sua conta</h2><p class="muted">Uma senha longa é mais fácil de lembrar e mais difícil de adivinhar.</p><p class="muted">Evite nomes, datas pessoais e sequências comuns. Use uma combinação que só você conheça.</p></section>
+        <section class="card pad"><h3>Acessa com a Microsoft?</h3><p class="muted">A senha da conta Microsoft é gerenciada na própria Microsoft.</p><a class="link" href="https://account.microsoft.com/security" target="_blank" rel="noopener">Gerenciar senha na Microsoft ↗</a></section>
+      </aside>
+      </div>
 
-      <section class="card">
-        <div class="card-head"><strong>Token do player</strong></div>
-        <p class="muted pad">As TVs usam este token para abrir o canal. Gerar um novo token desconecta as TVs que usam o anterior.</p>
-        <div class="pad">
-          <button class="btn primary" type="button" (click)="generate()">{{ u.playerToken ? 'Trocar token' : 'Gerar token' }}</button>
-        </div>
-
-        @if (u.playerToken; as token) {
-          @for (c of channels(); track c.id) {
-            <div class="row">
-              <div class="grow">
-                <div class="title">{{ c.name }}</div>
-                <div class="muted url">{{ playerUrl(token, c.id) }}</div>
-              </div>
-              <button class="icon-btn" type="button" aria-label="Copiar link" (click)="copy(playerUrl(token, c.id))"><app-icon name="copy" [size]="20"/></button>
-              <a class="icon-btn" [href]="playerUrl(token, c.id)" target="_blank" rel="noopener" aria-label="Abrir player"><app-icon name="play" [size]="20"/></a>
-            </div>
-          }
-        }
-      </section>
+      <button class="btn account-logout" type="button" (click)="auth.logout()"><app-icon name="logout" [size]="18"/> Sair da conta</button>
     }
   `,
 })
-export class ProfilePage implements OnInit {
+export class ProfilePage {
   auth = inject(AuthState);
-  private channelsUC = inject(ListChannelsUseCase);
-  private tokenUC = inject(GeneratePlayerTokenUseCase);
-  private toast = inject(ToastService);
-  channels = signal<Channel[]>([]);
+  private changePasswordUC = inject(ChangeOwnPasswordUseCase);
+  passwordForm = { current: '', next: '', confirm: '' };
+  passwordError = signal('');
+  passwordSuccess = signal('');
+  passwordSaving = signal(false);
 
-  ngOnInit(): void { this.channelsUC.execute().subscribe(l => this.channels.set(l)); }
+  resetPasswordForm(): void {
+    this.passwordForm = { current: '', next: '', confirm: '' };
+    this.passwordError.set('');
+    this.passwordSuccess.set('');
+  }
 
-  playerUrl = (token: string, channelId: number) => `${location.origin}/player/${token}/${channelId}`;
-
-  generate(): void {
-    this.tokenUC.execute().subscribe({
-      next: token => { this.auth.setPlayerToken(token); this.toast.show('Novo token gerado'); },
-      error: e => this.toast.show(errorMessage(e)),
+  changePassword(): void {
+    this.passwordError.set('');
+    this.passwordSuccess.set('');
+    if (this.passwordForm.next !== this.passwordForm.confirm) {
+      this.passwordError.set('As senhas não coincidem. Digite novamente a mesma senha informada em “Nova senha”.');
+      return;
+    }
+    if (!/[A-Za-z]/.test(this.passwordForm.next) || !/\d/.test(this.passwordForm.next)) {
+      this.passwordError.set('A senha deve conter letras e números.');
+      return;
+    }
+    this.passwordSaving.set(true);
+    this.changePasswordUC.execute(this.passwordForm.current, this.passwordForm.next).subscribe({
+      next: () => {
+        this.passwordSaving.set(false);
+        this.resetPasswordForm();
+        this.passwordSuccess.set('Senha alterada com sucesso. A nova senha foi salva para sua conta.');
+      },
+      error: error => {
+        this.passwordSaving.set(false);
+        this.passwordError.set(errorMessage(error));
+      },
     });
   }
 
-  copy(text: string): void { navigator.clipboard.writeText(text).then(() => this.toast.show('Link copiado')); }
 }

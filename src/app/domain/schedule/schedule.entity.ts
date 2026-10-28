@@ -1,7 +1,7 @@
 export interface ScheduleEntry {
   id: number;
-  channelId: number;
   publicationId: number;
+  programId: number | null;
   /** AAAA-MM-DD */
   date: string;
   /** HH:mm */
@@ -13,19 +13,18 @@ export interface ScheduleEntry {
 }
 
 export interface NewScheduleEntry {
-  channelId: number;
   publicationId: number;
+  programId: number;
   date: string;
   startTime: string;
   endTime: string;
   turnSeconds?: number;
 }
 
-export type ScheduleChanges = Partial<Omit<NewScheduleEntry, 'channelId' | 'publicationId'>>;
+export type ScheduleChanges = Partial<Omit<NewScheduleEntry, 'publicationId'>>;
 
 export interface ScheduleFilter {
   date?: string;
   from?: string;
   to?: string;
-  channelId?: number;
 }

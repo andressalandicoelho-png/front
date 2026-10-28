@@ -7,6 +7,7 @@ export interface User {
   roles: Role[];
   active: boolean;
   playerToken?: string | null;
+  hasPlayerToken?: boolean;
 }
 
 export interface NewUser {

@@ -11,6 +11,9 @@ export interface Publication {
   linkUrl: string | null;
   /** Identificador usado em GET /media/:id */
   mediaId: number | null;
+  createdByName?: string;
+  programNames?: string[];
+  createdAt?: string;
 }
 
 export interface NewPublication {

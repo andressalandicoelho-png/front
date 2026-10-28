@@ -13,6 +13,7 @@ const toUser = (r: any): User => ({
   roles: r.roles ?? [],
   active: r.active ?? true,
   playerToken: r.playerToken ?? null,
+  hasPlayerToken: r.hasPlayerToken ?? false,
 });
 
 @Injectable()

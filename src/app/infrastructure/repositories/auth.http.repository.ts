@@ -13,4 +13,8 @@ export class HttpAuthRepository extends AuthRepository {
       map(res => res['accessToken'] ?? res['access_token'] ?? res['token']),
     );
   }
+
+  changePassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.http.patch<void>(api('/users/me/password'), { currentPassword, newPassword });
+  }
 }
