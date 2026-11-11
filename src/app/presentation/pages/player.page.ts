@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject, input, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { LoadPlayerPlaylistUseCase } from '@application/player/player.usecases';
 import { PlayerItem, PlayerPlaylist } from '@domain/player/player.entity';
@@ -26,21 +26,23 @@ const IDLE_RETRY_MS = 5_000;
         </div>
       }
       <main class="player-stage">
-        @if (current(); as item) {
+        @for (item of currentItems(); track item.key) {
           @switch (item.type) {
-            @case ('IMAGE') { <img [src]="item.mediaUrl!" [alt]="item.title"> }
+            @case ('IMAGE') { <img [src]="item.mediaUrl!" [alt]="item.title" animate.enter="player-image-enter" animate.leave="player-image-leave"> }
             @case ('VIDEO') { <video [src]="item.mediaUrl!" autoplay muted playsinline></video> }
             @case ('LINK') { <iframe [src]="safe(item)" title="Conteúdo"></iframe> }
           }
-        } @else if (messages().length) {
-          <div class="player-idle"><p>Mensagem fixa em exibição</p></div>
-        } @else {
-          <div class="player-idle">
-            <span class="brand-mark big">TV</span>
-            <p>{{ !connected() ? 'Não foi possível conectar ao player' : !programActive() ? 'Esta programação está pausada' : 'Sem conteúdo programado neste horário' }}</p>
-            @if (programName()) { <small>{{ programName() }}</small> }
-            <button type="button" class="player-retry" (click)="refresh()">Tentar novamente</button>
-          </div>
+        } @empty {
+          @if (messages().length) {
+            <div class="player-idle"><p>Mensagem fixa em exibição</p></div>
+          } @else {
+            <div class="player-idle">
+              <span class="brand-mark big">TV</span>
+              <p>{{ !connected() ? 'Não foi possível conectar ao player' : !programActive() ? 'Esta programação está pausada' : 'Sem conteúdo programado neste horário' }}</p>
+              @if (programName()) { <small>{{ programName() }}</small> }
+              <button type="button" class="player-retry" (click)="refresh()">Tentar novamente</button>
+            </div>
+          }
         }
       </main>
       @if (messages().length) {
@@ -56,6 +58,10 @@ export class PlayerPage implements OnInit, OnDestroy {
   private sanitizer = inject(DomSanitizer);
 
   current = signal<PlayerItem | null>(null);
+  currentItems = computed(() => {
+    const item = this.current();
+    return item ? [item] : [];
+  });
   messages = signal<PlayerItem[]>([]);
   programName = signal('');
   programActive = signal(true);

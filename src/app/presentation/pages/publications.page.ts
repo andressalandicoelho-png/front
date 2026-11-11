@@ -6,7 +6,7 @@ import {
   CreatePublicationUseCase, DeletePublicationUseCase, ListPublicationsUseCase,
   PublishPublicationUseCase, UnpublishPublicationUseCase, UpdatePublicationUseCase,
 } from '@application/publication/publication.usecases';
-import { DEFAULT_DISPLAY_SECONDS, MAX_UPLOAD_BYTES, Publication, PublicationType } from '@domain/publication/publication.entity';
+import { DEFAULT_DISPLAY_SECONDS, MAX_MESSAGE_CONTENT_LENGTH, MAX_UPLOAD_BYTES, Publication, PublicationType } from '@domain/publication/publication.entity';
 import { errorMessage } from '@presentation/core/error-message';
 import { ToastService } from '@presentation/core/toast.service';
 import { typeLabel } from '@presentation/core/format';
@@ -137,7 +137,8 @@ interface ZipImagePreview {
             }
           }
           @if (form.type === 'MESSAGE') {
-            <textarea class="input" name="content" rows="5" placeholder="Texto que ficará fixo na faixa inferior do player" [(ngModel)]="form.content" required></textarea>
+            <textarea class="input" name="content" rows="5" placeholder="Texto que ficará fixo na faixa inferior do player" [(ngModel)]="form.content" [maxlength]="maxMessageContentLength" required></textarea>
+            <small class="muted message-character-count">{{ form.content.length }} / {{ maxMessageContentLength }} caracteres · cerca de 1 minuto de leitura</small>
           } @else if (!editing()) {
             @if (form.type === 'LINK') {
               <textarea class="input" name="link" rows="4" placeholder="Cole uma URL HTTPS ou o código de incorporação" [(ngModel)]="form.linkUrl"></textarea>
@@ -234,6 +235,8 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   private unpublishUC = inject(UnpublishPublicationUseCase);
   private deleteUC = inject(DeletePublicationUseCase);
   private toast = inject(ToastService);
+
+  readonly maxMessageContentLength = MAX_MESSAGE_CONTENT_LENGTH;
 
   statusFilters: { label: string; value: ContentStatusFilter }[] = [
     { label: 'Todos', value: 'ALL' },
@@ -574,6 +577,10 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
 
   save(): void {
     this.error.set('');
+    if (this.form.type === 'MESSAGE' && this.form.content.length > this.maxMessageContentLength) {
+      this.error.set(`A mensagem pode ter até ${this.maxMessageContentLength} caracteres (cerca de 1 minuto de leitura).`);
+      return;
+    }
     if (this.currentZipImage()) this.saveZipImageForm();
     this.saving.set(true);
     const current = this.editing();
