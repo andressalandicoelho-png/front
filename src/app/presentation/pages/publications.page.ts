@@ -2,11 +2,15 @@ import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, 
 import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import JSZip from 'jszip';
+import { firstValueFrom } from 'rxjs';
 import {
   CreatePublicationUseCase, DeletePublicationUseCase, ListPublicationsUseCase,
   PublishPublicationUseCase, UnpublishPublicationUseCase, UpdatePublicationUseCase,
 } from '@application/publication/publication.usecases';
-import { DEFAULT_DISPLAY_SECONDS, MAX_MESSAGE_CONTENT_LENGTH, MAX_UPLOAD_BYTES, Publication, PublicationType } from '@domain/publication/publication.entity';
+import {
+  DEFAULT_DISPLAY_SECONDS, MAX_MESSAGE_CONTENT_LENGTH, MAX_UPLOAD_BYTES, Publication, PublicationType,
+  validateNewPublication,
+} from '@domain/publication/publication.entity';
 import { errorMessage } from '@presentation/core/error-message';
 import { ToastService } from '@presentation/core/toast.service';
 import { typeLabel } from '@presentation/core/format';
@@ -22,7 +26,6 @@ interface ZipImagePreview {
   file: File;
   previewUrl: string;
   title: string;
-  displaySeconds: number;
   created: boolean;
 }
 
@@ -184,23 +187,24 @@ interface ZipImagePreview {
           @if (zipProcessing()) { <p class="muted" role="status">Lendo imagens do ZIP…</p> }
           @if (form.type !== 'MESSAGE' && !editing()) {
             <fieldset class="field duration-field">
-              <legend>Segundos na tela</legend>
+              <legend>{{ zipImages().length ? 'Segundos para todas as imagens' : 'Segundos na tela' }}</legend>
               <div class="duration-options" role="group" aria-label="Duração predefinida">
                 @for (seconds of durationOptions; track seconds) {
                   <button class="btn small duration-option" type="button"
                     [class.selected]="form.displaySeconds === seconds"
                     [attr.aria-pressed]="form.displaySeconds === seconds"
-                    (click)="form.displaySeconds = seconds">{{ seconds }} s</button>
+                    (click)="setDisplaySeconds(seconds)">{{ seconds }} s</button>
                 }
               </div>
               <label class="field">Personalizar segundos
                 <input class="input" type="number" min="1" max="3600" name="secs"
-                  [(ngModel)]="form.displaySeconds" placeholder="Ex.: 25">
+                  [ngModel]="form.displaySeconds" (ngModelChange)="setDisplaySeconds($event)" placeholder="Ex.: 25">
               </label>
             </fieldset>
           } @else if (form.type !== 'MESSAGE') {
             <label class="field">Segundos na tela
-              <input class="input" type="number" min="1" max="3600" name="secs" [(ngModel)]="form.displaySeconds">
+              <input class="input" type="number" min="1" max="3600" name="secs"
+                [ngModel]="form.displaySeconds" (ngModelChange)="setDisplaySeconds($event)">
             </label>
           }
           @if (form.type === 'VIDEO' && !editing()) {
@@ -209,9 +213,21 @@ interface ZipImagePreview {
             </label>
           }
           @if (error()) { <p class="error">{{ error() }}</p> }
-          <button class="btn primary block" type="submit" [disabled]="saving() || zipProcessing() || currentZipImage()?.created">
-            {{ saving() ? 'Enviando…' : currentZipImage()?.created ? 'Conteúdo já criado' : editing() ? 'Salvar alterações' : 'Enviar' }}
-          </button>
+          @if (zipBatchError()) { <p class="error" role="alert">{{ zipBatchError() }}</p> }
+          @if (zipImages().length) {
+            <button class="btn primary block" type="button" [disabled]="saving() || zipProcessing() || !pendingZipImageCount()"
+              (click)="saveAllZipImages()">
+              {{ saving() ? 'Enviando ' + zipBatchProgress() + ' de ' + zipBatchTotal() + '…' :
+                pendingZipImageCount() ? 'Enviar todas (' + pendingZipImageCount() + ')' : 'Todas as imagens já foram enviadas' }}
+            </button>
+            <button class="btn block" type="submit" [disabled]="saving() || zipProcessing() || currentZipImage()?.created">
+              {{ currentZipImage()?.created ? 'Imagem já enviada' : 'Enviar apenas esta imagem' }}
+            </button>
+          } @else {
+            <button class="btn primary block" type="submit" [disabled]="saving() || zipProcessing()">
+              {{ saving() ? 'Enviando…' : editing() ? 'Salvar alterações' : 'Enviar' }}
+            </button>
+          }
         </form>
       </app-modal>
     }
@@ -290,6 +306,11 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   zipImages = signal<ZipImagePreview[]>([]);
   zipIndex = signal(0);
   zipProcessing = signal(false);
+  zipDisplaySeconds = signal<number | null>(DEFAULT_DISPLAY_SECONDS);
+  zipBatchProgress = signal(0);
+  zipBatchTotal = signal(0);
+  zipBatchError = signal('');
+  pendingZipImageCount = computed(() => this.zipImages().filter(image => !image.created).length);
   mediaPreviewUrl = signal<string | null>(null);
   previewLoading = signal(false);
   previewError = signal('');
@@ -465,6 +486,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     this.form.file = undefined;
     this.form.title = '';
     this.form.displaySeconds = DEFAULT_DISPLAY_SECONDS;
+    this.zipDisplaySeconds.set(DEFAULT_DISPLAY_SECONDS);
     if (file.size > MAX_UPLOAD_BYTES) {
       this.error.set('O arquivo ZIP passa do limite de 300 MB.');
       return;
@@ -494,7 +516,6 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
           file: imageFile,
           previewUrl: URL.createObjectURL(imageFile),
           title: filename,
-          displaySeconds: DEFAULT_DISPLAY_SECONDS,
           created: false,
         });
       }
@@ -522,8 +543,13 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   private saveZipImageForm(): void {
     const index = this.zipIndex();
     this.zipImages.update(images => images.map((image, imageIndex) => imageIndex === index
-      ? { ...image, title: this.form.title, displaySeconds: this.form.displaySeconds ?? DEFAULT_DISPLAY_SECONDS }
+      ? { ...image, title: this.form.title }
       : image));
+  }
+
+  setDisplaySeconds(seconds: number | null): void {
+    this.form.displaySeconds = seconds;
+    if (this.zipImages().length) this.zipDisplaySeconds.set(seconds);
   }
 
   private applyZipImage(index: number): void {
@@ -531,7 +557,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     if (!image) return;
     this.form.file = image.file;
     this.form.title = image.title;
-    this.form.displaySeconds = image.displaySeconds;
+    this.form.displaySeconds = this.zipDisplaySeconds();
     this.form.originalDurationSeconds = null;
   }
 
@@ -539,6 +565,10 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     for (const image of this.zipImages()) URL.revokeObjectURL(image.previewUrl);
     this.zipImages.set([]);
     this.zipIndex.set(0);
+    this.zipDisplaySeconds.set(DEFAULT_DISPLAY_SECONDS);
+    this.zipBatchProgress.set(0);
+    this.zipBatchTotal.set(0);
+    this.zipBatchError.set('');
   }
 
   private clearMediaPreview(): void {
@@ -577,6 +607,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
 
   save(): void {
     this.error.set('');
+    this.zipBatchError.set('');
     if (this.form.type === 'MESSAGE' && this.form.content.length > this.maxMessageContentLength) {
       this.error.set(`A mensagem pode ter até ${this.maxMessageContentLength} caracteres (cerca de 1 minuto de leitura).`);
       return;
@@ -613,6 +644,63 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
       },
       error: e => { this.saving.set(false); this.error.set(errorMessage(e)); },
     });
+  }
+
+  async saveAllZipImages(): Promise<void> {
+    this.error.set('');
+    this.zipBatchError.set('');
+    this.saveZipImageForm();
+    const pendingImages = this.zipImages().filter(image => !image.created);
+    if (!pendingImages.length) return;
+    const displaySeconds = this.zipDisplaySeconds();
+    if (displaySeconds === null || !Number.isInteger(displaySeconds) || displaySeconds < 1 || displaySeconds > 3600) {
+      this.error.set('A duração deve ser um número inteiro entre 1 e 3600 segundos.');
+      return;
+    }
+
+    for (const [index, image] of this.zipImages().entries()) {
+      if (image.created) continue;
+      const validationError = validateNewPublication({
+        title: image.title,
+        type: 'IMAGE',
+        file: image.file,
+        displaySeconds,
+      });
+      if (validationError) {
+        this.zipIndex.set(index);
+        this.applyZipImage(index);
+        this.error.set(`${image.file.name}: ${validationError}`);
+        return;
+      }
+    }
+
+    this.zipBatchProgress.set(0);
+    this.zipBatchTotal.set(pendingImages.length);
+    this.saving.set(true);
+    try {
+      for (const image of pendingImages) {
+        await firstValueFrom(this.createUC.execute({
+          title: image.title,
+          type: 'IMAGE',
+          file: image.file,
+          displaySeconds,
+        }));
+        this.zipImages.update(images => images.map(candidate => candidate === image
+          ? { ...candidate, created: true }
+          : candidate));
+        this.zipBatchProgress.update(progress => progress + 1);
+      }
+    } catch (error) {
+      this.zipBatchError.set(errorMessage(error));
+      this.load();
+      return;
+    } finally {
+      this.saving.set(false);
+    }
+
+    this.closeModal();
+    this.toast.show(`${pendingImages.length} imagens criadas como conteúdos`);
+    this.load();
   }
 
   private normalizeLinkInput(value: string): string {
