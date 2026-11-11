@@ -28,7 +28,7 @@ export interface NewPublication {
 export type PublicationChanges = Partial<{ title: string; displaySeconds: number }>;
 export interface PublicationFilter { status?: string; type?: PublicationType; }
 
-export const DEFAULT_DISPLAY_SECONDS = 10;
+export const DEFAULT_DISPLAY_SECONDS = 20;
 export const MAX_UPLOAD_BYTES = 300 * 1024 * 1024;
 
 /** Regras de negócio para criar uma publicação. Retorna a mensagem de erro, ou null se válida. */

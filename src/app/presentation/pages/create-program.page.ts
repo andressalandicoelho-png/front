@@ -6,8 +6,8 @@ import { ListPublicationsUseCase } from '@application/publication/publication.us
 import { CreateScheduleEntryUseCase } from '@application/schedule/schedule.usecases';
 import { Program } from '@domain/program/program.entity';
 import { Publication } from '@domain/publication/publication.entity';
-import { datesBetweenInclusive, toMinutes } from '@domain/schedule/schedule.rules';
-import { errorMessage } from '@infra/http/auth.interceptor';
+import { currentBusinessDate, datesBetweenInclusive, toMinutes } from '@domain/schedule/schedule.rules';
+import { errorMessage } from '@presentation/core/error-message';
 import { ToastService } from '@presentation/core/toast.service';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
@@ -16,14 +16,6 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
 import { concatMap, from } from 'rxjs';
 
 interface PublicationScheduleInput { date: string; endDate: string; startTime: string; endTime: string; }
-
-const businessDate = (): string => {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(new Date());
-  const value = (type: string) => parts.find(part => part.type === type)?.value ?? '';
-  return `${value('year')}-${value('month')}-${value('day')}`;
-};
 
 @Component({
   selector: 'app-create-program',
@@ -246,7 +238,7 @@ const businessDate = (): string => {
 
       <footer class="program-create-footer">
         <a class="btn" routerLink="/programacao">Cancelar</a>
-        <button class="btn primary" type="submit" [disabled]="saving() || (!createdProgram() && name.trim().length < 2) || !schedulesValid()">
+        <button class="btn primary" type="submit" [disabled]="saving()">
           {{ saving() ? 'Salvando…' : createdProgram() ? 'Concluir agendamentos' : 'Revisar programação' }}
         </button>
       </footer>
@@ -262,7 +254,7 @@ export class CreateProgramPage implements OnInit {
   private readonly toast = inject(ToastService);
 
   name = '';
-  today = businessDate();
+  today = currentBusinessDate();
   query = '';
   loading = signal(true);
   saving = signal(false);
@@ -398,6 +390,15 @@ export class CreateProgramPage implements OnInit {
   }
 
   save(): void {
+    this.error.set('');
+    if (!this.createdProgram() && this.name.trim().length < 2) {
+      this.error.set('Informe um nome com pelo menos 2 caracteres para a programação.');
+      return;
+    }
+    if (!this.schedulesValid()) {
+      this.error.set('Preencha a data inicial, a data final e os horários de cada conteúdo. O fim deve ser posterior ao início.');
+      return;
+    }
     if (!this.createdProgram()) {
       this.reviewOpen.set(true);
       return;
@@ -406,6 +407,14 @@ export class CreateProgramPage implements OnInit {
   }
 
   confirmSave(): void {
+    if (!this.createdProgram() && this.name.trim().length < 2) {
+      this.error.set('Informe um nome com pelo menos 2 caracteres para a programação.');
+      return;
+    }
+    if (!this.schedulesValid()) {
+      this.error.set('Preencha a data inicial, a data final e os horários de cada conteúdo. O fim deve ser posterior ao início.');
+      return;
+    }
     this.reviewOpen.set(false);
     const existing = this.createdProgram();
     if (existing) {
@@ -414,7 +423,6 @@ export class CreateProgramPage implements OnInit {
       return;
     }
     const name = this.name.trim();
-    if (name.length < 2) return;
 
     this.saving.set(true);
     this.error.set('');

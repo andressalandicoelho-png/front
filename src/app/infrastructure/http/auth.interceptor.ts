@@ -27,17 +27,3 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     }),
   );
 };
-
-/** Converte erros HTTP em mensagens legíveis. */
-export function errorMessage(err: unknown): string {
-  if (err instanceof HttpErrorResponse) {
-    const msg = err.error?.message;
-    if (Array.isArray(msg)) return msg.join(' ');
-    if (typeof msg === 'string') return msg;
-    if (err.status === 0) return 'Não foi possível falar com o servidor.';
-    if (err.status === 401) return 'E-mail ou senha incorretos.';
-    if (err.status === 403) return 'Você não tem permissão para isso.';
-    if (err.status === 404) return 'Item não encontrado.';
-  }
-  return err instanceof Error ? err.message : 'Algo deu errado. Tente de novo.';
-}

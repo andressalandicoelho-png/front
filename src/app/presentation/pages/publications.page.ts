@@ -1,12 +1,13 @@
 import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import JSZip from 'jszip';
 import {
   CreatePublicationUseCase, DeletePublicationUseCase, ListPublicationsUseCase,
   PublishPublicationUseCase, UnpublishPublicationUseCase, UpdatePublicationUseCase,
 } from '@application/publication/publication.usecases';
-import { Publication, PublicationType } from '@domain/publication/publication.entity';
-import { errorMessage } from '@infra/http/auth.interceptor';
+import { DEFAULT_DISPLAY_SECONDS, MAX_UPLOAD_BYTES, Publication, PublicationType } from '@domain/publication/publication.entity';
+import { errorMessage } from '@presentation/core/error-message';
 import { ToastService } from '@presentation/core/toast.service';
 import { typeLabel } from '@presentation/core/format';
 import { IconComponent } from '@presentation/ui/icon.component';
@@ -15,6 +16,14 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
 
 type ContentStatusFilter = 'ALL' | 'DRAFT' | 'SCHEDULED' | 'LIVE' | 'EXPIRED';
 type PublicationSort = 'NEWEST' | 'OLDEST';
+
+interface ZipImagePreview {
+  file: File;
+  previewUrl: string;
+  title: string;
+  displaySeconds: number;
+  created: boolean;
+}
 
 @Component({
   selector: 'app-publications',
@@ -112,33 +121,84 @@ type PublicationSort = 'NEWEST' | 'OLDEST';
     }
 
     @if (modal()) {
-      <app-modal [title]="editing() ? 'Editar publicação' : 'Nova publicação'" (closed)="modal.set(false)">
+      <app-modal [title]="editing() ? 'Editar publicação' : 'Nova publicação'" (closed)="closeModal()">
         <form class="stack" (ngSubmit)="save()">
           <input class="input" name="title" placeholder="Título" [(ngModel)]="form.title" required>
           @if (!editing()) {
-            <select class="input" name="type" [(ngModel)]="form.type">
-              <option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option>
-            </select>
+            @if (!zipImages().length) {
+              <select class="input" name="type" [(ngModel)]="form.type" (ngModelChange)="changeType($event)">
+                <option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option>
+              </select>
+            }
             @if (form.type === 'LINK') {
               <textarea class="input" name="link" rows="4" placeholder="Cole uma URL HTTPS ou o código de incorporação" [(ngModel)]="form.linkUrl"></textarea>
             } @else {
-              <label class="drop">
+              <label class="drop" (dragover)="allowDrop($event)" (drop)="dropFiles($event)">
                 <app-icon name="upload" [size]="26"/>
-                <span>{{ form.file ? form.file.name : 'Escolher arquivo (JPEG, PNG, WebP ou MP4 · até 300 MB)' }}</span>
-                <input type="file" hidden [accept]="form.type === 'IMAGE' ? 'image/jpeg,image/png,image/webp' : 'video/mp4'" (change)="pick($event)">
+                <span>{{ form.file ? form.file.name : 'Escolher imagem, vídeo ou arquivo ZIP' }}</span>
+                <small>ZIP: JPEG, PNG ou WebP · extração local</small>
+                <input type="file" hidden
+                  [attr.accept]="form.type === 'IMAGE' ? '.zip,application/zip,image/jpeg,image/png,image/webp' : 'video/mp4'"
+                  (change)="pick($event)">
               </label>
             }
           }
-          <label class="field">Segundos na tela
-            <input class="input" type="number" min="1" name="secs" [(ngModel)]="form.displaySeconds" placeholder="10">
-          </label>
+          @if (!zipImages().length && mediaPreviewUrl(); as previewUrl) {
+            <section class="media-file-preview" [class.video-thumbnail-preview]="form.type === 'VIDEO'">
+              <img [src]="previewUrl" [alt]="'Prévia de ' + form.title">
+              @if (form.type === 'VIDEO') { <span class="video-thumbnail-label">Miniatura do vídeo</span> }
+            </section>
+          }
+          @if (previewLoading()) { <p class="muted" role="status">Gerando miniatura do vídeo…</p> }
+          @if (previewError()) { <p class="muted" role="status">{{ previewError() }}</p> }
+          @if (zipImages().length) {
+            @if (zipImages()[zipIndex()]; as image) {
+              <section class="zip-image-review" aria-label="Prévia das imagens do ZIP">
+                <div class="zip-image-preview"><img [src]="image.previewUrl" [alt]="image.title"></div>
+                <div class="zip-image-navigation">
+                  <button class="icon-btn" type="button" aria-label="Imagem anterior" [disabled]="zipIndex() === 0 || saving()" (click)="showZipImage(zipIndex() - 1)">
+                    <app-icon name="left" [size]="18"/>
+                  </button>
+                  <span aria-live="polite">Imagem {{ zipIndex() + 1 }} de {{ zipImages().length }}</span>
+                  <button class="icon-btn" type="button" aria-label="Próxima imagem" [disabled]="zipIndex() + 1 >= zipImages().length || saving()" (click)="showZipImage(zipIndex() + 1)">
+                    <app-icon name="right" [size]="18"/>
+                  </button>
+                </div>
+                <small class="zip-image-status">{{ image.created ? 'Conteúdo criado para esta imagem' : 'Ainda não enviado' }}</small>
+              </section>
+            }
+          }
+          @if (zipProcessing()) { <p class="muted" role="status">Lendo imagens do ZIP…</p> }
+          @if (!editing()) {
+            <fieldset class="field duration-field">
+              <legend>Segundos na tela</legend>
+              <div class="duration-options" role="group" aria-label="Duração predefinida">
+                @for (seconds of durationOptions; track seconds) {
+                  <button class="btn small duration-option" type="button"
+                    [class.selected]="form.displaySeconds === seconds"
+                    [attr.aria-pressed]="form.displaySeconds === seconds"
+                    (click)="form.displaySeconds = seconds">{{ seconds }} s</button>
+                }
+              </div>
+              <label class="field">Personalizar segundos
+                <input class="input" type="number" min="1" max="3600" name="secs"
+                  [(ngModel)]="form.displaySeconds" placeholder="Ex.: 25">
+              </label>
+            </fieldset>
+          } @else {
+            <label class="field">Segundos na tela
+              <input class="input" type="number" min="1" max="3600" name="secs" [(ngModel)]="form.displaySeconds">
+            </label>
+          }
           @if (form.type === 'VIDEO' && !editing()) {
             <label class="field">Duração original do vídeo (segundos)
               <input class="input" type="number" min="1" name="orig" [(ngModel)]="form.originalDurationSeconds">
             </label>
           }
           @if (error()) { <p class="error">{{ error() }}</p> }
-          <button class="btn primary block" type="submit" [disabled]="saving()">{{ saving() ? 'Salvando…' : editing() ? 'Salvar alterações' : 'Enviar' }}</button>
+          <button class="btn primary block" type="submit" [disabled]="saving() || zipProcessing() || currentZipImage()?.created">
+            {{ saving() ? 'Enviando…' : currentZipImage()?.created ? 'Conteúdo já criado' : editing() ? 'Salvar alterações' : 'Enviar' }}
+          </button>
         </form>
       </app-modal>
     }
@@ -170,6 +230,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     { label: 'No ar', value: 'LIVE' },
     { label: 'Expirado', value: 'EXPIRED' },
   ];
+  durationOptions = [20, 40, 60];
   items = signal<Publication[]>([]);
   typeFilter = signal<PublicationType | null>(null);
   authorFilter = signal('');
@@ -211,12 +272,20 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   saving = signal(false);
   error = signal('');
   openActionsId = signal<number | null>(null);
+  zipImages = signal<ZipImagePreview[]>([]);
+  zipIndex = signal(0);
+  zipProcessing = signal(false);
+  mediaPreviewUrl = signal<string | null>(null);
+  previewLoading = signal(false);
+  previewError = signal('');
   form = this.blank();
+  currentZipImage = computed<ZipImagePreview | null>(() => this.zipImages()[this.zipIndex()] ?? null);
+  private previewGeneration = 0;
 
   private blank() {
     return {
       title: '', type: 'IMAGE' as PublicationType, linkUrl: '', file: undefined as File | undefined,
-      displaySeconds: null as number | null, originalDurationSeconds: null as number | null,
+      displaySeconds: DEFAULT_DISPLAY_SECONDS as number | null, originalDurationSeconds: null as number | null,
     };
   }
 
@@ -232,6 +301,8 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   }
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
+    this.clearZipPreviews();
+    this.clearMediaPreview();
   }
   @HostListener('window:resize')
   updateGridLayout(): void {
@@ -307,18 +378,234 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   };
   programNamesTooltip = (p: Publication) => (p.programNames ?? []).join(', ') || 'Ainda não usado em programações';
 
-  openNew(): void { this.editing.set(null); this.form = this.blank(); this.error.set(''); this.modal.set(true); }
+  openNew(): void {
+    this.clearZipPreviews();
+    this.clearMediaPreview();
+    this.editing.set(null);
+    this.form = this.blank();
+    this.error.set('');
+    this.modal.set(true);
+  }
   openEdit(p: Publication): void {
+    this.clearZipPreviews();
+    this.clearMediaPreview();
     this.editing.set(p);
     this.form = { ...this.blank(), title: p.title, type: p.type, displaySeconds: p.displaySeconds };
     this.error.set('');
     this.modal.set(true);
   }
 
-  pick(ev: Event): void { this.form.file = (ev.target as HTMLInputElement).files?.[0]; }
+  pick(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (file.name.toLocaleLowerCase().endsWith('.zip')) {
+      void this.readZip(file);
+      return;
+    }
+    this.selectMediaFile(file);
+  }
+
+  allowDrop(event: DragEvent): void { event.preventDefault(); }
+
+  dropFiles(event: DragEvent): void {
+    event.preventDefault();
+    const file = event.dataTransfer?.files[0];
+    if (!file) return;
+    if (file.name.toLocaleLowerCase().endsWith('.zip')) {
+      void this.readZip(file);
+      return;
+    }
+    this.selectMediaFile(file);
+  }
+
+  private selectMediaFile(file: File): void {
+    this.clearZipPreviews();
+    this.clearMediaPreview();
+    this.form.file = file;
+    this.form.title = file.name;
+    const extension = file.name.split('.').pop()?.toLocaleLowerCase();
+    const isImage = ['jpg', 'jpeg', 'png', 'webp'].includes(extension ?? '') ||
+      ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
+    if (this.form.type === 'IMAGE' && isImage) {
+      this.mediaPreviewUrl.set(URL.createObjectURL(file));
+    } else if (this.form.type === 'VIDEO' && (extension === 'mp4' || file.type === 'video/mp4')) {
+      void this.createVideoThumbnail(file);
+    }
+  }
+
+  changeType(type: PublicationType): void {
+    this.form.type = type;
+    this.form.file = undefined;
+    this.clearMediaPreview();
+  }
+
+  private async readZip(file: File): Promise<void> {
+    this.clearZipPreviews();
+    this.clearMediaPreview();
+    this.error.set('');
+    this.form.type = 'IMAGE';
+    this.form.file = undefined;
+    this.form.title = '';
+    this.form.displaySeconds = DEFAULT_DISPLAY_SECONDS;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      this.error.set('O arquivo ZIP passa do limite de 300 MB.');
+      return;
+    }
+    this.zipProcessing.set(true);
+    try {
+      const archive = await JSZip.loadAsync(file);
+      const imageEntries = Object.values(archive.files)
+        .filter(entry => !entry.dir && /\.(jpe?g|png|webp)$/i.test(entry.name))
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { numeric: true }));
+      if (!imageEntries.length) throw new Error('O ZIP não contém imagens JPEG, PNG ou WebP.');
+
+      let totalBytes = 0;
+      const previews: ZipImagePreview[] = [];
+      for (const entry of imageEntries) {
+        const blob = await entry.async('blob');
+        totalBytes += blob.size;
+        if (totalBytes > MAX_UPLOAD_BYTES) {
+          throw new Error('As imagens extraídas ultrapassam o limite total de 300 MB.');
+        }
+        const filename = entry.name.replaceAll('\\', '/').split('/').pop() || 'imagem';
+        const extension = filename.split('.').pop()?.toLocaleLowerCase();
+        const mimeType = extension === 'jpg' || extension === 'jpeg' ? 'image/jpeg'
+          : extension === 'png' ? 'image/png' : 'image/webp';
+        const imageFile = new File([blob], filename, { type: mimeType });
+        previews.push({
+          file: imageFile,
+          previewUrl: URL.createObjectURL(imageFile),
+          title: filename,
+          displaySeconds: DEFAULT_DISPLAY_SECONDS,
+          created: false,
+        });
+      }
+
+      this.zipImages.set(previews);
+      this.zipIndex.set(0);
+      this.form.type = 'IMAGE';
+      this.applyZipImage(0);
+    } catch (error) {
+      this.clearZipPreviews();
+      this.error.set(error instanceof Error ? error.message : 'Não foi possível ler o arquivo ZIP.');
+    } finally {
+      this.zipProcessing.set(false);
+    }
+  }
+
+  showZipImage(index: number): void {
+    if (index < 0 || index >= this.zipImages().length || index === this.zipIndex()) return;
+    this.saveZipImageForm();
+    this.zipIndex.set(index);
+    this.applyZipImage(index);
+    this.error.set('');
+  }
+
+  private saveZipImageForm(): void {
+    const index = this.zipIndex();
+    this.zipImages.update(images => images.map((image, imageIndex) => imageIndex === index
+      ? { ...image, title: this.form.title, displaySeconds: this.form.displaySeconds ?? DEFAULT_DISPLAY_SECONDS }
+      : image));
+  }
+
+  private applyZipImage(index: number): void {
+    const image = this.zipImages()[index];
+    if (!image) return;
+    this.form.file = image.file;
+    this.form.title = image.title;
+    this.form.displaySeconds = image.displaySeconds;
+    this.form.originalDurationSeconds = null;
+  }
+
+  private clearZipPreviews(): void {
+    for (const image of this.zipImages()) URL.revokeObjectURL(image.previewUrl);
+    this.zipImages.set([]);
+    this.zipIndex.set(0);
+  }
+
+  private clearMediaPreview(): void {
+    this.previewGeneration++;
+    const currentUrl = this.mediaPreviewUrl();
+    if (currentUrl?.startsWith('blob:')) URL.revokeObjectURL(currentUrl);
+    this.mediaPreviewUrl.set(null);
+    this.previewLoading.set(false);
+    this.previewError.set('');
+  }
+
+  private async createVideoThumbnail(file: File): Promise<void> {
+    const generation = this.previewGeneration;
+    const sourceUrl = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.muted = true;
+    video.preload = 'auto';
+    video.playsInline = true;
+    this.previewLoading.set(true);
+
+    try {
+      const thumbnail = await new Promise<string>((resolve, reject) => {
+        const timeout = window.setTimeout(() => reject(new Error('A leitura do vídeo demorou demais.')), 10_000);
+        const cleanup = () => {
+          window.clearTimeout(timeout);
+          video.removeEventListener('loadeddata', onLoaded);
+          video.removeEventListener('error', onError);
+        };
+        const onError = () => {
+          cleanup();
+          reject(new Error('Não foi possível gerar a miniatura deste vídeo.'));
+        };
+        const onLoaded = () => {
+          try {
+            const width = video.videoWidth;
+            const height = video.videoHeight;
+            if (!width || !height) throw new Error('O vídeo não possui um quadro disponível para a miniatura.');
+            const scale = Math.min(1, 480 / width, 270 / height);
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(width * scale));
+            canvas.height = Math.max(1, Math.round(height * scale));
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('Não foi possível preparar a miniatura do vídeo.');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            cleanup();
+            resolve(canvas.toDataURL('image/jpeg', 0.82));
+          } catch (error) {
+            cleanup();
+            reject(error);
+          }
+        };
+        video.addEventListener('loadeddata', onLoaded, { once: true });
+        video.addEventListener('error', onError, { once: true });
+        video.src = sourceUrl;
+        video.load();
+      });
+
+      if (generation === this.previewGeneration) this.mediaPreviewUrl.set(thumbnail);
+    } catch (error) {
+      if (generation === this.previewGeneration) {
+        this.previewError.set(error instanceof Error
+          ? `${error.message} O vídeo ainda poderá ser enviado.`
+          : 'Não foi possível gerar a miniatura. O vídeo ainda poderá ser enviado.');
+      }
+    } finally {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      URL.revokeObjectURL(sourceUrl);
+      if (generation === this.previewGeneration) this.previewLoading.set(false);
+    }
+  }
+
+  closeModal(): void {
+    if (this.saving() || this.zipProcessing()) return;
+    this.modal.set(false);
+    this.clearZipPreviews();
+    this.clearMediaPreview();
+  }
 
   save(): void {
     this.error.set('');
+    if (this.currentZipImage()) this.saveZipImageForm();
     this.saving.set(true);
     const current = this.editing();
     const linkUrl = this.normalizeLinkInput(this.form.linkUrl);
@@ -333,7 +620,20 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
           originalDurationSeconds: this.form.originalDurationSeconds ?? undefined,
         });
     request.subscribe({
-      next: () => { this.saving.set(false); this.modal.set(false); this.toast.show(current ? 'Publicação atualizada' : 'Publicação enviada'); this.load(); },
+      next: () => {
+        this.saving.set(false);
+        if (this.currentZipImage()) {
+          const index = this.zipIndex();
+          this.zipImages.update(images => images.map((image, imageIndex) => imageIndex === index
+            ? { ...image, created: true }
+            : image));
+          this.toast.show('Conteúdo criado para esta imagem');
+        } else {
+          this.closeModal();
+          this.toast.show(current ? 'Publicação atualizada' : 'Publicação enviada');
+        }
+        this.load();
+      },
       error: e => { this.saving.set(false); this.error.set(errorMessage(e)); },
     });
   }

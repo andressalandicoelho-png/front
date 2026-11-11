@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ChangeOwnPasswordUseCase } from '@application/auth/auth.usecases';
-import { errorMessage } from '@infra/http/auth.interceptor';
+import { errorMessage } from '@presentation/core/error-message';
 import { AuthState } from '@presentation/core/auth.state';
 import { IconComponent } from '@presentation/ui/icon.component';
 

@@ -1,5 +1,21 @@
 import { NewScheduleEntry } from './schedule.entity';
 
+const BUSINESS_TIME_ZONE = 'America/Sao_Paulo';
+
+export function currentBusinessDate(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BUSINESS_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date);
+  const value = (type: string) => parts.find(part => part.type === type)?.value ?? '';
+  return `${value('year')}-${value('month')}-${value('day')}`;
+}
+
+export function currentBusinessTime(date = new Date()): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: BUSINESS_TIME_ZONE, hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(date);
+}
+
 export const toMinutes = (time: string): number => {
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;

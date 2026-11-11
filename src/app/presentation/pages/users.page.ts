@@ -4,7 +4,7 @@ import {
   ChangeUserRolesUseCase, CreateUserUseCase, ListUsersUseCase, SetUserActiveUseCase,
 } from '@application/user/user.usecases';
 import { Role, User } from '@domain/user/user.entity';
-import { errorMessage } from '@infra/http/auth.interceptor';
+import { errorMessage } from '@presentation/core/error-message';
 import { ToastService } from '@presentation/core/toast.service';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
