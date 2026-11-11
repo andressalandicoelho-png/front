@@ -400,13 +400,21 @@ export class CalendarPage implements OnInit {
   gridRows = computed(() => `repeat(${this.grid().length / 7}, minmax(0, 1fr))`);
   title = computed(() => monthTitle(this.cursor()));
   filtered = computed(() => this.entries());
-  byDate = computed(() => {
-    const map = new Map<string, number>();
-    for (const e of this.filtered()) map.set(e.date, (map.get(e.date) ?? 0) + 1);
-    return map;
+  entriesByDate = computed(() => {
+    const entriesByDate = new Map<string, ScheduleEntry[]>();
+    for (const entry of this.filtered()) {
+      const entriesForDate = entriesByDate.get(entry.date) ?? [];
+      entriesForDate.push(entry);
+      entriesByDate.set(entry.date, entriesForDate);
+    }
+    for (const entriesForDate of entriesByDate.values()) {
+      entriesForDate.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
+    return entriesByDate;
   });
-  dayEntries = computed(() =>
-    this.filtered().filter(e => e.date === this.selected()).sort((a, b) => a.startTime.localeCompare(b.startTime)));
+  dayEntries = computed(() => this.entriesByDate().get(this.selected() ?? '') ?? []);
+  publicationsById = computed(() => new Map(this.pubs().map(publication => [publication.id, publication])));
+  programsById = computed(() => new Map(this.programs().map(program => [program.id, program.name])));
   monthEntries = computed(() => {
     const c = this.cursor();
     const prefix = `${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, '0')}`;
@@ -416,7 +424,7 @@ export class CalendarPage implements OnInit {
   agendaPageCount = computed(() => Math.max(1, Math.ceil(this.monthEntries().length / 6)));
   dayLabel = computed(() => (this.selected() ? longDate(this.selected()!) : ''));
   selectedProgramNames = computed(() => this.selectedProgramIds()
-    .map(id => this.programs().find(program => program.id === id)?.name)
+    .map(id => this.programsById().get(id))
     .filter((name): name is string => !!name)
     .join(', '));
   addDates = computed(() => datesBetweenInclusive(this.addContentDate() ?? '', this.addEndDate()));
@@ -555,10 +563,10 @@ export class CalendarPage implements OnInit {
     return type === 'IMAGE' ? 'Imagem' : type === 'VIDEO' ? 'Vídeo' : type === 'MESSAGE' ? 'Mensagem' : 'Link';
   }
   publicationOf(id: number): Publication | undefined {
-    return this.pubs().find(publication => publication.id === id);
+    return this.publicationsById().get(id);
   }
   programName(id: number | null): string {
-    return this.programs().find(program => program.id === id)?.name ?? 'Sem programação';
+    return this.programsById().get(id ?? -1) ?? 'Sem programação';
   }
   scheduleSelectedContent(date: string): void {
     if (!this.reviewingCalendarSchedule()) {
@@ -651,10 +659,10 @@ export class CalendarPage implements OnInit {
   closeDayMenuOnEscape(): void { this.openMenuDate.set(null); }
   previousAgendaPage(): void { this.agendaPage.update(page => Math.max(0, page - 1)); }
   nextAgendaPage(): void { this.agendaPage.update(page => Math.min(this.agendaPageCount() - 1, page + 1)); }
-  countOf = (date: string) => this.byDate().get(date) ?? 0;
-  entriesOf = (date: string) => this.filtered().filter(e => e.date === date).sort((a, b) => a.startTime.localeCompare(b.startTime)).slice(0, 2);
+  countOf = (date: string) => this.entriesByDate().get(date)?.length ?? 0;
+  entriesOf = (date: string) => (this.entriesByDate().get(date) ?? []).slice(0, 2);
   dots = (n: number) => Array.from({ length: Math.min(n, 3) }, (_, i) => i);
-  titleOf = (e: ScheduleEntry) => e.publicationTitle ?? this.pubs().find(p => p.id === e.publicationId)?.title ?? `Publicação ${e.publicationId}`;
+  titleOf = (e: ScheduleEntry) => e.publicationTitle ?? this.publicationOf(e.publicationId)?.title ?? `Publicação ${e.publicationId}`;
   isPast = (date: string) => date < this.today;
 
   private emptyForm(): EntryForm {

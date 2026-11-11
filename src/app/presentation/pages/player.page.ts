@@ -45,9 +45,7 @@ const IDLE_RETRY_MS = 5_000;
           }
         }
       </main>
-      @if (messages().length) {
-        <app-message-band [messages]="messages()"/>
-      }
+      <app-message-band [messages]="messages()" [clockOnly]="!messages().length"/>
     </div>`,
 })
 export class PlayerPage implements OnInit, OnDestroy {

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, effect, inject, input, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, effect, inject, input, signal } from '@angular/core';
 import { MediaRepository } from '@domain/media/media.repository';
 import { PublicationType } from '@domain/publication/publication.entity';
 import { IconComponent } from './icon.component';
@@ -43,7 +43,7 @@ import { generateVideoThumbnail } from './video-thumbnail';
     .message-ph { color: #fff; background: #263f85; }
   `],
 })
-export class SecureMediaComponent implements OnDestroy {
+export class SecureMediaComponent implements AfterViewInit, OnDestroy {
   mediaId = input<number | null>(null);
   type = input<PublicationType>('IMAGE');
   autoplay = input(false);
@@ -52,8 +52,11 @@ export class SecureMediaComponent implements OnDestroy {
   thumbnailError = signal<string | null>(null);
 
   private repo = inject(MediaRepository);
+  private host = inject<ElementRef<HTMLElement>>(ElementRef);
   private requestGeneration = 0;
   private objectUrl: string | null = null;
+  private visible = signal(false);
+  private visibilityObserver?: IntersectionObserver;
 
   constructor() {
     effect(onCleanup => {
@@ -63,7 +66,7 @@ export class SecureMediaComponent implements OnDestroy {
       this.thumbnail.set(null);
       this.thumbnailError.set(null);
       this.setUrl(null);
-      if (id === null || type === 'LINK' || type === 'MESSAGE') return;
+      if (id === null || type === 'LINK' || type === 'MESSAGE' || !this.visible()) return;
 
       const sub = this.repo.blob(id).subscribe({
         next: blob => {
@@ -94,6 +97,22 @@ export class SecureMediaComponent implements OnDestroy {
     });
   }
 
+  ngAfterViewInit(): void {
+    if (this.mediaId() === null || this.type() === 'LINK' || this.type() === 'MESSAGE') {
+      this.visible.set(true);
+      return;
+    }
+    if (typeof IntersectionObserver === 'undefined') {
+      this.visible.set(true);
+      return;
+    }
+
+    this.visibilityObserver = new IntersectionObserver(entries => {
+      this.visible.set(entries.some(entry => entry.isIntersecting));
+    }, { rootMargin: '200px 0px' });
+    this.visibilityObserver.observe(this.host.nativeElement);
+  }
+
   private setUrl(next: string | null): void {
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
     this.objectUrl = next;
@@ -102,6 +121,7 @@ export class SecureMediaComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.requestGeneration++;
+    this.visibilityObserver?.disconnect();
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
     this.objectUrl = null;
   }

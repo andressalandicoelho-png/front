@@ -1,7 +1,6 @@
 import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import JSZip from 'jszip';
 import { firstValueFrom } from 'rxjs';
 import {
   CreatePublicationUseCase, DeletePublicationUseCase, ListPublicationsUseCase,
@@ -17,7 +16,7 @@ import { typeLabel } from '@presentation/core/format';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
-import { generateVideoThumbnail } from '@presentation/ui/video-thumbnail';
+import { generateVideoPreview } from '@presentation/ui/video-thumbnail';
 
 type ContentStatusFilter = 'ALL' | 'DRAFT' | 'SCHEDULED' | 'LIVE' | 'EXPIRED';
 type PublicationSort = 'NEWEST' | 'OLDEST';
@@ -105,7 +104,7 @@ interface ZipImagePreview {
             </div>
           </div>
           <div class="tile-meta">
-            <small class="tile-format-duration">{{ p.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : label(p.type) + ' · ' + (p.displaySeconds ?? 10) + ' s' }}</small>
+            <small class="tile-format-duration">{{ p.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : label(p.type) + ' · ' + (p.displaySeconds ?? p.originalDurationSeconds ?? 10) + ' s' }}</small>
             <span class="status" [class.live]="isPublished(p)">{{ contentStatusLabel(p) }}</span>
           </div>
           <div class="tile-attribution" [title]="programNamesTooltip(p)">
@@ -165,7 +164,7 @@ interface ZipImagePreview {
               @if (form.type === 'VIDEO') { <span class="video-thumbnail-label">Miniatura do vídeo</span> }
             </section>
           }
-          @if (previewLoading()) { <p class="muted" role="status">Gerando miniatura do vídeo…</p> }
+          @if (previewLoading()) { <p class="muted" role="status">Lendo duração e gerando miniatura do vídeo…</p> }
           @if (previewError()) { <p class="muted" role="status">{{ previewError() }}</p> }
           @if (zipImages().length) {
             @if (zipImages()[zipIndex()]; as image) {
@@ -187,7 +186,7 @@ interface ZipImagePreview {
           @if (zipProcessing()) { <p class="muted" role="status">Lendo imagens do ZIP…</p> }
           @if (form.type !== 'MESSAGE' && !editing()) {
             <fieldset class="field duration-field">
-              <legend>{{ zipImages().length ? 'Segundos para todas as imagens' : 'Segundos na tela' }}</legend>
+              <legend>{{ zipImages().length ? 'Segundos para todas as imagens' : form.type === 'VIDEO' ? 'Limite personalizado (opcional)' : 'Segundos na tela' }}</legend>
               <div class="duration-options" role="group" aria-label="Duração predefinida">
                 @for (seconds of durationOptions; track seconds) {
                   <button class="btn small duration-option" type="button"
@@ -196,21 +195,28 @@ interface ZipImagePreview {
                     (click)="setDisplaySeconds(seconds)">{{ seconds }} s</button>
                 }
               </div>
+              @if (form.type === 'VIDEO') {
+                <small class="muted">Deixe vazio para reproduzir o vídeo inteiro.</small>
+              }
               <label class="field">Personalizar segundos
                 <input class="input" type="number" min="1" max="3600" name="secs"
-                  [ngModel]="form.displaySeconds" (ngModelChange)="setDisplaySeconds($event)" placeholder="Ex.: 25">
+                  [ngModel]="form.displaySeconds" (ngModelChange)="setDisplaySeconds($event)"
+                  [placeholder]="form.type === 'VIDEO' ? 'Vídeo inteiro' : 'Ex.: 25'">
               </label>
             </fieldset>
           } @else if (form.type !== 'MESSAGE') {
-            <label class="field">Segundos na tela
+            <label class="field">{{ form.type === 'VIDEO' ? 'Limite de reprodução (opcional)' : 'Segundos na tela' }}
               <input class="input" type="number" min="1" max="3600" name="secs"
                 [ngModel]="form.displaySeconds" (ngModelChange)="setDisplaySeconds($event)">
+              @if (form.type === 'VIDEO') { <small class="muted">Deixe vazio para reproduzir o vídeo inteiro.</small> }
             </label>
           }
           @if (form.type === 'VIDEO' && !editing()) {
             <label class="field">Duração original do vídeo (segundos)
-              <input class="input" type="number" min="1" name="orig" [(ngModel)]="form.originalDurationSeconds">
+              <input class="input" type="number" min="1" name="orig" [(ngModel)]="form.originalDurationSeconds"
+                [readonly]="previewLoading() || videoDurationDetected()">
             </label>
+            <small class="muted">{{ videoDurationDetected() ? 'Duração detectada automaticamente do arquivo.' : 'Será detectada automaticamente; se não for possível, informe-a manualmente.' }}</small>
           }
           @if (error()) { <p class="error">{{ error() }}</p> }
           @if (zipBatchError()) { <p class="error" role="alert">{{ zipBatchError() }}</p> }
@@ -224,7 +230,8 @@ interface ZipImagePreview {
               {{ currentZipImage()?.created ? 'Imagem já enviada' : 'Enviar apenas esta imagem' }}
             </button>
           } @else {
-            <button class="btn primary block" type="submit" [disabled]="saving() || zipProcessing()">
+            <button class="btn primary block" type="submit"
+              [disabled]="saving() || zipProcessing() || previewLoading() || (form.type === 'VIDEO' && !form.originalDurationSeconds)">
               {{ saving() ? 'Enviando…' : editing() ? 'Salvar alterações' : 'Enviar' }}
             </button>
           }
@@ -314,6 +321,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   mediaPreviewUrl = signal<string | null>(null);
   previewLoading = signal(false);
   previewError = signal('');
+  videoDurationDetected = signal(false);
   form = this.blank();
   currentZipImage = computed<ZipImagePreview | null>(() => this.zipImages()[this.zipIndex()] ?? null);
   private previewGeneration = 0;
@@ -461,6 +469,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     this.clearMediaPreview();
     this.form.file = file;
     this.form.title = file.name;
+    this.form.originalDurationSeconds = null;
     const extension = file.name.split('.').pop()?.toLocaleLowerCase();
     const isImage = ['jpg', 'jpeg', 'png', 'webp'].includes(extension ?? '') ||
       ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
@@ -475,6 +484,8 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     this.form.type = type;
     this.form.file = undefined;
     this.form.content = '';
+    this.form.displaySeconds = type === 'VIDEO' ? null : DEFAULT_DISPLAY_SECONDS;
+    this.form.originalDurationSeconds = null;
     this.clearMediaPreview();
   }
 
@@ -493,6 +504,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     }
     this.zipProcessing.set(true);
     try {
+      const { default: JSZip } = await import('jszip');
       const archive = await JSZip.loadAsync(file);
       const imageEntries = Object.values(archive.files)
         .filter(entry => !entry.dir && /\.(jpe?g|png|webp)$/i.test(entry.name))
@@ -573,6 +585,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
 
   private clearMediaPreview(): void {
     this.previewGeneration++;
+    this.videoDurationDetected.set(false);
     const currentUrl = this.mediaPreviewUrl();
     if (currentUrl?.startsWith('blob:')) URL.revokeObjectURL(currentUrl);
     this.mediaPreviewUrl.set(null);
@@ -585,13 +598,17 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     this.previewLoading.set(true);
 
     try {
-      const thumbnail = await generateVideoThumbnail(file);
-      if (generation === this.previewGeneration) this.mediaPreviewUrl.set(thumbnail);
+      const preview = await generateVideoPreview(file);
+      if (generation === this.previewGeneration) {
+        this.mediaPreviewUrl.set(preview.thumbnailUrl);
+        this.form.originalDurationSeconds = preview.durationSeconds;
+        this.videoDurationDetected.set(true);
+      }
     } catch (error) {
       if (generation === this.previewGeneration) {
         this.previewError.set(error instanceof Error
-          ? `${error.message} O vídeo ainda poderá ser enviado.`
-          : 'Não foi possível gerar a miniatura. O vídeo ainda poderá ser enviado.');
+          ? `${error.message} Informe manualmente a duração original para enviar.`
+          : 'Não foi possível ler a duração original. Informe-a manualmente para enviar.');
       }
     } finally {
       if (generation === this.previewGeneration) this.previewLoading.set(false);
@@ -620,7 +637,9 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
       ? this.updateUC.execute(current.id, {
           title: this.form.title.trim(),
           ...(this.form.type === 'MESSAGE' ? { content: this.form.content } : {}),
-          ...(this.form.displaySeconds ? { displaySeconds: this.form.displaySeconds } : {}),
+          ...(this.form.type === 'VIDEO'
+            ? { displaySeconds: this.form.displaySeconds }
+            : this.form.displaySeconds ? { displaySeconds: this.form.displaySeconds } : {}),
         })
       : this.createUC.execute({
           title: this.form.title, content: this.form.content, type: this.form.type, linkUrl, file: this.form.file,

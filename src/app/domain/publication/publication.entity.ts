@@ -27,7 +27,7 @@ export interface NewPublication {
   file?: File;
 }
 
-export type PublicationChanges = Partial<{ title: string; content: string; displaySeconds: number }>;
+export type PublicationChanges = Partial<{ title: string; content: string; displaySeconds: number | null }>;
 export interface PublicationFilter { status?: string; type?: PublicationType; }
 
 export const DEFAULT_DISPLAY_SECONDS = 20;

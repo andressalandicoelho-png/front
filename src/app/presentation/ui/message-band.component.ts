@@ -21,8 +21,10 @@ export interface MessageBandItem {
 
 @Component({
   selector: 'app-message-band',
+  host: { '[class.clock-only]': 'clockOnly()' },
   template: `
-    <aside class="message-band" [class.compact]="compact()" aria-label="Mensagem do player">
+    <aside class="message-band" [class.compact]="compact()" [class.clock-only]="clockOnly()"
+      [attr.aria-label]="clockOnly() ? 'Data e hora atuais' : 'Mensagens do player'">
       <div class="message-band-clock" aria-label="Data e hora atuais em Brasília">
         <time class="message-band-time">{{ time() }}</time>
         <div class="message-band-date">
@@ -54,6 +56,7 @@ export interface MessageBandItem {
 export class MessageBandComponent implements AfterViewInit, OnInit, OnDestroy {
   messages = input<MessageBandItem[]>([]);
   compact = input(false);
+  clockOnly = input(false);
 
   scrollMessage = signal(false);
   marqueeDuration = signal('24s');

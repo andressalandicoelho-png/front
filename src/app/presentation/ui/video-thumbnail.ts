@@ -1,11 +1,16 @@
-export function generateVideoThumbnail(blob: Blob): Promise<string> {
+export interface VideoPreview {
+  thumbnailUrl: string;
+  durationSeconds: number;
+}
+
+export function generateVideoPreview(blob: Blob): Promise<VideoPreview> {
   const sourceUrl = URL.createObjectURL(blob);
   const video = document.createElement('video');
   video.muted = true;
   video.preload = 'auto';
   video.playsInline = true;
 
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<VideoPreview>((resolve, reject) => {
     const cleanup = () => {
       window.clearTimeout(timeout);
       video.removeEventListener('loadeddata', onLoaded);
@@ -24,6 +29,9 @@ export function generateVideoThumbnail(blob: Blob): Promise<string> {
         const width = video.videoWidth;
         const height = video.videoHeight;
         if (!width || !height) throw new Error('O vídeo não possui um quadro disponível para a miniatura.');
+        if (!Number.isFinite(video.duration) || video.duration <= 0) {
+          throw new Error('Não foi possível ler a duração original do vídeo.');
+        }
         const scale = Math.min(1, 480 / width, 270 / height);
         const canvas = document.createElement('canvas');
         canvas.width = Math.max(1, Math.round(width * scale));
@@ -32,7 +40,10 @@ export function generateVideoThumbnail(blob: Blob): Promise<string> {
         if (!context) throw new Error('Não foi possível preparar a miniatura do vídeo.');
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         cleanup();
-        resolve(canvas.toDataURL('image/jpeg', 0.82));
+        resolve({
+          thumbnailUrl: canvas.toDataURL('image/jpeg', 0.82),
+          durationSeconds: Math.ceil(video.duration),
+        });
       } catch (error) {
         cleanup();
         reject(error);
@@ -49,4 +60,8 @@ export function generateVideoThumbnail(blob: Blob): Promise<string> {
     video.load();
     URL.revokeObjectURL(sourceUrl);
   });
+}
+
+export function generateVideoThumbnail(blob: Blob): Promise<string> {
+  return generateVideoPreview(blob).then(preview => preview.thumbnailUrl);
 }
