@@ -12,12 +12,13 @@ import { api, cleanParams } from '../http/api';
 const toPublication = (r: any): Publication => ({
   id: r.id,
   title: r.title,
+  content: r.content ?? null,
   type: r.type,
   status: r.status ?? '',
   displaySeconds: r.displaySeconds ?? null,
   originalDurationSeconds: r.originalDurationSeconds ?? null,
   linkUrl: r.linkUrl ?? null,
-  mediaId: r.mediaId ?? r.media?.id ?? (r.type === 'LINK' ? null : r.id),
+  mediaId: r.mediaId ?? r.mediaFileId ?? r.media?.id ?? null,
   createdByName: r.createdByName,
   programNames: r.programNames ?? [],
   createdAt: r.createdAt,
@@ -42,10 +43,11 @@ export class HttpPublicationRepository extends PublicationRepository {
     const form = new FormData();
     form.append('title', input.title.trim());
     form.append('type', input.type);
-    if (input.displaySeconds) form.append('displaySeconds', String(input.displaySeconds));
-    if (input.originalDurationSeconds) form.append('originalDurationSeconds', String(input.originalDurationSeconds));
+    if (input.type === 'MESSAGE' && input.content) form.append('content', input.content);
+    if (input.type !== 'MESSAGE' && input.displaySeconds) form.append('displaySeconds', String(input.displaySeconds));
+    if (input.type === 'VIDEO' && input.originalDurationSeconds) form.append('originalDurationSeconds', String(input.originalDurationSeconds));
     if (input.type === 'LINK' && input.linkUrl) form.append('linkUrl', input.linkUrl);
-    if (input.type !== 'LINK' && input.file) form.append('file', input.file);
+    if ((input.type === 'IMAGE' || input.type === 'VIDEO') && input.file) form.append('file', input.file);
     return this.http.post<any>(api('/publications'), form).pipe(map(toPublication));
   }
 

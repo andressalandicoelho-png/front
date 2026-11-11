@@ -27,7 +27,7 @@ export function addDays(iso: string, days: number): string {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
 }
 
-export const typeLabel: Record<string, string> = { IMAGE: 'Imagem', VIDEO: 'Vídeo', LINK: 'Link' };
+export const typeLabel: Record<string, string> = { IMAGE: 'Imagem', VIDEO: 'Vídeo', LINK: 'Link', MESSAGE: 'Mensagem' };
 
 export function greeting(): string {
   const h = new Date().getHours();

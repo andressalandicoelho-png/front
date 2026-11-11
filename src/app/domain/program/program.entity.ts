@@ -3,6 +3,7 @@ export interface ProgramEntry {
   position: number;
   publicationId: number;
   publicationTitle: string;
+  publicationContent: string | null;
   publicationType: string;
   publicationStatus: string;
   displaySeconds: number | null;

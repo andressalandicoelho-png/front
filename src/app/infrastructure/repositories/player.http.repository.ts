@@ -9,6 +9,7 @@ import { api } from '../http/api';
 interface PlayerPlaylistItemDto {
   entryId: number;
   title: string;
+  content: string | null;
   type: PublicationType;
   seconds: number;
   url: string | null;
@@ -34,8 +35,9 @@ export class HttpPlayerRepository extends PlayerRepository {
         items: res.items.map(item => ({
           key: String(item.entryId),
           title: item.title,
+          content: item.content ?? null,
           type: item.type,
-          mediaUrl: item.type === 'LINK' || !item.url ? null : new URL(item.url, api('/')).toString(),
+          mediaUrl: (item.type !== 'IMAGE' && item.type !== 'VIDEO') || !item.url ? null : new URL(item.url, api('/')).toString(),
           linkUrl: item.type === 'LINK' ? item.url : null,
           seconds: item.seconds,
         })),

@@ -3,6 +3,7 @@ import { PublicationType } from '../publication/publication.entity';
 export interface PlayerItem {
   key: string;
   title: string;
+  content: string | null;
   type: PublicationType;
   mediaUrl: string | null;
   linkUrl: string | null;

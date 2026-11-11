@@ -130,10 +130,14 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
             @for (entry of program.entries; track entry.id; let index = $index) {
               <article class="program-sequence-item">
                 <span class="program-sequence-position">{{ (index + 1).toString().padStart(2, '0') }}</span>
-                <span class="program-sequence-thumb"><app-secure-media [mediaId]="entry.mediaFileId" [type]="entry.publicationType === 'VIDEO' ? 'VIDEO' : entry.publicationType === 'LINK' ? 'LINK' : 'IMAGE'"/></span>
+                <span class="program-sequence-thumb"><app-secure-media [mediaId]="entry.mediaFileId" [type]="entry.publicationType === 'MESSAGE' ? 'MESSAGE' : entry.publicationType === 'VIDEO' ? 'VIDEO' : entry.publicationType === 'LINK' ? 'LINK' : 'IMAGE'"/></span>
                 <span class="program-sequence-copy">
                   <strong>{{ entry.publicationTitle }}</strong>
-                  <small>{{ typeName(entry.publicationType) }} · {{ duration(entry) }} s</small>
+                  @if (entry.publicationType === 'MESSAGE') {
+                    <small>Mensagem · Fixa durante o horário agendado</small>
+                  } @else {
+                    <small>{{ typeName(entry.publicationType) }} · {{ duration(entry) }} s</small>
+                  }
                 </span>
                 <button type="button" class="icon-btn danger" [attr.aria-label]="'Remover ' + entry.publicationTitle + ' da sequência'" title="Remover da sequência" (click)="removeEntry(program, entry.id)">
                   <app-icon name="trash" [size]="17"/>
@@ -222,6 +226,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                   <option value="IMAGE">Imagens</option>
                   <option value="VIDEO">Vídeos</option>
                   <option value="LINK">Links</option>
+                  <option value="MESSAGE">Mensagens</option>
                 </select>
                 <div class="program-picker-view" role="group" aria-label="Conteúdos exibidos">
                   <button type="button" [class.active]="selectedOnly() === false" [attr.aria-pressed]="!selectedOnly()" (click)="selectedOnly.set(false)">Todos <span>{{ availablePublications().length }}</span></button>
@@ -250,7 +255,9 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                     <label class="entry-option-content">
                       <input type="checkbox" [checked]="selectedPublicationIds().includes(publication.id)" [disabled]="entriesAdded()" (change)="togglePublication(publication.id, $event)">
                       <span class="add-content-thumb"><app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/></span>
-                      <span class="program-entry-copy"><strong>{{ publication.title }}</strong><small>{{ typeName(publication.type) }} · {{ publication.displaySeconds ?? publication.originalDurationSeconds ?? 10 }} s</small></span>
+                      <span class="program-entry-copy"><strong>{{ publication.title }}</strong>
+                        <small>{{ publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + (publication.displaySeconds ?? publication.originalDurationSeconds ?? 10) + ' s' }}</small>
+                      </span>
                     </label>
                     @if (selectedPublicationIds().includes(publication.id)) {
                       <div class="program-schedule-fields">
@@ -484,7 +491,7 @@ export class ProgramsPage implements OnInit {
       });
     }
   }
-  typeName(type: string): string { return type === 'IMAGE' ? 'Imagem' : type === 'VIDEO' ? 'Vídeo' : 'Link'; }
+  typeName(type: string): string { return type === 'IMAGE' ? 'Imagem' : type === 'VIDEO' ? 'Vídeo' : type === 'MESSAGE' ? 'Mensagem' : 'Link'; }
   programSummary(program: Program): string {
     const titles = program.entries.slice(0, 2).map(entry => entry.publicationTitle);
     if (!titles.length) return 'Nenhum conteúdo na sequência';
@@ -499,6 +506,7 @@ export class ProgramsPage implements OnInit {
     return {
       title: entry.publicationTitle,
       type: entry.publicationType,
+      content: entry.publicationContent,
       mediaId: entry.mediaFileId,
       linkUrl: entry.linkUrl,
       seconds: schedule ? Math.min(this.duration(entry), schedule.turnSeconds ?? this.duration(entry)) : this.duration(entry),

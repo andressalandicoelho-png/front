@@ -33,6 +33,7 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": { "port": 4010 },
           "configurations": {
             "production": { "buildTarget": "tv-campus:build:production" },
             "development": { "buildTarget": "tv-campus:build:development" }

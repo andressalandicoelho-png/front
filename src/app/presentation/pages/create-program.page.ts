@@ -81,7 +81,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                 </span>
                 <span class="program-selected-copy">
                   <strong>{{ publication.title }}</strong>
-                  <small>{{ typeName(publication.type) }} · {{ duration(publication) }} s</small>
+                  <small>{{ publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + duration(publication) + ' s' }}</small>
                 </span>
                 <span class="program-schedule-fields">
                   @if (scheduleComplete(publication.id)) {
@@ -161,7 +161,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                   </span>
                   <span class="program-selected-copy">
                     <strong>{{ publication.title }}</strong>
-                    <small>{{ typeName(publication.type) }} · {{ duration(publication) }} s</small>
+                    <small>{{ publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + duration(publication) + ' s' }}</small>
                   </span>
                   @if (isSelected(publication.id)) { <span class="program-added-label">Adicionado · {{ selectedIndex(publication.id) }}</span> }
                 </label>
@@ -280,7 +280,9 @@ export class CreateProgramPage implements OnInit {
     const query = this.query.trim().toLocaleLowerCase();
     return this.readyPublications().filter(publication => !query || publication.title.toLocaleLowerCase().includes(query));
   });
-  totalDuration = computed(() => this.selectedPublications().reduce((sum, publication) => sum + this.duration(publication), 0));
+  totalDuration = computed(() => this.selectedPublications().reduce(
+    (sum, publication) => sum + (publication.type === 'MESSAGE' ? 0 : this.duration(publication)), 0,
+  ));
   previewItems = computed<ProgramPreviewItem[]>(() => this.selectedPublications().map(publication => {
     const schedule = this.scheduleFor(publication.id);
     const dates = this.datesFor(publication.id);
@@ -289,6 +291,7 @@ export class CreateProgramPage implements OnInit {
     return {
       title: publication.title,
       type: publication.type,
+      content: publication.content,
       mediaId: publication.mediaId,
       linkUrl: publication.linkUrl,
       seconds: this.duration(publication),
@@ -318,10 +321,11 @@ export class CreateProgramPage implements OnInit {
   }
 
   typeName(type: string): string {
-    return type === 'IMAGE' ? 'Imagem' : type === 'VIDEO' ? 'Vídeo' : 'Link';
+    return type === 'IMAGE' ? 'Imagem' : type === 'VIDEO' ? 'Vídeo' : type === 'MESSAGE' ? 'Mensagem' : 'Link';
   }
 
   duration(publication: Publication): number {
+    if (publication.type === 'MESSAGE') return 0;
     const naturalDuration = publication.originalDurationSeconds ?? publication.displaySeconds ?? 10;
     return publication.type === 'VIDEO'
       ? Math.min(publication.displaySeconds ?? naturalDuration, naturalDuration)

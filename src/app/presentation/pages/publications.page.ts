@@ -13,6 +13,7 @@ import { typeLabel } from '@presentation/core/format';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
+import { generateVideoThumbnail } from '@presentation/ui/video-thumbnail';
 
 type ContentStatusFilter = 'ALL' | 'DRAFT' | 'SCHEDULED' | 'LIVE' | 'EXPIRED';
 type PublicationSort = 'NEWEST' | 'OLDEST';
@@ -39,7 +40,7 @@ interface ZipImagePreview {
         <label class="search-field content-search-field"><app-icon name="search" [size]="16"/><input class="input" type="search" placeholder="Buscar conteúdo ou autor" aria-label="Buscar conteúdo ou autor" [ngModel]="search()" (ngModelChange)="search.set($event); page.set(0)"></label>
         <select class="input content-filter-select" aria-label="Filtrar por formato" [ngModel]="typeFilter() ?? ''" (ngModelChange)="typeFilter.set($event || null); page.set(0)">
           <option value="">Formato: Todos</option>
-          <option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option>
+          <option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option><option value="MESSAGE">Mensagem</option>
         </select>
         <select class="input content-filter-select" aria-label="Filtrar por autor" [ngModel]="authorFilter()" (ngModelChange)="authorFilter.set($event); page.set(0)">
           <option value="">Todos os autores</option>
@@ -75,7 +76,7 @@ interface ZipImagePreview {
       @for (p of pageItems(); track p.id) {
         <article class="tile">
           <div class="tile-toolbar">
-            <span class="tile-format"><app-icon [name]="p.type === 'LINK' ? 'link' : p.type === 'VIDEO' ? 'video' : 'image'" [size]="14"/>{{ label(p.type) }}</span>
+            <span class="tile-format"><app-icon [name]="p.type === 'MESSAGE' ? 'info' : p.type === 'LINK' ? 'link' : p.type === 'VIDEO' ? 'video' : 'image'" [size]="14"/>{{ label(p.type) }}</span>
             <button type="button" class="tile-menu-trigger" aria-label="Mais opções do conteúdo" aria-haspopup="menu" [attr.aria-expanded]="openActionsId() === p.id" (click)="toggleActions(p.id, $event)">
               <app-icon name="more" [size]="18"/>
             </button>
@@ -88,7 +89,11 @@ interface ZipImagePreview {
             }
           </div>
           <div class="tile-media">
-            <app-secure-media [mediaId]="p.mediaId" [type]="p.type"/>
+            @if (p.type === 'MESSAGE') {
+              <div class="tile-message-preview"><strong>{{ p.title }}</strong><p>{{ p.content }}</p></div>
+            } @else {
+              <app-secure-media [mediaId]="p.mediaId" [type]="p.type"/>
+            }
           </div>
           <div class="tile-info">
             <div class="tile-copy">
@@ -97,7 +102,7 @@ interface ZipImagePreview {
             </div>
           </div>
           <div class="tile-meta">
-            <small class="tile-format-duration">{{ label(p.type) }} <span aria-hidden="true">·</span> {{ p.displaySeconds ?? 10 }} s</small>
+            <small class="tile-format-duration">{{ p.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : label(p.type) + ' · ' + (p.displaySeconds ?? 10) + ' s' }}</small>
             <span class="status" [class.live]="isPublished(p)">{{ contentStatusLabel(p) }}</span>
           </div>
           <div class="tile-attribution" [title]="programNamesTooltip(p)">
@@ -127,9 +132,13 @@ interface ZipImagePreview {
           @if (!editing()) {
             @if (!zipImages().length) {
               <select class="input" name="type" [(ngModel)]="form.type" (ngModelChange)="changeType($event)">
-                <option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option>
+                <option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option><option value="MESSAGE">Mensagem</option>
               </select>
             }
+          }
+          @if (form.type === 'MESSAGE') {
+            <textarea class="input" name="content" rows="5" placeholder="Texto que ficará fixo na faixa inferior do player" [(ngModel)]="form.content" required></textarea>
+          } @else if (!editing()) {
             @if (form.type === 'LINK') {
               <textarea class="input" name="link" rows="4" placeholder="Cole uma URL HTTPS ou o código de incorporação" [(ngModel)]="form.linkUrl"></textarea>
             } @else {
@@ -143,7 +152,10 @@ interface ZipImagePreview {
               </label>
             }
           }
-          @if (!zipImages().length && mediaPreviewUrl(); as previewUrl) {
+          @if (form.type === 'MESSAGE' && form.content.trim()) {
+            <section class="tile-message-preview message-form-preview"><strong>{{ form.title || 'Título da mensagem' }}</strong><p>{{ form.content }}</p></section>
+          }
+          @if (form.type !== 'MESSAGE' && !zipImages().length && mediaPreviewUrl(); as previewUrl) {
             <section class="media-file-preview" [class.video-thumbnail-preview]="form.type === 'VIDEO'">
               <img [src]="previewUrl" [alt]="'Prévia de ' + form.title">
               @if (form.type === 'VIDEO') { <span class="video-thumbnail-label">Miniatura do vídeo</span> }
@@ -169,7 +181,7 @@ interface ZipImagePreview {
             }
           }
           @if (zipProcessing()) { <p class="muted" role="status">Lendo imagens do ZIP…</p> }
-          @if (!editing()) {
+          @if (form.type !== 'MESSAGE' && !editing()) {
             <fieldset class="field duration-field">
               <legend>Segundos na tela</legend>
               <div class="duration-options" role="group" aria-label="Duração predefinida">
@@ -185,7 +197,7 @@ interface ZipImagePreview {
                   [(ngModel)]="form.displaySeconds" placeholder="Ex.: 25">
               </label>
             </fieldset>
-          } @else {
+          } @else if (form.type !== 'MESSAGE') {
             <label class="field">Segundos na tela
               <input class="input" type="number" min="1" max="3600" name="secs" [(ngModel)]="form.displaySeconds">
             </label>
@@ -284,7 +296,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
 
   private blank() {
     return {
-      title: '', type: 'IMAGE' as PublicationType, linkUrl: '', file: undefined as File | undefined,
+      title: '', content: '', type: 'IMAGE' as PublicationType, linkUrl: '', file: undefined as File | undefined,
       displaySeconds: DEFAULT_DISPLAY_SECONDS as number | null, originalDurationSeconds: null as number | null,
     };
   }
@@ -390,7 +402,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     this.clearZipPreviews();
     this.clearMediaPreview();
     this.editing.set(p);
-    this.form = { ...this.blank(), title: p.title, type: p.type, displaySeconds: p.displaySeconds };
+    this.form = { ...this.blank(), title: p.title, content: p.content ?? '', type: p.type, displaySeconds: p.displaySeconds };
     this.error.set('');
     this.modal.set(true);
   }
@@ -438,6 +450,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   changeType(type: PublicationType): void {
     this.form.type = type;
     this.form.file = undefined;
+    this.form.content = '';
     this.clearMediaPreview();
   }
 
@@ -536,50 +549,10 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
 
   private async createVideoThumbnail(file: File): Promise<void> {
     const generation = this.previewGeneration;
-    const sourceUrl = URL.createObjectURL(file);
-    const video = document.createElement('video');
-    video.muted = true;
-    video.preload = 'auto';
-    video.playsInline = true;
     this.previewLoading.set(true);
 
     try {
-      const thumbnail = await new Promise<string>((resolve, reject) => {
-        const timeout = window.setTimeout(() => reject(new Error('A leitura do vídeo demorou demais.')), 10_000);
-        const cleanup = () => {
-          window.clearTimeout(timeout);
-          video.removeEventListener('loadeddata', onLoaded);
-          video.removeEventListener('error', onError);
-        };
-        const onError = () => {
-          cleanup();
-          reject(new Error('Não foi possível gerar a miniatura deste vídeo.'));
-        };
-        const onLoaded = () => {
-          try {
-            const width = video.videoWidth;
-            const height = video.videoHeight;
-            if (!width || !height) throw new Error('O vídeo não possui um quadro disponível para a miniatura.');
-            const scale = Math.min(1, 480 / width, 270 / height);
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.max(1, Math.round(width * scale));
-            canvas.height = Math.max(1, Math.round(height * scale));
-            const context = canvas.getContext('2d');
-            if (!context) throw new Error('Não foi possível preparar a miniatura do vídeo.');
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            cleanup();
-            resolve(canvas.toDataURL('image/jpeg', 0.82));
-          } catch (error) {
-            cleanup();
-            reject(error);
-          }
-        };
-        video.addEventListener('loadeddata', onLoaded, { once: true });
-        video.addEventListener('error', onError, { once: true });
-        video.src = sourceUrl;
-        video.load();
-      });
-
+      const thumbnail = await generateVideoThumbnail(file);
       if (generation === this.previewGeneration) this.mediaPreviewUrl.set(thumbnail);
     } catch (error) {
       if (generation === this.previewGeneration) {
@@ -588,10 +561,6 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
           : 'Não foi possível gerar a miniatura. O vídeo ainda poderá ser enviado.');
       }
     } finally {
-      video.pause();
-      video.removeAttribute('src');
-      video.load();
-      URL.revokeObjectURL(sourceUrl);
       if (generation === this.previewGeneration) this.previewLoading.set(false);
     }
   }
@@ -612,10 +581,11 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     const request = current
       ? this.updateUC.execute(current.id, {
           title: this.form.title.trim(),
+          ...(this.form.type === 'MESSAGE' ? { content: this.form.content } : {}),
           ...(this.form.displaySeconds ? { displaySeconds: this.form.displaySeconds } : {}),
         })
       : this.createUC.execute({
-          title: this.form.title, type: this.form.type, linkUrl, file: this.form.file,
+          title: this.form.title, content: this.form.content, type: this.form.type, linkUrl, file: this.form.file,
           displaySeconds: this.form.displaySeconds ?? undefined,
           originalDurationSeconds: this.form.originalDurationSeconds ?? undefined,
         });

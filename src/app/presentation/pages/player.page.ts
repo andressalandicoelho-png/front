@@ -3,6 +3,7 @@ import { Component, OnDestroy, OnInit, inject, input, signal } from '@angular/co
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { LoadPlayerPlaylistUseCase } from '@application/player/player.usecases';
 import { PlayerItem, PlayerPlaylist } from '@domain/player/player.entity';
+import { MessageBandComponent } from '@presentation/ui/message-band.component';
 
 const DEFAULT_REFRESH_MS = 60_000;
 const IDLE_RETRY_MS = 5_000;
@@ -14,7 +15,7 @@ const IDLE_RETRY_MS = 5_000;
  */
 @Component({
   selector: 'app-player',
-  imports: [DatePipe],
+  imports: [DatePipe, MessageBandComponent],
   template: `
     <div class="player">
       @if (programName()) {
@@ -24,19 +25,26 @@ const IDLE_RETRY_MS = 5_000;
           @if (lastUpdated()) { <small>Atualizado {{ lastUpdated() | date:'HH:mm:ss' }}</small> }
         </div>
       }
-      @if (current(); as item) {
-        @switch (item.type) {
-          @case ('IMAGE') { <img [src]="item.mediaUrl!" [alt]="item.title"> }
-          @case ('VIDEO') { <video [src]="item.mediaUrl!" autoplay muted playsinline></video> }
-          @case ('LINK') { <iframe [src]="safe(item)" title="Conteúdo"></iframe> }
+      <main class="player-stage">
+        @if (current(); as item) {
+          @switch (item.type) {
+            @case ('IMAGE') { <img [src]="item.mediaUrl!" [alt]="item.title"> }
+            @case ('VIDEO') { <video [src]="item.mediaUrl!" autoplay muted playsinline></video> }
+            @case ('LINK') { <iframe [src]="safe(item)" title="Conteúdo"></iframe> }
+          }
+        } @else if (messages().length) {
+          <div class="player-idle"><p>Mensagem fixa em exibição</p></div>
+        } @else {
+          <div class="player-idle">
+            <span class="brand-mark big">TV</span>
+            <p>{{ !connected() ? 'Não foi possível conectar ao player' : !programActive() ? 'Esta programação está pausada' : 'Sem conteúdo programado neste horário' }}</p>
+            @if (programName()) { <small>{{ programName() }}</small> }
+            <button type="button" class="player-retry" (click)="refresh()">Tentar novamente</button>
+          </div>
         }
-      } @else {
-        <div class="player-idle">
-          <span class="brand-mark big">TV</span>
-          <p>{{ !connected() ? 'Não foi possível conectar ao player' : !programActive() ? 'Esta programação está pausada' : 'Sem conteúdo programado neste horário' }}</p>
-          @if (programName()) { <small>{{ programName() }}</small> }
-          <button type="button" class="player-retry" (click)="refresh()">Tentar novamente</button>
-        </div>
+      </main>
+      @if (messages().length) {
+        <app-message-band [messages]="messages()"/>
       }
     </div>`,
 })
@@ -48,6 +56,7 @@ export class PlayerPage implements OnInit, OnDestroy {
   private sanitizer = inject(DomSanitizer);
 
   current = signal<PlayerItem | null>(null);
+  messages = signal<PlayerItem[]>([]);
   programName = signal('');
   programActive = signal(true);
   connected = signal(false);
@@ -76,16 +85,17 @@ export class PlayerPage implements OnInit, OnDestroy {
       next: (result: PlayerPlaylist) => {
         this.programName.set(result.program.name);
         this.programActive.set(result.program.active);
-        this.playlist = result.items;
+        this.messages.set(result.items.filter(item => item.type === 'MESSAGE'));
+        this.playlist = result.items.filter(item => item.type !== 'MESSAGE');
         this.connected.set(true);
         this.lastUpdated.set(new Date());
-        const nextRefreshMs = Math.max(IDLE_RETRY_MS, result.pollSeconds * 1000);
+        const nextRefreshMs = Math.max(1_000, result.pollSeconds * 1000);
         if (nextRefreshMs !== this.refreshMs) {
           this.refreshMs = nextRefreshMs;
           if (this.refreshTimer) clearInterval(this.refreshTimer);
           this.refreshTimer = setInterval(() => this.refresh(), this.refreshMs);
         }
-        if (!result.items.length) {
+        if (!this.playlist.length) {
           this.current.set(null);
           this.advance();
         } else if (!this.current() || !result.items.some(item => item.key === this.current()?.key)) {

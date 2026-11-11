@@ -122,7 +122,8 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
                   </span>
                   <span class="day-post-timing">
                     <strong>{{ entry.startTime }}–{{ entry.endTime }}</strong>
-                    @if (entry.turnSeconds) { <small>{{ entry.turnSeconds }} s previstos</small> }
+                    @if (publication?.type === 'MESSAGE') { <small>Fixa durante o horário</small> }
+                    @else if (entry.turnSeconds) { <small>{{ entry.turnSeconds }} s previstos</small> }
                     @else if (publication?.displaySeconds) { <small>{{ publication?.displaySeconds }} s de exibição</small> }
                   </span>
                   <span class="day-post-timeline" [attr.aria-label]="'Exibição das ' + entry.startTime + ' às ' + entry.endTime">
@@ -196,9 +197,13 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
             <label class="field">Início<input class="input" type="time" name="start" [(ngModel)]="form.startTime"></label>
             <label class="field">Fim<input class="input" type="time" name="end" [(ngModel)]="form.endTime"></label>
           </div>
-          <label class="field">Duração planejada (segundos, opcional)
-            <input class="input" type="number" min="1" max="3600" name="turn" [(ngModel)]="form.turnSeconds" placeholder="Usa a duração do conteúdo">
-          </label>
+          @if (publicationOf(form.publicationId ?? 0)?.type === 'MESSAGE') {
+            <p class="muted">A mensagem ficará fixa na faixa inferior durante todo o horário agendado.</p>
+          } @else {
+            <label class="field">Duração planejada (segundos, opcional)
+              <input class="input" type="number" min="1" max="3600" name="turn" [(ngModel)]="form.turnSeconds" placeholder="Usa a duração do conteúdo">
+            </label>
+          }
           @if (error()) { <p class="error">{{ error() }}</p> }
           <div class="actions">
             @if (editing()) { <button class="btn" type="button" (click)="resetForm()">Cancelar</button> }
@@ -292,7 +297,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
               <input class="input" type="search" aria-label="Buscar conteúdo por título" placeholder="Buscar por título" [ngModel]="contentSearch()" (ngModelChange)="contentSearch.set($event)">
             </label>
             <select class="input" aria-label="Filtrar por formato" [ngModel]="contentTypeFilter()" (ngModelChange)="contentTypeFilter.set($event)">
-              <option value="ALL">Todos os formatos</option><option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option>
+              <option value="ALL">Todos os formatos</option><option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option><option value="MESSAGE">Mensagem</option>
             </select>
             <span class="calendar-publication-rule">Somente conteúdos publicados podem ser agendados.</span>
           </div>
@@ -310,7 +315,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
                 <span class="add-content-thumb"><app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/></span>
                 <span class="add-content-info">
                   <strong>{{ publication.title }}</strong>
-                  <small>{{ typeName(publication.type) }} · {{ publication.displaySeconds ?? 10 }} s</small>
+                  <small>{{ publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + (publication.displaySeconds ?? 10) + ' s' }}</small>
                 </span>
                 <span class="add-content-status">
                   @if (alreadyScheduled().has(publication.id)) { Já agendado neste período }
@@ -547,7 +552,7 @@ export class CalendarPage implements OnInit {
   clearContentSelection(): void { this.selectedContentIds.set([]); }
   toMinutes = toMinutes;
   typeName(type: Publication['type']): string {
-    return type === 'IMAGE' ? 'Imagem' : type === 'VIDEO' ? 'Vídeo' : 'Link';
+    return type === 'IMAGE' ? 'Imagem' : type === 'VIDEO' ? 'Vídeo' : type === 'MESSAGE' ? 'Mensagem' : 'Link';
   }
   publicationOf(id: number): Publication | undefined {
     return this.pubs().find(publication => publication.id === id);

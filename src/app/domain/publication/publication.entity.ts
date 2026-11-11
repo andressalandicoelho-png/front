@@ -1,9 +1,10 @@
-export type PublicationType = 'IMAGE' | 'VIDEO' | 'LINK';
+export type PublicationType = 'IMAGE' | 'VIDEO' | 'LINK' | 'MESSAGE';
 export type PublicationStatus = string; // ex.: READY, PUBLISHED, ...
 
 export interface Publication {
   id: number;
   title: string;
+  content: string | null;
   type: PublicationType;
   status: PublicationStatus;
   displaySeconds: number | null;
@@ -18,6 +19,7 @@ export interface Publication {
 
 export interface NewPublication {
   title: string;
+  content?: string;
   type: PublicationType;
   displaySeconds?: number;
   originalDurationSeconds?: number;
@@ -25,7 +27,7 @@ export interface NewPublication {
   file?: File;
 }
 
-export type PublicationChanges = Partial<{ title: string; displaySeconds: number }>;
+export type PublicationChanges = Partial<{ title: string; content: string; displaySeconds: number }>;
 export interface PublicationFilter { status?: string; type?: PublicationType; }
 
 export const DEFAULT_DISPLAY_SECONDS = 20;
@@ -34,6 +36,7 @@ export const MAX_UPLOAD_BYTES = 300 * 1024 * 1024;
 /** Regras de negócio para criar uma publicação. Retorna a mensagem de erro, ou null se válida. */
 export function validateNewPublication(p: NewPublication): string | null {
   if (!p.title.trim()) return 'Informe um título.';
+  if (p.type === 'MESSAGE') return p.content?.trim() ? null : 'Informe o conteúdo da mensagem.';
   if (p.type === 'LINK') {
     try { new URL(p.linkUrl ?? ''); } catch { return 'Informe um link válido, começando com https://'; }
     return null;
