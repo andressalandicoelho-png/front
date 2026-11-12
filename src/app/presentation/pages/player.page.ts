@@ -1,8 +1,9 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { LoadPlayerPlaylistUseCase } from '@application/player/player.usecases';
 import { PlayerItem, PlayerPlaylist } from '@domain/player/player.entity';
+import { IconComponent } from '@presentation/ui/icon.component';
 import { MessageBandComponent } from '@presentation/ui/message-band.component';
 
 const DEFAULT_REFRESH_MS = 60_000;
@@ -15,9 +16,17 @@ const IDLE_RETRY_MS = 5_000;
  */
 @Component({
   selector: 'app-player',
-  imports: [DatePipe, MessageBandComponent],
+  imports: [DatePipe, IconComponent, MessageBandComponent],
   template: `
     <div class="player">
+      @if (!fullscreen()) {
+        <button class="player-fullscreen" type="button" aria-label="Ativar tela cheia" (click)="enterFullscreen()">
+          <app-icon name="expand" [size]="17"/> <span>Tela cheia</span>
+        </button>
+      }
+      @if (fullscreenError()) {
+        <p class="player-fullscreen-error" role="alert">{{ fullscreenError() }}</p>
+      }
       @if (programName()) {
         <div class="player-status">
           <strong>{{ programName() }}</strong>
@@ -65,6 +74,8 @@ export class PlayerPage implements OnInit, OnDestroy {
   programActive = signal(true);
   connected = signal(false);
   lastUpdated = signal<Date | null>(null);
+  fullscreen = signal(false);
+  fullscreenError = signal('');
   private playlist: PlayerItem[] = [];
   private advanceTimer?: ReturnType<typeof setTimeout>;
   private refreshTimer?: ReturnType<typeof setInterval>;
@@ -82,6 +93,25 @@ export class PlayerPage implements OnInit, OnDestroy {
 
   safe(item: PlayerItem): SafeResourceUrl {
     return this.sanitizer.bypassSecurityTrustResourceUrl(item.linkUrl ?? '');
+  }
+
+  async enterFullscreen(): Promise<void> {
+    this.fullscreenError.set('');
+    if (!document.fullscreenEnabled || typeof document.documentElement.requestFullscreen !== 'function') {
+      this.fullscreenError.set('Este navegador não permite ativar a tela cheia. Use o modo de tela cheia do navegador.');
+      return;
+    }
+
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch {
+      this.fullscreenError.set('Não foi possível ativar a tela cheia. Tente novamente pelo navegador.');
+    }
+  }
+
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange(): void {
+    this.fullscreen.set(!!document.fullscreenElement);
   }
 
   refresh(): void {
