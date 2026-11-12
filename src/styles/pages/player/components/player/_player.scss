@@ -1,0 +1,47 @@
+/* ---------- player de TV ---------- */
+.player { position: fixed; inset: 0; display: flex; flex-direction: column; background: #000; color: #fff; overflow: hidden;
+  img, video, iframe { width: 100%; height: 100%; border: 0; object-fit: cover; background: #000; display: block; } }
+.player-fullscreen {
+  position: absolute;
+  z-index: 4;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, .24);
+  border-radius: 8px;
+  color: #fff;
+  background: rgba(15, 20, 33, .72);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+.player-fullscreen:hover { background: rgba(36, 48, 73, .9); }
+.player-fullscreen:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.player-fullscreen-error {
+  position: absolute;
+  z-index: 4;
+  top: max(60px, calc(env(safe-area-inset-top) + 44px));
+  right: max(16px, env(safe-area-inset-right));
+  max-width: min(360px, calc(100vw - 32px));
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 7px;
+  color: #fff;
+  background: rgba(115, 34, 34, .88);
+  font-size: 11px;
+}
+.player-stage { position: absolute; inset: 0; min-height: 0; overflow: hidden; }
+.player-stage > img, .player-stage > video, .player-stage > iframe { position: absolute; inset: 0; }
+.player-image-enter { z-index: 2; will-change: opacity, transform; animation: player-image-in 1400ms cubic-bezier(.45, 0, .55, 1) both; }
+.player-image-leave { z-index: 1; will-change: opacity, transform; animation: player-image-out 1400ms cubic-bezier(.45, 0, .55, 1) both; }
+@keyframes player-image-in { from { opacity: 0; transform: scale(1.025); } to { opacity: 1; transform: scale(1); } }
+@keyframes player-image-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.012); } }
+.player-idle { height: 100%; display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; opacity: .8; }
+.player > app-message-band { position: absolute; z-index: 3; right: clamp(16px, 3vw, 56px); bottom: clamp(16px, 3vh, 32px); left: clamp(16px, 3vw, 56px); width: auto; height: clamp(130px, 20vh, 240px); }
+.player > app-message-band.clock-only { right: auto; width: clamp(88px, 9vw, 136px); height: clamp(88px, 9vw, 136px); }

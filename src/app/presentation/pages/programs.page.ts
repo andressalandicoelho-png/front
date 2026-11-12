@@ -17,6 +17,8 @@ import { ToastService } from '@presentation/core/toast.service';
 import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
+import { PageHeaderComponent } from '@presentation/ui/page-header.component';
+import { CalendarReviewTableComponent } from '@presentation/ui/calendar-review-table.component';
 import { ProgramPreviewComponent, ProgramPreviewItem } from '@presentation/ui/program-preview.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
 import { concatMap, from } from 'rxjs';
@@ -25,11 +27,10 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
 
 @Component({
   selector: 'app-programs',
-  imports: [FormsModule, DatePickerComponent, IconComponent, ModalComponent, ProgramPreviewComponent, SecureMediaComponent],
+  imports: [FormsModule, DatePickerComponent, IconComponent, ModalComponent, PageHeaderComponent, CalendarReviewTableComponent, ProgramPreviewComponent, SecureMediaComponent],
   template: `
-    <header class="page-head row-between program-page-head">
-      <div><h1>Programações</h1><p class="muted">Monte sequências de conteúdo e prepare cada TV para exibi-las.</p></div>
-    </header>
+    <header app-page-header class="page-head row-between program-page-head" title="Programações"
+      description="Monte sequências de conteúdo e prepare cada TV para exibi-las."></header>
 
     @if (error()) { <div class="notice error-notice" role="alert">{{ error() }}</div> }
 
@@ -134,7 +135,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
             @for (entry of program.entries; track entry.id; let index = $index) {
               <article class="program-sequence-item">
                 <span class="program-sequence-position">{{ (index + 1).toString().padStart(2, '0') }}</span>
-                <span class="program-sequence-thumb"><app-secure-media [mediaId]="entry.mediaFileId" [type]="entry.publicationType === 'MESSAGE' ? 'MESSAGE' : entry.publicationType === 'VIDEO' ? 'VIDEO' : entry.publicationType === 'LINK' ? 'LINK' : 'IMAGE'"/></span>
+                <span class="program-sequence-thumb media-thumb"><app-secure-media [mediaId]="entry.mediaFileId" [type]="entry.publicationType === 'MESSAGE' ? 'MESSAGE' : entry.publicationType === 'VIDEO' ? 'VIDEO' : entry.publicationType === 'LINK' ? 'LINK' : 'IMAGE'"/></span>
                 <span class="program-sequence-copy">
                   <strong>{{ entry.publicationTitle }}</strong>
                   @if (entry.publicationType === 'MESSAGE') {
@@ -157,7 +158,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
           </section>
         </section>
       } @else {
-        <section class="program-inspector program-inspector-empty" aria-live="polite">
+        <section class="program-inspector program-inspector-empty empty-state" aria-live="polite">
           @if (programs().length) {
             <span class="empty-icon"><app-icon name="layers" [size]="24"/></span>
             <h2>Selecione uma programação</h2>
@@ -209,24 +210,8 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                   <span><app-icon name="calendar" [size]="13"/> {{ formatDate(sharedSchedule().date) }}{{ sharedSchedule().endDate !== sharedSchedule().date ? ' a ' + formatDate(sharedSchedule().endDate) : '' }}</span>
                   <span><app-icon name="clock" [size]="13"/> {{ sharedSchedule().startTime }}–{{ sharedSchedule().endTime }}</span>
                 </div>
-                <div class="calendar-review-table">
-                  <div class="calendar-review-table-head"><span>Arquivo de mídia</span><span>Status</span><span>Agendamentos</span></div>
-                  <div class="calendar-review-list" role="list" aria-label="Mídias prontas para agendamento">
-                    @for (id of selectedPublicationIds(); track id) {
-                      @let publication = publicationFor(id);
-                      <div class="calendar-review-row" role="listitem">
-                        <span class="calendar-review-file">
-                          <span class="calendar-review-file-icon"><app-icon [name]="publication?.type === 'IMAGE' ? 'image' : publication?.type === 'VIDEO' ? 'video' : 'document'" [size]="14"/></span>
-                          <strong>{{ publicationTitle(id) }}</strong>
-                        </span>
-                        <span class="calendar-review-status">{{ scheduleComplete(id) ? 'Agendado' : 'Disponível' }}</span>
-                        <small>{{ scheduledCount(id) }} de {{ datesFor(id).length }} dias agendados</small>
-                      </div>
-                    } @empty {
-                      <p class="calendar-review-empty">Selecione conteúdos para revisar o agendamento.</p>
-                    }
-                  </div>
-                </div>
+                <app-calendar-review-table [rows]="calendarReviewRows()" lastColumnHeading="Agendamentos"
+                  emptyMessage="Selecione conteúdos para revisar o agendamento."/>
                 @if (error()) { <p class="error add-content-error" role="alert">{{ error() }}</p> }
                 @if (saving() && scheduleProgress().total) {
                   <div class="program-progress" role="status" aria-live="polite">
@@ -277,7 +262,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                 <div><strong>Conteúdos publicados</strong><small>Somente conteúdos publicados podem ser agendados.</small></div>
               </div>
               <div class="add-content-filters" role="search">
-                <label class="search-field">
+                <label class="search-field search-field--icon">
                   <app-icon name="search" [size]="17"/>
                   <input class="input" type="search" name="publicationSearch" aria-label="Buscar conteúdo por título" placeholder="Buscar por título"
                     [ngModel]="publicationSearch()" (ngModelChange)="publicationSearch.set($event)">
@@ -294,9 +279,9 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                 <span class="add-content-hint">Selecione um ou mais itens</span>
               </div>
               @if (publicationsLoading()) {
-                <div class="add-content-empty" role="status"><strong>Carregando conteúdos publicados…</strong></div>
+                <div class="add-content-empty empty-state" role="status"><strong>Carregando conteúdos publicados…</strong></div>
               } @else if (publicationsLoadError()) {
-                <div class="add-content-empty" role="alert">
+                <div class="add-content-empty empty-state" role="alert">
                   <strong>Não foi possível carregar os conteúdos.</strong>
                   <span>{{ publicationsLoadError() }}</span>
                   <button class="link-button" type="button" (click)="loadPublications()">Tentar novamente</button>
@@ -306,7 +291,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                   @for (publication of filteredAvailablePublications(); track publication.id) {
                     <label class="add-content-item" role="listitem" [class.selected]="selectedPublicationIds().includes(publication.id)" [class.already-added]="entriesAdded()">
                       <input type="checkbox" [checked]="selectedPublicationIds().includes(publication.id)" [disabled]="saving() || entriesAdded()" (change)="togglePublication(publication.id, $event)">
-                      <span class="add-content-thumb"><app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/></span>
+                      <span class="add-content-thumb media-thumb"><app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/></span>
                       <span class="add-content-info">
                         <span class="add-content-title-row"><strong>{{ publication.title }}</strong><small class="add-content-published">{{ entriesAdded() ? 'Na programação' : 'Publicado' }}</small></span>
                         <small>{{ publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + (publication.displaySeconds ?? publication.originalDurationSeconds ?? 30) + ' s' }}</small>
@@ -318,7 +303,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                       </span>
                     </label>
                   } @empty {
-                    <div class="add-content-empty">
+                    <div class="add-content-empty empty-state">
                       <app-icon name="search" [size]="18"/>
                       <strong>{{ availablePublications().length ? 'Nenhum resultado para esta busca' : 'Nenhum conteúdo publicado disponível' }}</strong>
                       <span>{{ availablePublications().length ? 'Tente outro título ou ajuste os filtros.' : 'Publique conteúdos na biblioteca antes de adicioná-los à programação.' }}</span>
@@ -438,6 +423,16 @@ export class ProgramsPage implements OnInit {
     .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)));
   reviewScheduleCount = computed(() => this.selectedPublicationIds().reduce((count, id) =>
     count + this.datesFor(id).filter(date => !this.scheduledScheduleKeys().includes(this.scheduleKey(id, date))).length, 0));
+  calendarReviewRows = computed(() => this.selectedPublicationIds().map(id => {
+    const publication = this.publicationFor(id);
+    return {
+      id,
+      title: this.publicationTitle(id),
+      type: publication?.type ?? 'LINK',
+      status: this.scheduleComplete(id) ? 'Agendado' : 'Disponível',
+      scheduleSummary: `${this.scheduledCount(id)} de ${this.datesFor(id).length} dias agendados`,
+    };
+  }));
   selectedPublicationSummary = computed(() => this.selectedPublicationIds().map(id => this.publicationTitle(id)).join(' · '));
   filteredPrograms = computed(() => {
     const query = this.search().trim().toLocaleLowerCase();

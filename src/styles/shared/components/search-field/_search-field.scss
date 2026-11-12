@@ -1,0 +1,15 @@
+.search-field--icon {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+.search-field--icon app-icon {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 12px;
+  color: #788296;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+.search-field--icon .input { min-width: 0; padding-left: 36px; }

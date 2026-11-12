@@ -1,0 +1,51 @@
+@media (min-width: 801px) {
+  .side {
+    background: #fff;
+    border-right: 1px solid #e8ebf1;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .sidebar-header { border-bottom-color: #edf0f4; }
+  .sidebar-header .brand { gap: 10px; }
+  .sidebar-header .brand-mark { border-radius: 8px; box-shadow: none; }
+  .sidebar-header .brand-name { color: #25324a; font-size: 14px; font-weight: 600; letter-spacing: -.2px; }
+  .sidebar-toggle { border-radius: 7px; color: #748097; }
+  .sidebar-toggle:hover { background: #f3f5f8; color: #33486f; }
+  .side .nav { gap: 5px; padding: 20px 12px; }
+  .side .nav-item {
+    min-height: 42px;
+    gap: 11px;
+    padding: 9px 11px;
+    border: 0;
+    border-radius: 9px;
+    color: #596579;
+    font-size: 14px;
+    font-weight: 500;
+    transform: none;
+  }
+  .side .nav-item:hover { background: #f5f6f8; color: #26364f; }
+  .side .nav-item.active {
+    background: #f0f4ff;
+    box-shadow: none;
+    color: #2857c5;
+    font-weight: 600;
+  }
+  .side .nav-item app-icon { color: #7b879a; }
+  .side .nav-item.active app-icon { color: #2857c5; }
+  .account-link {
+    min-height: 68px;
+    gap: 10px;
+    padding: 12px 14px;
+    border-top-color: #edf0f4;
+    background: #fff;
+  }
+  .account-link:hover, .account-link.active { background: #f8f9fb; }
+  .account-link .avatar { width: 34px; height: 34px; border-radius: 50%; font-size: 14px; }
+  .account-copy { gap: 3px; }
+  .account-copy strong { color: #344054; font-size: 12px; font-weight: 600; }
+  .account-copy small { color: #7a8495; font-size: 11px; }
+  .sidebar-collapsed .side .nav-item.active { background: #f0f4ff; box-shadow: none; }
+  .sidebar-collapsed .account-link { padding: 10px 4px; }
+}
+

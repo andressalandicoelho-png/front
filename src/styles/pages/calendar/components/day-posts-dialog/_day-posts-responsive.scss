@@ -1,0 +1,51 @@
+@media (max-width: 650px) {
+  .modal:has(.day-posts-dialog) { width: min(100%, 680px); max-height: calc(100dvh - 28px); }
+  .day-posts-heading { gap: 8px; padding: 9px 12px; }
+  .day-posts-heading-copy strong { font-size: 14px; }
+  .day-posts-heading-copy small { font-size: 11px; }
+  .day-posts-heading .day-posts-search { width: min(210px, 34%); }
+  .day-posts-overview { padding: 9px 14px 8px; }
+  .day-posts-toolbar { padding-right: 14px; padding-left: 14px; }
+  .day-posts-programs { gap: 15px; padding-right: 14px; padding-left: 14px; }
+  .day-post-card { grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; padding: 8px 14px; }
+  .day-post-thumb { width: 48px; height: 40px; }
+  .day-post-copy strong { font-size: 13px; }
+  .day-post-program, .day-post-copy .day-post-meta { font-size: 11px; }
+  .day-post-actions .icon-btn { width: 32px; height: 32px; }
+  .day-posts-footer { align-items: flex-start; flex-direction: column; gap: 9px; padding: 10px 14px; }
+  .day-posts-footer-meta { flex-wrap: wrap; white-space: normal; }
+  .day-posts-footer-actions { width: 100%; justify-content: flex-end; }
+  .day-posts-add, .day-posts-close { min-height: 38px; }
+}
+
+@media (max-width: 520px) {
+  .modal:has(.day-posts-dialog) { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); }
+  .backdrop:has(.day-posts-dialog) { padding: 10px; }
+  .day-posts-heading { flex-wrap: wrap; gap: 6px; padding: 9px 10px; }
+  .day-posts-heading-icon { width: 34px; height: 34px; }
+  .day-posts-heading-copy { flex-basis: calc(100% - 88px); }
+  .day-posts-heading .day-posts-search { order: 2; width: auto; min-width: 0; flex: 1; }
+  .day-posts-header-close { order: 1; }
+  .day-posts-summary { align-items: flex-start; gap: 8px; }
+  .day-posts-summary-copy small { white-space: normal; }
+  .day-posts-live { min-height: 26px; padding: 4px 7px; font-size: 11px; }
+  .day-posts-window { padding-top: 9px; }
+  .day-posts-axis { font-size: 9px; }
+  .day-posts-toolbar { min-height: 36px; }
+  .day-posts-sort, .day-posts-sort select { font-size: 11px; }
+  .day-posts-sort select { max-width: 145px; }
+  .day-posts-programs { min-height: 40px; gap: 12px; }
+  .day-posts-programs button { font-size: 12px; }
+  .day-post-card { grid-template-columns: 42px minmax(0, 1fr) auto; gap: 8px; padding: 8px 10px; }
+  .day-post-thumb { width: 42px; height: 36px; }
+  .day-post-title-row { gap: 6px; }
+  .day-post-copy strong { font-size: 12px; }
+  .day-post-program, .day-post-copy .day-post-meta { font-size: 10px; }
+  .day-post-program { max-width: 108px; }
+  .day-post-actions { gap: 1px; }
+  .day-post-actions .icon-btn { width: 29px; height: 29px; }
+  .day-posts-footer-meta { gap: 6px; font-size: 10px; }
+  .day-posts-add, .day-posts-close { min-height: 36px; padding: 6px 10px; font-size: 12px; }
+  .day-post-preview { width: calc(100vw - 28px); padding: 15px; }
+  .day-post-preview-media { min-height: 180px; }
+}

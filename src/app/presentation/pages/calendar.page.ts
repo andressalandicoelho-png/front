@@ -20,17 +20,19 @@ import { longDate, monthTitle } from '@presentation/core/format';
 import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
+import { PageHeaderComponent } from '@presentation/ui/page-header.component';
+import { CalendarReviewTableComponent } from '@presentation/ui/calendar-review-table.component';
+import { PaginationComponent } from '@presentation/ui/pagination.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
 
 interface EntryForm { publicationId: number | null; programId: number | null; endDate: string; startTime: string; endTime: string; turnSeconds: number | null; }
 
 @Component({
   selector: 'app-calendar',
-  imports: [DatePipe, RouterLink, FormsModule, DatePickerComponent, IconComponent, ModalComponent, SecureMediaComponent],
+  imports: [DatePipe, RouterLink, FormsModule, DatePickerComponent, IconComponent, ModalComponent, PageHeaderComponent, CalendarReviewTableComponent, PaginationComponent, SecureMediaComponent],
   template: `
-    <header class="page-head row-between">
-      <div><h1>Uma visão de tudo que conecta.</h1><p class="muted">Organize a comunicação das suas TVs, um dia de cada vez.</p></div>
-    </header>
+    <header app-page-header class="page-head row-between" title="Uma visão de tudo que conecta."
+      description="Organize a comunicação das suas TVs, um dia de cada vez."></header>
 
     <section class="card cal">
       <div class="cal-head">
@@ -75,14 +77,18 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
               <app-icon name="right" [size]="18"/>
             </button>
           } @empty {
-            <div class="calendar-agenda-empty">
+            <div class="calendar-agenda-empty empty-state">
               <strong>Seu calendário ainda está livre</strong>
               <span>Agende conteúdos para deixar a programação da TV pronta.</span>
               @if (!isPast(today)) { <button class="btn primary small" type="button" (click)="addContent(today)"><app-icon name="plus" [size]="15"/> Agendar conteúdo hoje</button> }
             </div>
           }
           @if (monthEntries().length) {
-            <div class="agenda-pagination"><button class="btn small" type="button" (click)="previousAgendaPage()" [disabled]="agendaPage() === 0">Anterior</button><span>{{ agendaPage() + 1 }} / {{ agendaPageCount() }}</span><button class="btn small" type="button" (click)="nextAgendaPage()" [disabled]="agendaPage() + 1 >= agendaPageCount()">Próxima</button></div>
+            <footer app-pagination class="pagination agenda-pagination" ariaLabel="Paginação da agenda"
+              [previousDisabled]="agendaPage() === 0" [nextDisabled]="agendaPage() + 1 >= agendaPageCount()"
+              (previousPage)="previousAgendaPage()" (nextPage)="nextAgendaPage()">
+              <span paginationStatus>{{ agendaPage() + 1 }} / {{ agendaPageCount() }}</span>
+            </footer>
           }
         }
       </div>
@@ -166,7 +172,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
               @for (entry of visibleDayEntries(); track entry.id) {
                 @let publication = publicationOf(entry.publicationId);
                 <article class="day-post-card" role="listitem">
-                  <span class="day-post-thumb"><app-secure-media [mediaId]="publication?.mediaId ?? null" [type]="publication?.type ?? 'IMAGE'"/></span>
+                  <span class="day-post-thumb media-thumb"><app-secure-media [mediaId]="publication?.mediaId ?? null" [type]="publication?.type ?? 'IMAGE'"/></span>
                   <span class="day-post-copy">
                     <span class="day-post-title-row">
                       <strong>{{ titleOf(entry) }}</strong>
@@ -184,7 +190,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
                   </div>
                 </article>
               } @empty {
-                <div class="day-posts-empty">
+                <div class="day-posts-empty empty-state">
                   <strong>{{ dayEntries().length ? 'Nenhum conteúdo encontrado' : 'Nenhum conteúdo neste dia' }}</strong>
                   <span>{{ dayEntries().length ? 'Tente outra busca ou programação.' : 'Não há posts programados para esta data.' }}</span>
                 </div>
@@ -329,23 +335,8 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
                 <span><app-icon name="clock" [size]="13"/> {{ addStartTime() }}–{{ addEndTime() }}</span>
               </div>
 
-              <div class="calendar-review-table">
-                <div class="calendar-review-table-head"><span>Arquivo de mídia</span><span>Status</span><span>Combinações</span></div>
-                <div class="calendar-review-list" role="list" aria-label="Mídias prontas para agendamento">
-                @for (publication of calendarReviewItems(); track publication.id) {
-                  <div class="calendar-review-row" role="listitem">
-                    <span class="calendar-review-file">
-                      <span class="calendar-review-file-icon"><app-icon [name]="publication.type === 'IMAGE' ? 'image' : publication.type === 'VIDEO' ? 'video' : 'document'" [size]="14"/></span>
-                      <strong>{{ publication.title }}</strong>
-                    </span>
-                    <span class="calendar-review-status">Disponível</span>
-                    <small>{{ publication.scheduledSlots }} de {{ addDates().length * selectedProgramIds().length }} agendadas</small>
-                  </div>
-                } @empty {
-                  <p class="calendar-review-empty">Não há conteúdos novos para agendar neste período.</p>
-                }
-                </div>
-              </div>
+              <app-calendar-review-table [rows]="calendarReviewRows()" lastColumnHeading="Combinações"
+                emptyMessage="Não há conteúdos novos para agendar neste período."/>
 
               @if (knownScheduleConflicts().length) {
                 <div class="notice warning-notice calendar-review-warning" role="alert">
@@ -411,7 +402,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
             <div><strong>Conteúdos publicados</strong><small>Somente conteúdos publicados podem ser agendados.</small></div>
           </div>
           <div class="add-content-filters" role="search">
-            <label class="search-field">
+            <label class="search-field search-field--icon">
               <app-icon name="search" [size]="17"/>
               <input class="input" type="search" aria-label="Buscar conteúdo por título" placeholder="Buscar por título" [ngModel]="contentSearch()" (ngModelChange)="contentSearch.set($event)">
             </label>
@@ -430,7 +421,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
               <label class="add-content-item" role="listitem" [class.selected]="isContentSelected(publication.id)" [class.already-added]="alreadyScheduled().has(publication.id)">
                 <input type="checkbox" [checked]="isContentSelected(publication.id) || alreadyScheduled().has(publication.id)"
                        [disabled]="alreadyScheduled().has(publication.id) || addingContents()" (change)="toggleContent(publication.id)">
-                <span class="add-content-thumb"><app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/></span>
+                <span class="add-content-thumb media-thumb"><app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/></span>
                 <span class="add-content-info">
                   <span class="add-content-title-row"><strong>{{ publication.title }}</strong><small class="add-content-published">Publicado</small></span>
                   <small>{{ publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + (publication.displaySeconds ?? 10) + ' s' }}</small>
@@ -442,7 +433,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
                 </span>
               </label>
             } @empty {
-              <div class="add-content-empty">
+              <div class="add-content-empty empty-state">
                 <app-icon name="search" [size]="18"/>
                 <strong>{{ contentSearch() ? 'Nenhum resultado para esta busca' : 'Nenhum conteúdo encontrado' }}</strong>
                 <span>{{ contentSearch() ? 'Tente outro título ou ajuste os filtros.' : 'Ajuste os filtros para ver outros conteúdos da biblioteca.' }}</span>
@@ -624,6 +615,13 @@ export class CalendarPage implements OnInit {
         .map(entry => `${entry.programId}:${entry.date}`));
       return { id: publication.id, title: publication.title, type: publication.type, scheduledSlots: scheduledSlots.size };
     }));
+  calendarReviewRows = computed(() => this.calendarReviewItems().map(publication => ({
+    id: publication.id,
+    title: publication.title,
+    type: publication.type,
+    status: 'Disponível',
+    scheduleSummary: `${publication.scheduledSlots} de ${this.addDates().length * this.selectedProgramIds().length} agendadas`,
+  })));
   calendarReviewCount = computed(() => this.calendarReviewItems().reduce(
     (count, item) => count + this.addDates().length * this.selectedProgramIds().length - item.scheduledSlots, 0,
   ));

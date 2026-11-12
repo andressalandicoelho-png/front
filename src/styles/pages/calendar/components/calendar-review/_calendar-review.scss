@@ -1,0 +1,79 @@
+.calendar-review-screen { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 9px; padding: 8px 18px 0; }
+.calendar-review-overview { display: flex; min-height: 40px; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; border: 1px solid #e3e8f0; border-radius: 8px; background: #fafbfd; }
+.calendar-review-programs { display: flex; min-width: 0; align-items: center; gap: 7px; color: #24344e; font-size: 11px; }
+.calendar-review-programs i, .calendar-review-ready i { width: 7px; height: 7px; flex: none; border-radius: 50%; background: #20a36a; }
+.calendar-review-programs strong { overflow: hidden; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-review-counts { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.calendar-review-counts span { padding: 3px 6px; border: 1px solid #e7ebf2; border-radius: 4px; background: #fff; color: #5e6a7d; font-size: 9px; white-space: nowrap; }
+.calendar-review-period { display: flex; flex-wrap: wrap; gap: 6px; }
+.calendar-review-period > span { display: inline-flex; min-height: 24px; align-items: center; gap: 5px; padding: 3px 7px; border-radius: 4px; color: #40506a; background: #f1f4f9; font-size: 10px; }
+.calendar-review-period app-icon { color: #315fc5; }
+.calendar-review-warning { flex: none; margin: 0; }
+.calendar-review-screen > .add-content-error { flex: none; margin: 0; }
+.add-content-footer.calendar-review-footer { min-height: 48px; margin: 0; padding: 7px 18px; border-top-color: #e8ebf2; background: #fafbfd; }
+.calendar-review-ready { display: inline-flex; align-items: center; gap: 6px; color: #627087; font-size: 10px; white-space: nowrap; }
+.calendar-review-ready i { width: 6px; height: 6px; background: #2860ed; }
+
+@media (max-width: 650px) {
+  .calendar-review-screen { padding: 7px 12px 0; gap: 7px; }
+  .calendar-review-overview { align-items: flex-start; flex-direction: column; }
+  .calendar-review-counts { justify-content: flex-start; }
+  .add-content-footer.calendar-review-footer { align-items: flex-start; flex-direction: column; gap: 7px; padding: 8px 12px; }
+  .calendar-review-footer .actions { width: 100%; }
+  .calendar-review-footer .actions .btn { flex: 1; padding-right: 7px; padding-left: 7px; }
+}
+
+.modal:has(.day-posts-dialog) {
+  width: min(920px, calc(100vw - 40px));
+  max-width: 920px;
+  max-height: min(88dvh, 840px);
+}
+.day-posts-heading { min-height: 62px; gap: 12px; padding: 10px 18px; }
+.day-posts-heading-icon { width: 38px; height: 38px; border-radius: 10px; }
+.day-posts-heading-copy { gap: 2px; }
+.day-posts-heading-copy strong { font-size: 16px; }
+.day-posts-heading-copy small { font-size: 12px; }
+.day-posts-heading .day-posts-search { width: min(250px, 30%); }
+.day-posts-header-close { width: 34px; height: 34px; }
+.day-posts-overview { padding: 10px 22px 9px; }
+.day-posts-summary { gap: 12px; }
+.day-posts-summary-copy { gap: 3px; }
+.day-posts-summary-copy strong { font-size: 14px; }
+.day-posts-summary-copy small { font-size: 12px; }
+.day-posts-live { min-height: 29px; gap: 7px; padding: 5px 10px; font-size: 12px; }
+.day-posts-live i, .day-posts-sync i { width: 8px; height: 8px; }
+.day-posts-window { padding: 10px 5px 2px; }
+.day-posts-axis { font-size: 11px; }
+.day-posts-track { height: 7px; margin: 9px 0 3px; }
+.day-posts-now { width: 10px; height: 10px; }
+.day-posts-toolbar { min-height: 42px; padding: 4px 22px; }
+.day-posts-search { min-height: 38px; gap: 9px; padding: 6px 11px; border-radius: 8px; }
+.day-posts-search input { font-size: 13px; }
+.day-posts-sort { gap: 7px; font-size: 12px; }
+.day-posts-sort select { max-width: 170px; font-size: 12px; }
+.day-posts-programs { min-height: 44px; gap: 20px; padding: 0 22px; }
+.day-posts-programs button { gap: 8px; padding-bottom: 8px; font-size: 13px; }
+.day-posts-programs button.active::after { height: 3px; }
+.day-posts-programs button > i { width: 8px; height: 8px; }
+.day-posts-programs button > span { padding: 2px 6px; font-size: 11px; }
+.day-post-card { min-height: 72px; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 14px; padding: 9px 22px; }
+.day-post-thumb { width: 56px; height: 46px; border-radius: 6px; }
+.day-post-copy { gap: 5px; }
+.day-post-title-row { gap: 9px; }
+.day-post-copy strong { font-size: 14px; }
+.day-post-program { gap: 6px; font-size: 12px; }
+.day-post-program i { width: 8px; height: 8px; }
+.day-post-copy .day-post-meta { font-size: 12px; }
+.day-post-actions { gap: 5px; }
+.day-post-actions .icon-btn { width: 36px; height: 36px; }
+.day-posts-footer { min-height: 60px; gap: 14px; padding: 9px 22px; }
+.day-posts-footer-meta { gap: 10px; font-size: 12px; }
+.day-posts-sync { gap: 6px; }
+.day-posts-footer-actions { gap: 9px; }
+.day-posts-add, .day-posts-close { min-height: 40px; gap: 7px; padding: 7px 14px; border-radius: 8px; font-size: 13px; }
+.day-post-preview { width: min(640px, calc(100vw - 40px)); gap: 18px; padding: 20px; }
+.day-post-preview header { font-size: 17px; }
+.day-post-preview-media { min-height: 240px; border-radius: 9px; }
+.day-post-preview-message, .day-post-preview-link { font-size: 15px; }
+.day-post-preview > small { font-size: 13px; }
+

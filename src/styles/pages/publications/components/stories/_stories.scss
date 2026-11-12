@@ -1,0 +1,13 @@
+/* ---------- stories (canais) ---------- */
+.stories { display: flex; gap: 18px; overflow-x: auto; padding: 4px 2px 16px; margin-bottom: 8px; }
+.story { display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; width: 72px; flex: none; }
+.story-name { font-size: 12px; max-width: 72px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.story.on .story-name { color: var(--text); font-weight: 600; }
+.ring { display: grid; place-items: center; width: 66px; height: 66px; border-radius: 50%; background: var(--grad); padding: 3px;
+  &.off { background: var(--border); }
+  &.small { width: 44px; height: 44px; padding: 2px; }
+}
+.ring-in { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: var(--surface); border: 2px solid var(--surface); font-weight: 700; font-size: 18px; }
+.ring.small .ring-in { font-size: 14px; }
+.story:not(.on) .ring { opacity: .55; }
+

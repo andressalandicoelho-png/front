@@ -1,0 +1,17 @@
+.calendar-load-state {
+  display: flex;
+  min-height: 112px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px;
+  color: var(--muted);
+  text-align: center;
+}
+.calendar-agenda-empty { min-height: 112px; gap: 8px; padding: 18px; color: var(--muted); }
+.calendar-agenda-empty strong { color: var(--text); font-size: 14px; font-weight: 600; }
+.calendar-agenda-empty span { font-size: 12px; }
+.calendar-load-error { color: var(--red); }
+.calendar-agenda-empty .btn { margin-top: 4px; }
+

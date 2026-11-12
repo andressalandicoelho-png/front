@@ -8,13 +8,14 @@ import { errorMessage } from '@presentation/core/error-message';
 import { ToastService } from '@presentation/core/toast.service';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
+import { PageHeaderComponent } from '@presentation/ui/page-header.component';
 
 @Component({
   selector: 'app-users',
-  imports: [FormsModule, IconComponent, ModalComponent],
+  imports: [FormsModule, IconComponent, ModalComponent, PageHeaderComponent],
   template: `
-    <header class="page-head row-between">
-      <div><h1>Usuários</h1><p class="muted">Quem pode editar e administrar o sistema.</p></div>
+    <header app-page-header class="page-head row-between" title="Usuários"
+      description="Quem pode editar e administrar o sistema.">
       <button class="btn primary" type="button" (click)="openNew()"><app-icon name="plus" [size]="18"/> Novo usuário</button>
     </header>
 

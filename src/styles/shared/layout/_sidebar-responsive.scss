@@ -1,0 +1,68 @@
+@media (min-width: 801px) {
+  .side { width: var(--sidebar-width, 240px); }
+  .main { width: calc(100% - var(--sidebar-width, 240px)); margin-left: var(--sidebar-width, 240px); }
+  .brand-name { font-size: 15px; }
+  .nav { align-items: stretch; gap: 3px; padding: 14px 10px; }
+  .nav-item {
+    min-height: 38px;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    color: #596579;
+    font-size: 12px;
+    transition: color .14s ease, background-color .14s ease;
+  }
+  .nav-item app-icon { width: 18px; height: 18px; color: #7a8495; }
+  .nav-item:hover { color: #263a68; background: #f5f7fb; }
+  .nav-item:hover app-icon { color: var(--blue); }
+  .nav-item.active { color: var(--blue); background: #edf2ff; box-shadow: inset 2px 0 0 var(--blue); font-weight: 650; }
+  .nav-item.active app-icon { color: var(--blue); }
+  .sidebar-resize-handle {
+    position: fixed;
+    z-index: 25;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    transform: translateX(-50%);
+    cursor: col-resize;
+    touch-action: none;
+    outline: none;
+  }
+  .sidebar-resize-handle::after {
+    position: absolute;
+    inset: 0 auto 0 2px;
+    width: 1px;
+    background: transparent;
+    content: "";
+  }
+  .sidebar-resize-handle:hover::after,
+  .sidebar-resize-handle:focus-visible::after,
+  .sidebar-resize-handle:active::after {
+    width: 2px;
+    background: var(--blue);
+  }
+
+  .main:has(> app-calendar) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding: 18px 22px;
+  }
+  .main > app-calendar {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+  }
+  .main app-calendar > .page-head { margin-bottom: 12px; }
+  .main app-calendar .cal {
+    min-height: 0;
+    margin-bottom: 6px;
+    overflow: hidden;
+  }
+}
+
+.main {
+  font-size: 12px;
+  line-height: 1.4;
+}

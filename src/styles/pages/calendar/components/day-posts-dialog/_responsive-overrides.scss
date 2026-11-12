@@ -1,0 +1,30 @@
+@media (max-width: 650px) {
+  .modal:has(.day-posts-dialog) { width: min(100%, 680px); max-height: calc(100dvh - 28px); }
+  .backdrop:has(.day-posts-dialog) { padding: 14px; }
+  .day-posts-heading { padding-right: 10px; padding-left: 10px; }
+  .day-posts-overview { padding-right: 12px; padding-left: 12px; }
+  .day-posts-toolbar { padding-right: 12px; padding-left: 12px; }
+  .day-posts-programs { gap: 12px; padding-right: 12px; padding-left: 12px; }
+  .day-post-card { grid-template-columns: 36px minmax(0, 1fr) auto; gap: 7px; padding-right: 10px; padding-left: 10px; }
+  .day-post-thumb { width: 36px; height: 30px; }
+  .day-posts-footer { align-items: flex-start; flex-direction: column; gap: 7px; padding: 8px 12px; }
+  .day-posts-footer-meta { flex-wrap: wrap; white-space: normal; }
+  .day-posts-footer-actions { width: 100%; justify-content: flex-end; }
+  .day-posts-add, .day-posts-close { min-height: 31px; }
+}
+
+@media (max-width: 520px) {
+  app-modal:has(.program-preview-dialog) .modal-body { padding: 10px 12px 14px; }
+  .modal:has(.day-posts-dialog) { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); }
+  .backdrop:has(.day-posts-dialog) { padding: 10px; }
+  .day-posts-heading .day-posts-search { width: min(160px, 38vw); }
+  .day-posts-summary-copy small { white-space: normal; }
+  .day-posts-axis { font-size: 7px; }
+  .day-posts-live { padding-right: 5px; padding-left: 5px; }
+  .day-posts-toolbar { gap: 5px; }
+  .day-posts-sort { gap: 2px; font-size: 8px; }
+  .day-posts-sort select { max-width: 92px; font-size: 8px; }
+  .day-post-program { max-width: 110px; }
+  .day-posts-footer-meta { gap: 5px; font-size: 8px; }
+}
+

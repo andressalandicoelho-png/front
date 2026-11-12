@@ -15,6 +15,8 @@ import { ToastService } from '@presentation/core/toast.service';
 import { typeLabel } from '@presentation/core/format';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
+import { PageHeaderComponent } from '@presentation/ui/page-header.component';
+import { PaginationComponent } from '@presentation/ui/pagination.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
 import { generateVideoPreview } from '@presentation/ui/video-thumbnail';
 
@@ -30,16 +32,16 @@ interface ZipImagePreview {
 
 @Component({
   selector: 'app-publications',
-  imports: [FormsModule, IconComponent, ModalComponent, SecureMediaComponent],
+  imports: [FormsModule, IconComponent, ModalComponent, PageHeaderComponent, PaginationComponent, SecureMediaComponent],
   template: `
-    <header class="page-head row-between">
-      <div><h1>Conteúdos</h1><p class="muted">Crie, organize e reutilize conteúdos das suas programações.</p></div>
+    <header app-page-header class="page-head row-between" title="Conteúdos"
+      description="Crie, organize e reutilize conteúdos das suas programações.">
       <button class="btn primary" type="button" (click)="openNew()"><app-icon name="plus" [size]="18"/> Novo conteúdo</button>
     </header>
 
     <section class="card content-filters">
       <div class="content-filter-row">
-        <label class="search-field content-search-field"><app-icon name="search" [size]="16"/><input class="input" type="search" placeholder="Buscar conteúdo ou autor" aria-label="Buscar conteúdo ou autor" [ngModel]="search()" (ngModelChange)="search.set($event); page.set(0)"></label>
+        <label class="search-field search-field--icon content-search-field"><app-icon name="search" [size]="16"/><input class="input" type="search" placeholder="Buscar conteúdo ou autor" aria-label="Buscar conteúdo ou autor" [ngModel]="search()" (ngModelChange)="search.set($event); page.set(0)"></label>
         <select class="input content-filter-select" aria-label="Filtrar por formato" [ngModel]="typeFilter() ?? ''" (ngModelChange)="typeFilter.set($event || null); page.set(0)">
           <option value="">Formato: Todos</option>
           <option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option><option value="MESSAGE">Mensagem</option>
@@ -117,13 +119,11 @@ interface ZipImagePreview {
       }
     </section>
     @if (visible().length && pageCount() > 1) {
-      <footer class="pagination" aria-label="Paginação dos conteúdos">
-        <small class="muted">Mostrando {{ page() * pageSize() + 1 }}–{{ page() * pageSize() + pageItems().length }} de {{ visible().length }}</small>
-        <div class="actions">
-          <button class="btn small" type="button" [disabled]="page() === 0" (click)="previousPage()">Anterior</button>
-          <span aria-live="polite">{{ page() + 1 }} de {{ pageCount() }}</span>
-          <button class="btn small" type="button" [disabled]="page() + 1 >= pageCount()" (click)="nextPage()">Próxima</button>
-        </div>
+      <footer app-pagination class="pagination" ariaLabel="Paginação dos conteúdos"
+        [previousDisabled]="page() === 0" [nextDisabled]="page() + 1 >= pageCount()"
+        (previousPage)="previousPage()" (nextPage)="nextPage()">
+        <small class="muted" paginationSummary>Mostrando {{ page() * pageSize() + 1 }}–{{ page() * pageSize() + pageItems().length }} de {{ visible().length }}</small>
+        <span paginationStatus aria-live="polite">{{ page() + 1 }} de {{ pageCount() }}</span>
       </footer>
     }
 

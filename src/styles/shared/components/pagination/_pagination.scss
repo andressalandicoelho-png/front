@@ -1,0 +1,13 @@
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+}
+.pagination .actions { display: flex; align-items: center; gap: 8px; }
+
+@media (max-width: 480px) {
+  .pagination { align-items: flex-start; flex-direction: column; }
+  .pagination .actions { width: 100%; justify-content: space-between; }
+}

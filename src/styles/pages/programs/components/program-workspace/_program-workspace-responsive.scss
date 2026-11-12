@@ -1,0 +1,44 @@
+.main app-programs .program-list-head {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 12px 18px;
+}
+.main app-programs .program-list-title { display: flex; min-width: max-content; align-items: center; gap: 10px; }
+.main app-programs .program-list-title .chip { padding: 5px 9px; }
+.main app-programs .program-list-tools {
+  display: grid;
+  min-width: min(100%, 390px);
+  flex: 1;
+  grid-template-columns: minmax(150px, 1fr) 150px;
+  gap: 9px;
+  margin-left: auto;
+}
+.main app-programs .program-search { min-width: 0; }
+.main app-programs .program-search .input,
+.main app-programs .program-status-select { min-height: 36px; }
+.main app-programs .program-search .input { min-width: 0; }
+.main app-programs .program-row { min-height: 66px; }
+.main app-programs .program-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.main app-programs .program-meta { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.main app-programs .program-meta small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.main app-programs .program-open { display: inline-flex; align-items: center; gap: 5px; }
+.main app-programs .program-delete-button { color: #b42318; border-color: #f0c7c4; }
+.main app-programs .program-delete-button:hover { color: #a11b12; border-color: #e7aaa5; background: #fff5f4; }
+.main app-programs .program-delete-confirm > .muted { line-height: 1.6; }
+
+@media (max-width: 800px) {
+  .main app-programs .program-list-head { align-items: stretch; flex-direction: column; }
+  .main app-programs .program-list-tools { width: 100%; margin-left: 0; }
+}
+
+@media (max-width: 480px) {
+  .main app-programs .program-list-head { padding: 12px; }
+  .main app-programs .program-list-tools { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .main app-programs .program-list-title { min-width: 0; flex-wrap: wrap; }
+  .main app-programs .program-row { gap: 5px 8px; padding: 12px; }
+  .main app-programs .program-meta small { max-width: 50vw; }
+}
+

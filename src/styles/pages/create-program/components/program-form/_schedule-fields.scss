@@ -1,0 +1,34 @@
+@media (max-width: 1100px) {
+  .main app-create-program .program-selected-item {
+    grid-template-columns: 14px 22px 58px minmax(100px, 1fr) auto;
+  }
+  .main app-create-program .program-selected-item > .program-schedule-fields { grid-column: 3 / -1; grid-row: 2; }
+  .main app-create-program .program-create-thumb { width: 58px; height: 42px; }
+  .main app-create-program .program-order-actions { grid-column: 5; grid-row: 1; }
+}
+
+@media (max-width: 650px) {
+  .main app-create-program .program-selected-item {
+    grid-template-columns: 12px 20px 58px minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+  .main app-create-program .program-selected-item > .program-schedule-fields { grid-column: 1 / -1; grid-row: 2; }
+  .main app-create-program .program-schedule-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 380px) {
+  .main app-create-program .program-schedule-fields { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .main app-programs .program-schedule-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 360px) {
+  .main app-programs .program-schedule-fields { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .main app-programs .program-schedule-fields { grid-template-columns: minmax(0, 1fr); padding-left: 27px; }
+}
+

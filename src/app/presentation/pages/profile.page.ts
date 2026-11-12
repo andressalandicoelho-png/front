@@ -5,12 +5,14 @@ import { ChangeOwnPasswordUseCase } from '@application/auth/auth.usecases';
 import { errorMessage } from '@presentation/core/error-message';
 import { AuthState } from '@presentation/core/auth.state';
 import { IconComponent } from '@presentation/ui/icon.component';
+import { PageHeaderComponent } from '@presentation/ui/page-header.component';
 
 @Component({
   selector: 'app-profile',
-  imports: [RouterLink, IconComponent, FormsModule],
+  imports: [RouterLink, IconComponent, FormsModule, PageHeaderComponent],
   template: `
-    <header class="page-head"><span class="eyebrow">Minha conta / Segurança</span><h1>Minha conta</h1><p class="muted">Gerencie seus dados e a segurança do seu acesso.</p></header>
+    <header app-page-header class="page-head" eyebrow="Minha conta / Segurança" title="Minha conta"
+      description="Gerencie seus dados e a segurança do seu acesso."></header>
 
     <nav class="tabs" aria-label="Seções da conta"><a class="tab" routerLink="/perfil">Dados pessoais</a><a class="tab active" routerLink="/perfil">Segurança</a></nav>
 

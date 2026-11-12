@@ -12,6 +12,7 @@ import { ToastService } from '@presentation/core/toast.service';
 import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
+import { PageHeaderComponent } from '@presentation/ui/page-header.component';
 import { ProgramPreviewComponent, ProgramPreviewItem } from '@presentation/ui/program-preview.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
 import { concatMap, from } from 'rxjs';
@@ -20,12 +21,10 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
 
 @Component({
   selector: 'app-create-program',
-  imports: [FormsModule, RouterLink, DatePickerComponent, IconComponent, ModalComponent, ProgramPreviewComponent, SecureMediaComponent],
+  imports: [FormsModule, RouterLink, DatePickerComponent, IconComponent, ModalComponent, PageHeaderComponent, ProgramPreviewComponent, SecureMediaComponent],
   template: `
-    <header class="page-head">
-      <h1>Criar programação</h1>
-      <p class="muted">Escolha um nome, organize a sequência e defina quando cada conteúdo será exibido.</p>
-    </header>
+    <header app-page-header class="page-head" title="Criar programação"
+      description="Escolha um nome, organize a sequência e defina quando cada conteúdo será exibido."></header>
 
     @if (error()) { <div class="notice error-notice" role="alert">{{ error() }}</div> }
     @if (createdProgram(); as created) {
@@ -81,7 +80,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
               <article class="program-selected-item">
                 <span class="program-drag-handle" aria-hidden="true"><app-icon name="grip" [size]="14"/></span>
                 <span class="program-position">{{ (index + 1).toString().padStart(2, '0') }}</span>
-                <span class="program-create-thumb">
+                <span class="program-create-thumb media-thumb">
                   <app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/>
                 </span>
                 <span class="program-selected-copy">
@@ -134,7 +133,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                 </span>
               </article>
             } @empty {
-              <div class="program-create-empty">
+              <div class="program-create-empty empty-state">
                 <span class="empty-icon"><app-icon name="layers" [size]="24"/></span>
                 <strong>Nenhum conteúdo selecionado</strong>
                 <p class="muted">Adicione abaixo os conteúdos publicados que esta TV deve exibir.</p>
@@ -161,7 +160,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
               @for (publication of filteredPublications(); track publication.id) {
                 <label class="program-available-item" [class.is-selected]="isSelected(publication.id)">
                   <input type="checkbox" [checked]="isSelected(publication.id)" [disabled]="!!createdProgram()" (change)="togglePublication(publication.id)">
-                  <span class="program-create-thumb">
+                  <span class="program-create-thumb media-thumb">
                     <app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/>
                   </span>
                   <span class="program-selected-copy">

@@ -1,0 +1,17 @@
+@media (max-width: 650px) {
+  .program-create-aside { position: static; order: -1; }
+  .program-summary { padding: 14px 16px; }
+  .program-summary-body { padding-top: 12px; }
+  .program-create-info { margin: 0 0 14px; }
+  .program-create-card { padding: 15px; }
+  .program-library-head { flex-direction: column; }
+  .program-library-search { width: 100%; }
+  .program-create-thumb { width: 58px; height: 42px; }
+  .program-selected-item, .program-available-item { gap: 8px; }
+  .program-order-actions { gap: 0; }
+  .program-order-actions .icon-btn { width: 27px; height: 30px; }
+  .program-added-label { display: none; }
+  .program-create-footer { position: sticky; bottom: 56px; z-index: 4; justify-content: stretch; padding: 12px 0; background: var(--bg); }
+  .program-create-footer > * { flex: 1; }
+}
+

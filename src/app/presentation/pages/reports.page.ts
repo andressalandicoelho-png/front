@@ -6,16 +6,18 @@ import { PublicationParticipation } from '@domain/report/report.entity';
 import { errorMessage } from '@presentation/core/error-message';
 import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { IconComponent } from '@presentation/ui/icon.component';
+import { PageHeaderComponent } from '@presentation/ui/page-header.component';
+import { PaginationComponent } from '@presentation/ui/pagination.component';
 
 const dateInput = (date: Date): string =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 @Component({
   selector: 'app-reports',
-  imports: [DatePipe, FormsModule, DatePickerComponent, IconComponent],
+  imports: [DatePipe, FormsModule, DatePickerComponent, IconComponent, PageHeaderComponent, PaginationComponent],
   template: `
-    <header class="page-head row-between">
-      <div><h1>Relatórios</h1><p class="muted">Consulte as participações dos conteúdos nos agendamentos.</p></div>
+    <header app-page-header class="page-head row-between" title="Relatórios"
+      description="Consulte as participações dos conteúdos nos agendamentos.">
       <div class="actions report-export-actions">
         <button class="btn" type="button" (click)="exportCsv()" [disabled]="!filtered().length || loading()">CSV</button>
         <button class="btn primary" type="button" (click)="exportPdf()" [disabled]="!filtered().length || loading() || pdfExporting()">
@@ -27,7 +29,7 @@ const dateInput = (date: Date): string =>
     @if (pdfError()) { <div class="notice error-notice" role="alert">{{ pdfError() }}</div> }
 
     <section class="card report-filters">
-      <label class="search-field report-search report-search-field"><app-icon name="search" [size]="17"/><input class="input" type="search" placeholder="Buscar por conteúdo, autor ou e-mail" aria-label="Buscar por conteúdo, autor ou e-mail" [(ngModel)]="query" (ngModelChange)="page.set(0)"></label>
+      <label class="search-field search-field--icon report-search report-search-field"><app-icon name="search" [size]="17"/><input class="input" type="search" placeholder="Buscar por conteúdo, autor ou e-mail" aria-label="Buscar por conteúdo, autor ou e-mail" [(ngModel)]="query" (ngModelChange)="page.set(0)"></label>
       <div class="filter-grid">
         <label class="field">De<app-date-picker [(ngModel)]="from" (ngModelChange)="load()"></app-date-picker></label>
         <label class="field">Até<app-date-picker [(ngModel)]="to" (ngModelChange)="load()"></app-date-picker></label>
@@ -51,7 +53,7 @@ const dateInput = (date: Date): string =>
             <span>{{ item.startTime }}–{{ item.endTime }}<small>{{ item.participationStatus }}</small></span>
           </article>
         } @empty {
-          <div class="report-empty">
+          <div class="report-empty empty-state">
             <span class="empty-icon"><app-icon name="calendar" [size]="24"/></span>
             <h2>{{ loading() ? 'Carregando relatório…' : error() ? 'Não foi possível carregar os relatórios' : 'Nenhuma participação neste período' }}</h2>
             <p class="muted">{{ error() || 'Não há agendamentos correspondentes aos filtros selecionados. Ajuste o período ou limpe os filtros.' }}</p>
@@ -60,13 +62,11 @@ const dateInput = (date: Date): string =>
         }
       </div>
       @if (filtered().length) {
-        <footer class="pagination report-pagination">
-          <small class="muted">Mostrando {{ pageItems().length }} de {{ filtered().length }} registros</small>
-          <div class="actions">
-            <button class="btn small" type="button" [disabled]="page() === 0" (click)="previousPage()">Anterior</button>
-            <span aria-live="polite">{{ page() + 1 }} / {{ pageCount() }}</span>
-            <button class="btn small" type="button" [disabled]="page() + 1 >= pageCount()" (click)="nextPage()">Próxima</button>
-          </div>
+        <footer app-pagination class="pagination report-pagination" ariaLabel="Paginação do relatório"
+          [previousDisabled]="page() === 0" [nextDisabled]="page() + 1 >= pageCount()"
+          (previousPage)="previousPage()" (nextPage)="nextPage()">
+          <small class="muted" paginationSummary>Mostrando {{ pageItems().length }} de {{ filtered().length }} registros</small>
+          <span paginationStatus aria-live="polite">{{ page() + 1 }} / {{ pageCount() }}</span>
         </footer>
       }
     </section>
