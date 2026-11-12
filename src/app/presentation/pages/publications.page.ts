@@ -128,31 +128,65 @@ interface ZipImagePreview {
     }
 
     @if (modal()) {
-      <app-modal [title]="editing() ? 'Editar publicação' : 'Nova publicação'" (closed)="closeModal()">
-        <form class="stack" (ngSubmit)="save()">
-          <input class="input" name="title" placeholder="Título" [(ngModel)]="form.title" required>
+      <app-modal class="publication-modal" [title]="editing() ? 'Editar publicação' : 'Nova publicação'"
+        [subtitle]="editing() ? '' : 'Configure o conteúdo visual e a duração de exibição no terminal.'"
+        (closed)="closeModal()">
+        <form class="stack publication-form" (ngSubmit)="save()">
+          <label class="publication-title-field">
+            <span>Título da publicação <b>*</b><small>{{ form.title.length }}/{{ maxTitleLength }}</small></span>
+            <input class="input" name="title" placeholder="Ex: Promoção de Verão" [(ngModel)]="form.title"
+              [maxlength]="maxTitleLength" required>
+          </label>
           @if (!editing()) {
-            @if (!zipImages().length) {
-              <select class="input" name="type" [(ngModel)]="form.type" (ngModelChange)="changeType($event)">
-                <option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option><option value="MESSAGE">Mensagem</option>
-              </select>
-            }
+            <section class="publication-type-field">
+              <span class="publication-field-label">Tipo de conteúdo</span>
+              <div class="publication-type-tabs" role="group" aria-label="Tipo de conteúdo">
+                <button type="button" [class.selected]="form.type === 'IMAGE' && !zipMode()"
+                  [attr.aria-pressed]="form.type === 'IMAGE' && !zipMode()" (click)="changeType('IMAGE')">
+                  <app-icon name="image" [size]="14"/> Imagem
+                </button>
+                <button type="button" [class.selected]="form.type === 'VIDEO'"
+                  [attr.aria-pressed]="form.type === 'VIDEO'" (click)="changeType('VIDEO')">
+                  <app-icon name="play" [size]="14"/> Vídeo
+                </button>
+                <button type="button" [class.selected]="zipMode() || zipImages().length > 0"
+                  [attr.aria-pressed]="zipMode() || zipImages().length > 0" (click)="zipMode.set(true); zipFileInput.click()">
+                  <app-icon name="document" [size]="14"/> Pacote ZIP
+                </button>
+                <button type="button" [class.selected]="form.type === 'LINK'"
+                  [attr.aria-pressed]="form.type === 'LINK'" (click)="changeType('LINK')">
+                  <app-icon name="link" [size]="14"/> Link
+                </button>
+                <button type="button" [class.selected]="form.type === 'MESSAGE'"
+                  [attr.aria-pressed]="form.type === 'MESSAGE'" (click)="changeType('MESSAGE')">
+                  <app-icon name="info" [size]="14"/> Mensagem
+                </button>
+              </div>
+              <input #zipFileInput type="file" hidden accept=".zip,application/zip" (change)="pick($event)">
+            </section>
           }
           @if (form.type === 'MESSAGE') {
-            <textarea class="input" name="content" rows="5" placeholder="Texto que ficará fixo na faixa inferior do player" [(ngModel)]="form.content" [maxlength]="maxMessageContentLength" required></textarea>
+            <label class="field publication-content-field">Mensagem
+              <textarea class="input" name="content" rows="5" placeholder="Texto que ficará fixo na faixa inferior do player" [(ngModel)]="form.content" [maxlength]="maxMessageContentLength" required></textarea>
+            </label>
             <small class="muted message-character-count">{{ form.content.length }} / {{ maxMessageContentLength }} caracteres · cerca de 1 minuto de leitura</small>
           } @else if (!editing()) {
             @if (form.type === 'LINK') {
-              <textarea class="input" name="link" rows="4" placeholder="Cole uma URL HTTPS ou o código de incorporação" [(ngModel)]="form.linkUrl"></textarea>
-            } @else {
-              <label class="drop" (dragover)="allowDrop($event)" (drop)="dropFiles($event)">
-                <app-icon name="upload" [size]="26"/>
-                <span>{{ form.file ? form.file.name : 'Escolher imagem, vídeo ou arquivo ZIP' }}</span>
-                <small>ZIP: JPEG, PNG ou WebP · extração local</small>
-                <input type="file" hidden
-                  [attr.accept]="form.type === 'IMAGE' ? '.zip,application/zip,image/jpeg,image/png,image/webp' : 'video/mp4'"
-                  (change)="pick($event)">
+              <label class="field publication-content-field">Endereço do link
+                <textarea class="input" name="link" rows="4" placeholder="Cole uma URL HTTPS ou o código de incorporação" [(ngModel)]="form.linkUrl"></textarea>
               </label>
+            } @else {
+              <div class="publication-file-field">
+                <span class="publication-field-label">Arquivo</span>
+                <label class="drop publication-drop" (dragover)="allowDrop($event)" (drop)="dropFiles($event)">
+                  <span class="publication-upload-icon"><app-icon name="upload" [size]="18"/></span>
+                  <span>{{ form.file ? form.file.name : 'Clique para selecionar ou arraste o arquivo' }}</span>
+                  <small>{{ form.type === 'VIDEO' ? 'MP4 (máx. 300MB)' : 'PNG, JPEG, WEBP ou ZIP (máx. 300MB)' }}</small>
+                  <input type="file" hidden
+                    [attr.accept]="form.type === 'IMAGE' ? '.zip,application/zip,image/jpeg,image/png,image/webp' : 'video/mp4'"
+                    (change)="pick($event)">
+                </label>
+              </div>
             }
           }
           @if (form.type === 'MESSAGE' && form.content.trim()) {
@@ -184,32 +218,33 @@ interface ZipImagePreview {
             }
           }
           @if (zipProcessing()) { <p class="muted" role="status">Lendo imagens do ZIP…</p> }
-          @if (form.type !== 'MESSAGE' && !editing()) {
-            <fieldset class="field duration-field">
-              <legend>{{ zipImages().length ? 'Segundos para todas as imagens' : form.type === 'VIDEO' ? 'Limite personalizado (opcional)' : 'Segundos na tela' }}</legend>
-              <div class="duration-options" role="group" aria-label="Duração predefinida">
-                @for (seconds of durationOptions; track seconds) {
-                  <button class="btn small duration-option" type="button"
-                    [class.selected]="form.displaySeconds === seconds"
-                    [attr.aria-pressed]="form.displaySeconds === seconds"
-                    (click)="setDisplaySeconds(seconds)">{{ seconds }} s</button>
-                }
+          @if (form.type !== 'MESSAGE') {
+            <section class="publication-duration" aria-label="Tempo de exibição">
+              <div class="publication-duration-heading">
+                <span>{{ zipImages().length ? 'Tempo para todas as imagens' : form.type === 'VIDEO' ? 'Tempo máximo de exibição' : 'Tempo de exibição' }}</span>
+                <small>Sugerido: 15s a 25s</small>
+              </div>
+              <div class="publication-duration-controls">
+                <div class="publication-duration-stepper" role="group" aria-label="Ajustar tempo de exibição">
+                  <button type="button" aria-label="Diminuir 1 segundo" (click)="adjustDuration(-1)" [disabled]="!form.displaySeconds || form.displaySeconds <= 1">−</button>
+                  <input class="publication-duration-input" type="number" min="1" max="3600" name="secs"
+                    aria-label="Tempo de exibição em segundos" [ngModel]="form.displaySeconds"
+                    (ngModelChange)="setDisplaySeconds($event)" [placeholder]="form.type === 'VIDEO' ? '—' : '20'">
+                  <span class="publication-duration-unit">{{ form.displaySeconds ? 's' : '' }}</span>
+                  <button type="button" aria-label="Aumentar 1 segundo" (click)="adjustDuration(1)" [disabled]="form.displaySeconds !== null && form.displaySeconds >= 3600">+</button>
+                </div>
+                <div class="publication-duration-presets" role="group" aria-label="Durações predefinidas">
+                  @for (seconds of durationOptions; track seconds) {
+                    <button type="button" [class.selected]="form.displaySeconds === seconds"
+                      [attr.aria-pressed]="form.displaySeconds === seconds"
+                      (click)="setDisplaySeconds(seconds)">{{ seconds }}s</button>
+                  }
+                </div>
               </div>
               @if (form.type === 'VIDEO') {
-                <small class="muted">Deixe vazio para reproduzir o vídeo inteiro.</small>
+                <small class="publication-duration-hint">Deixe sem limite para reproduzir o vídeo inteiro.</small>
               }
-              <label class="field">Personalizar segundos
-                <input class="input" type="number" min="1" max="3600" name="secs"
-                  [ngModel]="form.displaySeconds" (ngModelChange)="setDisplaySeconds($event)"
-                  [placeholder]="form.type === 'VIDEO' ? 'Vídeo inteiro' : 'Ex.: 25'">
-              </label>
-            </fieldset>
-          } @else if (form.type !== 'MESSAGE') {
-            <label class="field">{{ form.type === 'VIDEO' ? 'Limite de reprodução (opcional)' : 'Segundos na tela' }}
-              <input class="input" type="number" min="1" max="3600" name="secs"
-                [ngModel]="form.displaySeconds" (ngModelChange)="setDisplaySeconds($event)">
-              @if (form.type === 'VIDEO') { <small class="muted">Deixe vazio para reproduzir o vídeo inteiro.</small> }
-            </label>
+            </section>
           }
           @if (form.type === 'VIDEO' && !editing()) {
             <label class="field">Duração original do vídeo (segundos)
@@ -220,21 +255,24 @@ interface ZipImagePreview {
           }
           @if (error()) { <p class="error">{{ error() }}</p> }
           @if (zipBatchError()) { <p class="error" role="alert">{{ zipBatchError() }}</p> }
-          @if (zipImages().length) {
-            <button class="btn primary block" type="button" [disabled]="saving() || zipProcessing() || !pendingZipImageCount()"
-              (click)="saveAllZipImages()">
-              {{ saving() ? 'Enviando ' + zipBatchProgress() + ' de ' + zipBatchTotal() + '…' :
-                pendingZipImageCount() ? 'Enviar todas (' + pendingZipImageCount() + ')' : 'Todas as imagens já foram enviadas' }}
-            </button>
-            <button class="btn block" type="submit" [disabled]="saving() || zipProcessing() || currentZipImage()?.created">
-              {{ currentZipImage()?.created ? 'Imagem já enviada' : 'Enviar apenas esta imagem' }}
-            </button>
-          } @else {
-            <button class="btn primary block" type="submit"
-              [disabled]="saving() || zipProcessing() || previewLoading() || (form.type === 'VIDEO' && !form.originalDurationSeconds)">
-              {{ saving() ? 'Enviando…' : editing() ? 'Salvar alterações' : 'Enviar' }}
-            </button>
-          }
+          <footer class="publication-form-actions">
+            <button class="btn" type="button" [disabled]="saving() || zipProcessing()" (click)="closeModal()">Cancelar</button>
+            @if (zipImages().length) {
+              <button class="btn primary" type="button" [disabled]="saving() || zipProcessing() || !pendingZipImageCount()"
+                (click)="saveAllZipImages()">
+                {{ saving() ? 'Enviando ' + zipBatchProgress() + ' de ' + zipBatchTotal() + '…' :
+                  pendingZipImageCount() ? 'Publicar todas (' + pendingZipImageCount() + ')' : 'Todas já publicadas' }}
+              </button>
+              <button class="btn publication-secondary-submit" type="submit" [disabled]="saving() || zipProcessing() || currentZipImage()?.created">
+                {{ currentZipImage()?.created ? 'Imagem já publicada' : 'Publicar esta imagem' }}
+              </button>
+            } @else {
+              <button class="btn primary" type="submit"
+                [disabled]="saving() || zipProcessing() || previewLoading() || (form.type === 'VIDEO' && !form.originalDurationSeconds)">
+                {{ saving() ? 'Publicando…' : editing() ? 'Salvar alterações' : 'Publicar' }}
+              </button>
+            }
+          </footer>
         </form>
       </app-modal>
     }
@@ -260,6 +298,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   private toast = inject(ToastService);
 
   readonly maxMessageContentLength = MAX_MESSAGE_CONTENT_LENGTH;
+  readonly maxTitleLength = 70;
 
   statusFilters: { label: string; value: ContentStatusFilter }[] = [
     { label: 'Todos', value: 'ALL' },
@@ -268,7 +307,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     { label: 'No ar', value: 'LIVE' },
     { label: 'Expirado', value: 'EXPIRED' },
   ];
-  durationOptions = [20, 40, 60];
+  durationOptions = [10, 15, 20, 30, 60];
   items = signal<Publication[]>([]);
   typeFilter = signal<PublicationType | null>(null);
   authorFilter = signal('');
@@ -311,6 +350,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   error = signal('');
   openActionsId = signal<number | null>(null);
   zipImages = signal<ZipImagePreview[]>([]);
+  zipMode = signal(false);
   zipIndex = signal(0);
   zipProcessing = signal(false);
   zipDisplaySeconds = signal<number | null>(DEFAULT_DISPLAY_SECONDS);
@@ -481,6 +521,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   changeType(type: PublicationType): void {
+    this.clearZipPreviews();
     this.form.type = type;
     this.form.file = undefined;
     this.form.content = '';
@@ -494,6 +535,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     this.clearMediaPreview();
     this.error.set('');
     this.form.type = 'IMAGE';
+    this.zipMode.set(true);
     this.form.file = undefined;
     this.form.title = '';
     this.form.displaySeconds = DEFAULT_DISPLAY_SECONDS;
@@ -564,6 +606,11 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     if (this.zipImages().length) this.zipDisplaySeconds.set(seconds);
   }
 
+  adjustDuration(change: number): void {
+    const current = this.form.displaySeconds ?? DEFAULT_DISPLAY_SECONDS;
+    this.setDisplaySeconds(Math.min(3600, Math.max(1, current + change)));
+  }
+
   private applyZipImage(index: number): void {
     const image = this.zipImages()[index];
     if (!image) return;
@@ -576,6 +623,7 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   private clearZipPreviews(): void {
     for (const image of this.zipImages()) URL.revokeObjectURL(image.previewUrl);
     this.zipImages.set([]);
+    this.zipMode.set(false);
     this.zipIndex.set(0);
     this.zipDisplaySeconds.set(DEFAULT_DISPLAY_SECONDS);
     this.zipBatchProgress.set(0);

@@ -9,6 +9,7 @@ import { Publication } from '@domain/publication/publication.entity';
 import { currentBusinessDate, datesBetweenInclusive, toMinutes } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@presentation/core/error-message';
 import { ToastService } from '@presentation/core/toast.service';
+import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
 import { ProgramPreviewComponent, ProgramPreviewItem } from '@presentation/ui/program-preview.component';
@@ -19,10 +20,9 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
 
 @Component({
   selector: 'app-create-program',
-  imports: [FormsModule, RouterLink, IconComponent, ModalComponent, ProgramPreviewComponent, SecureMediaComponent],
+  imports: [FormsModule, RouterLink, DatePickerComponent, IconComponent, ModalComponent, ProgramPreviewComponent, SecureMediaComponent],
   template: `
     <header class="page-head">
-      <a class="program-breadcrumb" routerLink="/programacao">Programação / Nova programação</a>
       <h1>Criar programação</h1>
       <p class="muted">Escolha um nome, organize a sequência e defina quando cada conteúdo será exibido.</p>
     </header>
@@ -48,7 +48,8 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
             <h2>Dados da programação</h2>
             <p class="muted">Defina como a programação será identificada.</p>
           </div>
-          <label class="field" for="program-name">Nome da programação <span aria-hidden="true">*</span>
+          <label class="field program-name-field" for="program-name">
+            <span>Nome da programação <span aria-hidden="true">*</span></span>
             <input
               id="program-name"
               class="input"
@@ -66,15 +67,19 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
           <div class="program-create-card-head program-selected-head">
             <div>
               <h2>Conteúdos selecionados <span class="chip">{{ selectedPublications().length }}</span></h2>
-              <p class="muted">A sequência define a ordem de reprodução. O calendário define em quais datas e horários cada conteúdo pode aparecer.</p>
-              <p class="program-sequence-note">Exemplo: a posição define qual conteúdo vem primeiro; a faixa de horário define quando a TV pode iniciar a sequência. Fora dos horários agendados, o player aguarda.</p>
-              <p class="program-schedule-required">As datas inicial/final e os horários são obrigatórios; o fim deve ser posterior ao início.</p>
             </div>
+          </div>
+
+          <div class="program-sequence-guidance">
+            <p>A sequência define a ordem de reprodução. O calendário define em quais datas e horários cada conteúdo pode aparecer.</p>
+            <p>Exemplo: a posição define qual conteúdo vem primeiro; a faixa de horário define quando a TV pode iniciar a sequência. Fora dos horários agendados, o player aguarda.</p>
+            <p>As datas inicial/final e os horários são obrigatórios; o fim deve ser posterior ao início.</p>
           </div>
 
           <div class="program-selected-list">
             @for (publication of selectedPublications(); track publication.id; let index = $index) {
               <article class="program-selected-item">
+                <span class="program-drag-handle" aria-hidden="true"><app-icon name="grip" [size]="14"/></span>
                 <span class="program-position">{{ (index + 1).toString().padStart(2, '0') }}</span>
                 <span class="program-create-thumb">
                   <app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/>
@@ -88,16 +93,16 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                     <span class="program-scheduled-label"><app-icon name="check" [size]="14"/> Agendado</span>
                   } @else {
                     <label>Data
-                      <input class="input" type="date" [name]="'scheduleDate' + publication.id" [min]="today" required
+                      <app-date-picker [name]="'scheduleDate' + publication.id" [min]="today" required
                         [disabled]="!!createdProgram() && saving()"
                         [ngModel]="scheduleFor(publication.id).date"
-                        (ngModelChange)="updateSchedule(publication.id, 'date', $event)">
+                        (ngModelChange)="updateSchedule(publication.id, 'date', $event)"/>
                     </label>
                     <label>Até (inclusive)
-                      <input class="input" type="date" [name]="'scheduleEndDate' + publication.id" [min]="scheduleFor(publication.id).date || today" required
+                      <app-date-picker [name]="'scheduleEndDate' + publication.id" [min]="scheduleFor(publication.id).date || today" required
                         [disabled]="!!createdProgram() && saving()"
                         [ngModel]="scheduleFor(publication.id).endDate"
-                        (ngModelChange)="updateSchedule(publication.id, 'endDate', $event)">
+                        (ngModelChange)="updateSchedule(publication.id, 'endDate', $event)"/>
                     </label>
                     <label>Início
                       <input class="input" type="time" [name]="'scheduleStart' + publication.id" required

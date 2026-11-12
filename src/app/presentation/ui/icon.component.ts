@@ -3,6 +3,7 @@ import { Component, computed, input } from '@angular/core';
 const PATHS: Record<string, string> = {
   home: 'M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z',
   calendar: 'M3 5h18v16H3zM3 10h18M8 3v4M16 3v4',
+  clock: 'M12 8v4l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
   image: 'M3 3h18v18H3zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21',
   tv: 'M3 7h18v13H3zM8 3l4 4 4-4',
   users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
@@ -28,6 +29,7 @@ const PATHS: Record<string, string> = {
   briefcase: 'M3 7h18v14H3zM8 7V4h8v3M3 12h18M10 12v2h4v-2',
   document: 'M6 3h9l5 5v13H6zM15 3v5h5M9 13h8M9 17h8',
   layers: 'm12 3 9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 16l9 5 9-5',
+  grip: 'M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01',
   chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
   search: 'm20 20-4.5-4.5M18 10.5a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0z',
 };

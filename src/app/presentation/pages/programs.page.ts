@@ -14,6 +14,7 @@ import { currentBusinessDate, currentBusinessTime, datesBetweenInclusive, toMinu
 import { errorMessage } from '@presentation/core/error-message';
 import { AuthState } from '@presentation/core/auth.state';
 import { ToastService } from '@presentation/core/toast.service';
+import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
 import { ProgramPreviewComponent, ProgramPreviewItem } from '@presentation/ui/program-preview.component';
@@ -24,7 +25,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
 
 @Component({
   selector: 'app-programs',
-  imports: [FormsModule, IconComponent, ModalComponent, ProgramPreviewComponent, SecureMediaComponent],
+  imports: [FormsModule, DatePickerComponent, IconComponent, ModalComponent, ProgramPreviewComponent, SecureMediaComponent],
   template: `
     <header class="page-head row-between program-page-head">
       <div><h1>Programações</h1><p class="muted">Monte sequências de conteúdo e prepare cada TV para exibi-las.</p></div>
@@ -265,14 +266,14 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                           <span class="program-scheduled-label"><app-icon name="check" [size]="14"/> Agendado · {{ datesFor(publication.id).length }} {{ datesFor(publication.id).length === 1 ? 'dia' : 'dias' }}</span>
                         } @else {
                           <label>Data inicial
-                            <input class="input" type="date" [name]="'programDate' + publication.id" [min]="today" required
+                            <app-date-picker [name]="'programDate' + publication.id" [min]="today" required
                               [disabled]="saving()" [ngModel]="scheduleFor(publication.id).date"
-                              (ngModelChange)="updateSchedule(publication.id, 'date', $event)">
+                              (ngModelChange)="updateSchedule(publication.id, 'date', $event)"/>
                           </label>
                           <label>Data final
-                            <input class="input" type="date" [name]="'programEndDate' + publication.id" [min]="scheduleFor(publication.id).date || today" required
+                            <app-date-picker [name]="'programEndDate' + publication.id" [min]="scheduleFor(publication.id).date || today" required
                               [disabled]="saving()" [ngModel]="scheduleFor(publication.id).endDate"
-                              (ngModelChange)="updateSchedule(publication.id, 'endDate', $event)">
+                              (ngModelChange)="updateSchedule(publication.id, 'endDate', $event)"/>
                           </label>
                           <label>Início
                             <input class="input" type="time" [name]="'programStart' + publication.id" required

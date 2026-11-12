@@ -17,6 +17,7 @@ import { currentBusinessDate, datesBetweenInclusive, toMinutes } from '@domain/s
 import { errorMessage } from '@presentation/core/error-message';
 import { ToastService } from '@presentation/core/toast.service';
 import { longDate, monthTitle } from '@presentation/core/format';
+import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
@@ -25,7 +26,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
 
 @Component({
   selector: 'app-calendar',
-  imports: [DatePipe, RouterLink, FormsModule, IconComponent, ModalComponent, SecureMediaComponent],
+  imports: [DatePipe, RouterLink, FormsModule, DatePickerComponent, IconComponent, ModalComponent, SecureMediaComponent],
   template: `
     <header class="page-head row-between">
       <div><h1>Uma visão de tudo que conecta.</h1><p class="muted">Organize a comunicação das suas TVs, um dia de cada vez.</p></div>
@@ -89,8 +90,13 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
     <footer class="calendar-footer"><span><i></i> Conteúdo agendado</span><span>Horário de Brasília · GMT−3</span></footer>
     @if (openMenuDate(); as date) {
       <div class="calendar-day-popover" role="menu" [style.top.px]="dayMenuPosition().top" [style.left.px]="dayMenuPosition().left" (click)="$event.stopPropagation()">
-        <strong class="calendar-popover-title">{{ popupTitle(date) }}</strong>
-        <span class="calendar-popover-date">{{ popupSubtitle(date) }}</span>
+        <div class="calendar-popover-heading">
+          <span class="calendar-popover-day" aria-hidden="true">{{ popupDay(date) }}</span>
+          <span class="calendar-popover-copy">
+            <strong class="calendar-popover-title">{{ popupTitle(date) }}</strong>
+            <span class="calendar-popover-date">{{ popupSubtitle(date) }}</span>
+          </span>
+        </div>
         <span class="calendar-popover-action-wrap" [attr.title]="isPast(date) ? 'Impossível adicionar conteúdo em uma data passada.' : null">
           <button type="button" role="menuitem" class="calendar-popover-action" [class.disabled]="isPast(date)" [disabled]="isPast(date)" (click)="addContent(date)">
             <app-icon name="plus" [size]="16"/> <span>Adicionar conteúdo</span>
@@ -105,7 +111,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
 
     @if (selected(); as day) {
       @if (viewOnly()) {
-        <app-modal [title]="'Conteúdos · ' + dayLabel()" (closed)="selected.set(null)">
+        <app-modal class="calendar-modal" [title]="'Conteúdos · ' + dayLabel()" (closed)="selected.set(null)">
           <div class="day-posts-dialog">
             <p class="day-posts-summary">{{ dayEntries().length }} {{ dayEntries().length === 1 ? 'conteúdo programado' : 'conteúdos programados' }}</p>
             @if (dayEntries().length) {
@@ -146,7 +152,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
           </div>
         </app-modal>
       } @else {
-      <app-modal [title]="dayLabel()" (closed)="selected.set(null)">
+      <app-modal class="calendar-modal" [title]="dayLabel()" (closed)="selected.set(null)">
         @for (e of dayEntries(); track e.id) {
           <div class="row">
             <div class="grow">
@@ -190,7 +196,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
           </select>
           @if (!editing()) {
             <label class="field">Repetir até (inclusive)
-              <input class="input" type="date" name="scheduleEndDate" [min]="day" [(ngModel)]="form.endDate" required>
+              <app-date-picker name="scheduleEndDate" [min]="day" [(ngModel)]="form.endDate" required/>
             </label>
           }
           <div class="grid-2">
@@ -216,7 +222,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
       }
     }
     @if (pendingRemoval(); as entry) {
-      <app-modal class="calendar-removal-confirmation" title="Remover agendamento?" (closed)="pendingRemoval.set(null)">
+      <app-modal class="calendar-modal calendar-removal-confirmation" title="Remover agendamento?" (closed)="pendingRemoval.set(null)">
         <div class="confirm-content"><span class="confirm-icon danger"><app-icon name="trash" [size]="22"/></span>
           <h2>Remover este conteúdo do calendário?</h2>
           <p class="muted">“{{ titleOf(entry) }}” será removido do calendário em {{ entry.date | date:'dd/MM/yyyy' }}. A publicação continuará na biblioteca.</p>
@@ -225,23 +231,50 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
       </app-modal>
     }
     @if (addContentDate(); as date) {
-      <app-modal title="Adicionar conteúdos" (closed)="closeAddContent()">
+      <app-modal class="calendar-modal add-content-modal"
+        [title]="reviewingCalendarSchedule() ? 'Adicionar Conteúdos' : 'Adicionar conteúdos'"
+        [subtitle]="reviewingCalendarSchedule() ? 'Validação e Agendamento' : 'Selecione as mídias da biblioteca e configure os horários de exibição nas telas.'"
+        (closed)="closeAddContent()">
         <div class="add-content-dialog">
           @if (reviewingCalendarSchedule()) {
-            <section class="program-review">
-              <p class="muted">Confira a programação e os períodos antes de aplicar. O app verificará cada dia; se houver conflito não carregado no calendário, a API informará o conteúdo e a data, mantendo os dias concluídos.</p>
-              <div class="program-review-heading">
-                <strong>{{ selectedProgramNames() }}</strong>
-                <span>{{ selectedProgramIds().length }} programações · {{ selectedNewContentCount() }} conteúdos · {{ calendarReviewCount() }} períodos diários</span>
+            <section class="calendar-review-screen">
+              <div class="calendar-review-overview">
+                <div class="calendar-review-programs">
+                  <i aria-hidden="true"></i>
+                  <strong>{{ selectedProgramNames() }}</strong>
+                </div>
+                <div class="calendar-review-counts">
+                  <span>{{ selectedProgramIds().length }} {{ selectedProgramIds().length === 1 ? 'programação' : 'programações' }}</span>
+                  <span>{{ calendarReviewItems().length }} {{ calendarReviewItems().length === 1 ? 'conteúdo' : 'conteúdos' }}</span>
+                  <span>{{ calendarReviewCount() }} períodos diários</span>
+                </div>
               </div>
-              <p class="program-review-period">{{ popupFullDate(date) }}{{ addEndDate() !== date ? ' a ' + popupFullDate(addEndDate()) : '' }} · {{ addStartTime() }}–{{ addEndTime() }}</p>
-              <ol class="program-review-list">
+
+              <div class="calendar-review-period">
+                <span><app-icon name="calendar" [size]="13"/> {{ popupFullDate(date) }}{{ addEndDate() !== date ? ' a ' + popupFullDate(addEndDate()) : '' }}</span>
+                <span><app-icon name="clock" [size]="13"/> {{ addStartTime() }}–{{ addEndTime() }}</span>
+              </div>
+
+              <div class="calendar-review-table">
+                <div class="calendar-review-table-head"><span>Arquivo de mídia</span><span>Status</span><span>Combinações</span></div>
+                <div class="calendar-review-list" role="list" aria-label="Mídias prontas para agendamento">
                 @for (publication of calendarReviewItems(); track publication.id) {
-                  <li><span><strong>{{ publication.title }}</strong><small>{{ publication.scheduledSlots }} de {{ addDates().length * selectedProgramIds().length }} combinações já agendadas</small></span></li>
+                  <div class="calendar-review-row" role="listitem">
+                    <span class="calendar-review-file">
+                      <span class="calendar-review-file-icon"><app-icon [name]="publication.type === 'IMAGE' ? 'image' : publication.type === 'VIDEO' ? 'video' : 'document'" [size]="14"/></span>
+                      <strong>{{ publication.title }}</strong>
+                    </span>
+                    <span class="calendar-review-status">Disponível</span>
+                    <small>{{ publication.scheduledSlots }} de {{ addDates().length * selectedProgramIds().length }} agendadas</small>
+                  </div>
+                } @empty {
+                  <p class="calendar-review-empty">Não há conteúdos novos para agendar neste período.</p>
                 }
-              </ol>
+                </div>
+              </div>
+
               @if (knownScheduleConflicts().length) {
-                <div class="notice warning-notice" role="alert">
+                <div class="notice warning-notice calendar-review-warning" role="alert">
                   <strong>Há horários sobrepostos conhecidos:</strong>
                   @for (conflict of knownScheduleConflicts(); track conflict.programId + ':' + conflict.publicationId + ':' + conflict.date) {
                     <span>{{ conflict.title }} · {{ conflict.programName }} · {{ popupFullDate(conflict.date) }} · {{ conflict.startTime }}–{{ conflict.endTime }} já está agendado.</span>
@@ -249,47 +282,59 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
                   <small>Volte e altere as datas ou o horário antes de continuar.</small>
                 </div>
               }
-              <div class="actions">
-                <button class="btn" type="button" [disabled]="addingContents()" (click)="reviewingCalendarSchedule.set(false)">Voltar e ajustar</button>
-                <button class="btn primary" type="button" [disabled]="addingContents() || !selectedProgramIds().length || !selectedNewContentCount() || knownScheduleConflicts().length || addEndDate() < date || toMinutes(addEndTime()) <= toMinutes(addStartTime())" (click)="confirmScheduleSelectedContent(date)">
-                  {{ addingContents() ? 'Agendando…' : addContentError() ? 'Tentar novamente' : 'Confirmar agendamento' }}
-                </button>
+              @if (addContentError()) { <p class="error add-content-error" role="alert">{{ addContentError() }}</p> }
+
+              <div class="add-content-footer calendar-review-footer">
+                <span class="calendar-review-ready"><i aria-hidden="true"></i>{{ calendarReviewItems().length }} {{ calendarReviewItems().length === 1 ? 'mídia pronta' : 'mídias prontas' }}</span>
+                <div class="actions">
+                  <button class="btn" type="button" [disabled]="addingContents()" (click)="reviewingCalendarSchedule.set(false)">Voltar e ajustar</button>
+                  <button class="btn primary" type="button" [disabled]="addingContents() || !selectedProgramIds().length || !selectedNewContentCount() || knownScheduleConflicts().length || addEndDate() < date || toMinutes(addEndTime()) <= toMinutes(addStartTime())" (click)="confirmScheduleSelectedContent(date)">
+                    {{ addingContents() ? 'Agendando…' : addContentError() ? 'Tentar novamente' : 'Confirmar agendamento' }}
+                  </button>
+                </div>
               </div>
             </section>
           } @else {
           <div class="add-content-context">
-            <div class="add-content-section-title">Escolha uma ou mais programações</div>
-            <div class="add-content-date">
-              <span>Data</span>
-              <strong>{{ popupFullDate(date) }}</strong>
+            <div class="add-content-period-fields">
+              <label class="calendar-schedule-time">Data de início
+                <span class="calendar-schedule-date">{{ popupFullDate(date) }}<app-icon name="calendar" [size]="14"/></span>
+              </label>
+              <label class="calendar-schedule-time">Repetir até a data
+                <app-date-picker ariaLabel="Último dia do agendamento" [min]="date" [ngModel]="addEndDate()" (ngModelChange)="addEndDate.set($event)" required/>
+              </label>
+              <label class="calendar-schedule-time">De
+                <input class="input" type="time" aria-label="Horário de início do agendamento" [ngModel]="addStartTime()" (ngModelChange)="addStartTime.set($event)">
+              </label>
+              <label class="calendar-schedule-time">Até
+                <input class="input" type="time" aria-label="Horário de fim do agendamento" [ngModel]="addEndTime()" (ngModelChange)="addEndTime.set($event)">
+              </label>
             </div>
-            <label class="calendar-schedule-time">Repetir até (inclusive)
-              <input class="input" type="date" aria-label="Último dia do agendamento" [min]="date" [ngModel]="addEndDate()" (ngModelChange)="addEndDate.set($event)" required>
-            </label>
-            <label class="calendar-schedule-time">De<input class="input" type="time" aria-label="Horário de início do agendamento" [ngModel]="addStartTime()" (ngModelChange)="addStartTime.set($event)"></label>
-            <label class="calendar-schedule-time">Até<input class="input" type="time" aria-label="Horário de fim do agendamento" [ngModel]="addEndTime()" (ngModelChange)="addEndTime.set($event)"></label>
+            <div class="add-content-program-summary">
+              <app-icon name="layers" [size]="15"/>
+              <strong>Programações</strong>
+              <span>{{ selectedProgramNames() || 'Selecione uma ou mais programações' }}</span>
+              <small>{{ selectedProgramIds().length }} selecionada{{ selectedProgramIds().length === 1 ? '' : 's' }}</small>
+            </div>
+            @if (programs().length) {
+              <div class="calendar-program-options" role="group" aria-label="Programações de destino. Você pode escolher mais de uma.">
+                @for (program of programs(); track program.id) {
+                  <button type="button" class="calendar-program-option" [class.selected]="selectedProgramIds().includes(program.id)" [attr.aria-pressed]="selectedProgramIds().includes(program.id)" [disabled]="addingContents()" (click)="toggleProgram(program.id)">
+                    <app-icon name="layers" [size]="15"/>
+                    <span>{{ program.name }}</span>
+                    @if (selectedProgramIds().includes(program.id)) { <app-icon name="check" [size]="15"/> }
+                  </button>
+                }
+              </div>
+            } @else {
+              <div class="calendar-program-empty">
+                <p>Crie uma programação antes de agendar conteúdos para a TV.</p>
+                <a class="btn primary small" routerLink="/programacao/nova" (click)="closeAddContent()">Criar programação</a>
+              </div>
+            }
           </div>
-          @if (programs().length) {
-            <div class="calendar-program-options" role="group" aria-label="Programações de destino. Você pode escolher mais de uma.">
-              @for (program of programs(); track program.id) {
-                <button type="button" class="calendar-program-option" [class.selected]="selectedProgramIds().includes(program.id)" [attr.aria-pressed]="selectedProgramIds().includes(program.id)" [disabled]="addingContents()" (click)="toggleProgram(program.id)">
-                  <app-icon name="layers" [size]="15"/>
-                  <span>{{ program.name }}</span>
-                  @if (selectedProgramIds().includes(program.id)) { <app-icon name="check" [size]="15"/> }
-                </button>
-              }
-            </div>
-          } @else {
-            <div class="calendar-program-empty">
-              <p>Crie uma programação antes de agendar conteúdos para a TV.</p>
-              <a class="btn primary small" routerLink="/programacao/nova" (click)="closeAddContent()">Criar programação</a>
-            </div>
-          }
           <div class="add-content-library-head">
-            <strong>Conteúdos publicados</strong>
-            <a class="add-content-create" routerLink="/publicacoes" [queryParams]="{ date: date }" (click)="closeAddContent()">
-              <app-icon name="plus" [size]="14"/> Criar conteúdo
-            </a>
+            <div><strong>Conteúdos publicados</strong><small>Somente conteúdos publicados podem ser agendados.</small></div>
           </div>
           <div class="add-content-filters" role="search">
             <label class="search-field">
@@ -299,7 +344,6 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
             <select class="input" aria-label="Filtrar por formato" [ngModel]="contentTypeFilter()" (ngModelChange)="contentTypeFilter.set($event)">
               <option value="ALL">Todos os formatos</option><option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option><option value="MESSAGE">Mensagem</option>
             </select>
-            <span class="calendar-publication-rule">Somente conteúdos publicados podem ser agendados.</span>
           </div>
           <div class="add-content-meta">
             <span class="add-content-count" aria-live="polite">
@@ -314,12 +358,13 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
                        [disabled]="alreadyScheduled().has(publication.id) || addingContents()" (change)="toggleContent(publication.id)">
                 <span class="add-content-thumb"><app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/></span>
                 <span class="add-content-info">
-                  <strong>{{ publication.title }}</strong>
+                  <span class="add-content-title-row"><strong>{{ publication.title }}</strong><small class="add-content-published">Publicado</small></span>
                   <small>{{ publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + (publication.displaySeconds ?? 10) + ' s' }}</small>
                 </span>
                 <span class="add-content-status">
                   @if (alreadyScheduled().has(publication.id)) { Já agendado neste período }
                   @else if (isContentSelected(publication.id)) { Selecionado }
+                  @else { Disponível }
                 </span>
               </label>
             } @empty {
@@ -436,7 +481,7 @@ export class CalendarPage implements OnInit {
           this.selectedProgramIds().includes(entry.programId ?? -1) && this.addDates().includes(entry.date) &&
           entry.startTime === this.addStartTime() && entry.endTime === this.addEndTime())
         .map(entry => `${entry.programId}:${entry.date}`));
-      return { id: publication.id, title: publication.title, scheduledSlots: scheduledSlots.size };
+      return { id: publication.id, title: publication.title, type: publication.type, scheduledSlots: scheduledSlots.size };
     }));
   calendarReviewCount = computed(() => this.calendarReviewItems().reduce(
     (count, item) => count + this.addDates().length * this.selectedProgramIds().length - item.scheduledSlots, 0,
@@ -644,6 +689,7 @@ export class CalendarPage implements OnInit {
     const [year, month, day] = date.split('-').map(Number);
     return new Date(year, month - 1, day).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
   }
+  popupDay(date: string): number { return Number(date.split('-')[2]); }
   popupSubtitle(date: string): string {
     const [year, month, day] = date.split('-').map(Number);
     const weekday = new Date(year, month - 1, day).toLocaleDateString('pt-BR', { weekday: 'long' });

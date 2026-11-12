@@ -30,7 +30,7 @@ export interface NewPublication {
 export type PublicationChanges = Partial<{ title: string; content: string; displaySeconds: number | null }>;
 export interface PublicationFilter { status?: string; type?: PublicationType; }
 
-export const DEFAULT_DISPLAY_SECONDS = 20;
+export const DEFAULT_DISPLAY_SECONDS = 30;
 export const MAX_UPLOAD_BYTES = 300 * 1024 * 1024;
 export const MAX_MESSAGE_CONTENT_LENGTH = 900;
 

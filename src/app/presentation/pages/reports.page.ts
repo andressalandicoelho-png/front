@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { GetPublicationReportUseCase } from '@application/report/report.usecases';
 import { PublicationParticipation } from '@domain/report/report.entity';
 import { errorMessage } from '@presentation/core/error-message';
+import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 
 const dateInput = (date: Date): string =>
@@ -11,7 +12,7 @@ const dateInput = (date: Date): string =>
 
 @Component({
   selector: 'app-reports',
-  imports: [DatePipe, FormsModule, IconComponent],
+  imports: [DatePipe, FormsModule, DatePickerComponent, IconComponent],
   template: `
     <header class="page-head row-between">
       <div><h1>Relatórios</h1><p class="muted">Consulte as participações dos conteúdos nos agendamentos.</p></div>
@@ -28,8 +29,8 @@ const dateInput = (date: Date): string =>
     <section class="card report-filters">
       <label class="search-field report-search report-search-field"><app-icon name="search" [size]="17"/><input class="input" type="search" placeholder="Buscar por conteúdo, autor ou e-mail" aria-label="Buscar por conteúdo, autor ou e-mail" [(ngModel)]="query" (ngModelChange)="page.set(0)"></label>
       <div class="filter-grid">
-        <label class="field">De<input class="input" type="date" [(ngModel)]="from" (ngModelChange)="load()"></label>
-        <label class="field">Até<input class="input" type="date" [(ngModel)]="to" (ngModelChange)="load()"></label>
+        <label class="field">De<app-date-picker [(ngModel)]="from" (ngModelChange)="load()"></app-date-picker></label>
+        <label class="field">Até<app-date-picker [(ngModel)]="to" (ngModelChange)="load()"></app-date-picker></label>
         <label class="field">Status<select class="input" [(ngModel)]="status"><option value="">Todos os status</option><option value="READY">Publicado</option><option value="DRAFT">Rascunho</option></select></label>
       </div>
       <div class="row-between report-helper"><small class="muted">Cada linha representa um agendamento real; datas passadas são marcadas como encerradas.</small><button class="link-button" type="button" (click)="clearFilters()">Limpar filtros</button></div>

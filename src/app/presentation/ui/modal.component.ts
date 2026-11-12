@@ -8,7 +8,10 @@ import { IconComponent } from './icon.component';
     <div class="backdrop" (click)="closed.emit()">
       <div class="modal" role="dialog" aria-modal="true" [attr.aria-label]="title()" (click)="$event.stopPropagation()">
         <header class="modal-head">
-          <strong>{{ title() }}</strong>
+          <div class="modal-heading">
+            <strong>{{ title() }}</strong>
+            @if (subtitle()) { <small>{{ subtitle() }}</small> }
+          </div>
           <button type="button" class="icon-btn" aria-label="Fechar" (click)="closed.emit()"><app-icon name="x" [size]="20"/></button>
         </header>
         <div class="modal-body"><ng-content/></div>
@@ -17,5 +20,6 @@ import { IconComponent } from './icon.component';
 })
 export class ModalComponent {
   title = input.required<string>();
+  subtitle = input('');
   closed = output<void>();
 }
