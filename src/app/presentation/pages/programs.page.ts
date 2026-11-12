@@ -180,145 +180,175 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
     }
 
     @if (modal()) {
-      <app-modal [title]="modalMode() === 'edit' ? 'Editar programação' : 'Adicionar conteúdos'" (closed)="closeModal()">
-        @if (modalMode() === 'edit') {
+      @if (modalMode() === 'edit') {
+        <app-modal title="Editar programação" (closed)="closeModal()">
           <form class="stack" (ngSubmit)="saveProgram()">
             <label class="field">Nome da programação<input class="input" name="name" [(ngModel)]="name" maxlength="120" required></label>
             @if (error()) { <p class="error">{{ error() }}</p> }
             <button class="btn primary block" type="submit" [disabled]="saving() || name.trim().length < 2">Salvar alterações</button>
           </form>
-        } @else {
-          <form class="stack" (ngSubmit)="saveEntries()">
+        </app-modal>
+      } @else {
+        <app-modal class="calendar-modal add-content-modal" title="Adicionar conteúdos"
+          subtitle="Selecione as mídias da biblioteca e configure os horários de exibição."
+          (closed)="closeModal()">
+          <form class="add-content-dialog" (ngSubmit)="saveEntries()">
             @if (reviewingEntries()) {
-              <div class="program-review">
-                <p class="muted">A sequência define a ordem; as datas e os horários definem quando cada item pode aparecer. A API validará conflitos ao salvar. Se houver falha parcial, os períodos concluídos serão mantidos.</p>
-                <div class="program-review-heading">
-                  <strong>{{ selected()?.name }}</strong>
-                  <span>{{ selectedPublicationIds().length }} conteúdos selecionados · {{ reviewScheduleCount() }} períodos diários</span>
+              <section class="calendar-review-screen">
+                <div class="calendar-review-overview">
+                  <div class="calendar-review-programs">
+                    <i aria-hidden="true"></i>
+                    <strong>{{ selected()?.name }}</strong>
+                  </div>
+                  <div class="calendar-review-counts">
+                    <span>{{ selectedPublicationIds().length }} {{ selectedPublicationIds().length === 1 ? 'conteúdo' : 'conteúdos' }}</span>
+                    <span>{{ reviewScheduleCount() }} períodos diários</span>
+                  </div>
                 </div>
-                <ol class="program-review-list">
-                  @for (id of selectedPublicationIds(); track id; let index = $index) {
-                    <li>
-                      <span class="program-position">{{ (index + 1).toString().padStart(2, '0') }}</span>
-                      <span><strong>{{ publicationTitle(id) }}</strong><small>{{ scheduleSummary(id) }}</small></span>
-                    </li>
-                  }
-                </ol>
-                @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-                <div class="actions">
-                  <button class="btn" type="button" [disabled]="saving()" (click)="reviewingEntries.set(false)">Voltar e revisar</button>
-                  <button class="btn primary" type="button" [disabled]="saving()" (click)="confirmSaveEntries()">
-                    {{ saving() ? 'Salvando…' : entriesAdded() ? 'Retomar agendamentos' : 'Confirmar e adicionar' }}
-                  </button>
+                <div class="calendar-review-period">
+                  <span><app-icon name="calendar" [size]="13"/> {{ formatDate(sharedSchedule().date) }}{{ sharedSchedule().endDate !== sharedSchedule().date ? ' a ' + formatDate(sharedSchedule().endDate) : '' }}</span>
+                  <span><app-icon name="clock" [size]="13"/> {{ sharedSchedule().startTime }}–{{ sharedSchedule().endTime }}</span>
+                </div>
+                <div class="calendar-review-table">
+                  <div class="calendar-review-table-head"><span>Arquivo de mídia</span><span>Status</span><span>Agendamentos</span></div>
+                  <div class="calendar-review-list" role="list" aria-label="Mídias prontas para agendamento">
+                    @for (id of selectedPublicationIds(); track id) {
+                      @let publication = publicationFor(id);
+                      <div class="calendar-review-row" role="listitem">
+                        <span class="calendar-review-file">
+                          <span class="calendar-review-file-icon"><app-icon [name]="publication?.type === 'IMAGE' ? 'image' : publication?.type === 'VIDEO' ? 'video' : 'document'" [size]="14"/></span>
+                          <strong>{{ publicationTitle(id) }}</strong>
+                        </span>
+                        <span class="calendar-review-status">{{ scheduleComplete(id) ? 'Agendado' : 'Disponível' }}</span>
+                        <small>{{ scheduledCount(id) }} de {{ datesFor(id).length }} dias agendados</small>
+                      </div>
+                    } @empty {
+                      <p class="calendar-review-empty">Selecione conteúdos para revisar o agendamento.</p>
+                    }
+                  </div>
+                </div>
+                @if (error()) { <p class="error add-content-error" role="alert">{{ error() }}</p> }
+                @if (saving() && scheduleProgress().total) {
+                  <div class="program-progress" role="status" aria-live="polite">
+                    <span>Agendando {{ scheduleProgress().completed }} de {{ scheduleProgress().total }} períodos diários…</span>
+                    <span class="program-progress-track"><i [style.width.%]="scheduleProgressPercent()"></i></span>
+                  </div>
+                }
+                <div class="add-content-footer calendar-review-footer">
+                  <span class="calendar-review-ready"><i aria-hidden="true"></i>{{ selectedPublicationIds().length }} {{ selectedPublicationIds().length === 1 ? 'mídia pronta' : 'mídias prontas' }}</span>
+                  <div class="actions">
+                    <button class="btn" type="button" [disabled]="saving()" (click)="reviewingEntries.set(false)">Voltar e ajustar</button>
+                    <button class="btn primary" type="button" [disabled]="saving() || !selectedPublicationIds().length || !schedulesValid()" (click)="confirmSaveEntries()">
+                      {{ saving() ? 'Agendando…' : entriesAdded() ? 'Retomar agendamentos' : 'Confirmar agendamento' }}
+                    </button>
+                  </div>
+                </div>
+              </section>
+            } @else {
+              <div class="add-content-context">
+                <div class="add-content-period-fields">
+                  <label class="calendar-schedule-time">Data de início
+                    <app-date-picker name="programScheduleStartDate" [min]="today" required
+                      [disabled]="saving()" [ngModel]="sharedSchedule().date"
+                      (ngModelChange)="updateSharedSchedule('date', $event)"/>
+                  </label>
+                  <label class="calendar-schedule-time">Repetir até a data
+                    <app-date-picker name="programScheduleEndDate" [min]="sharedSchedule().date || today" required
+                      [disabled]="saving()" [ngModel]="sharedSchedule().endDate"
+                      (ngModelChange)="updateSharedSchedule('endDate', $event)"/>
+                  </label>
+                  <label class="calendar-schedule-time">De
+                    <input class="input" type="time" name="programScheduleStartTime" required [disabled]="saving()"
+                      [ngModel]="sharedSchedule().startTime" (ngModelChange)="updateSharedSchedule('startTime', $event)">
+                  </label>
+                  <label class="calendar-schedule-time">Até
+                    <input class="input" type="time" name="programScheduleEndTime" required [disabled]="saving()"
+                      [ngModel]="sharedSchedule().endTime" (ngModelChange)="updateSharedSchedule('endTime', $event)">
+                  </label>
+                </div>
+                <div class="add-content-program-summary">
+                  <app-icon name="layers" [size]="15"/>
+                  <strong>Programação</strong>
+                  <span>{{ selected()?.name }}</span>
+                  <small>Destino selecionado</small>
                 </div>
               </div>
-            } @else {
-            <section class="program-publication-picker" aria-label="Selecionar conteúdos publicados">
-              <header class="program-picker-context">
-                <div><strong>{{ selected()?.name }}</strong><span>Escolha os conteúdos e defina quando serão exibidos.</span></div>
-                <span class="program-picker-selected-count" aria-live="polite">{{ selectedPublicationIds().length }} selecionados</span>
-              </header>
-              <div class="program-picker-tools">
-                <label class="search-field program-picker-search">
-                  <app-icon name="search" [size]="16"/>
-                  <input class="input" type="search" placeholder="Buscar conteúdo por nome" aria-label="Buscar conteúdo por nome"
-                    name="publicationSearch" [ngModel]="publicationSearch()" (ngModelChange)="publicationSearch.set($event)">
+              <div class="add-content-library-head">
+                <div><strong>Conteúdos publicados</strong><small>Somente conteúdos publicados podem ser agendados.</small></div>
+              </div>
+              <div class="add-content-filters" role="search">
+                <label class="search-field">
+                  <app-icon name="search" [size]="17"/>
+                  <input class="input" type="search" name="publicationSearch" aria-label="Buscar conteúdo por título" placeholder="Buscar por título"
+                    [ngModel]="publicationSearch()" (ngModelChange)="publicationSearch.set($event)">
                 </label>
-                <select class="input program-picker-type" aria-label="Filtrar conteúdo por formato"
-                  name="publicationTypeFilter" [ngModel]="publicationTypeFilter()" (ngModelChange)="publicationTypeFilter.set($event)">
-                  <option value="ALL">Todos os formatos</option>
-                  <option value="IMAGE">Imagens</option>
-                  <option value="VIDEO">Vídeos</option>
-                  <option value="LINK">Links</option>
-                  <option value="MESSAGE">Mensagens</option>
+                <select class="input" name="publicationTypeFilter" aria-label="Filtrar por formato"
+                  [ngModel]="publicationTypeFilter()" (ngModelChange)="publicationTypeFilter.set($event)">
+                  <option value="ALL">Todos os formatos</option><option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option><option value="MESSAGE">Mensagem</option>
                 </select>
-                <div class="program-picker-view" role="group" aria-label="Conteúdos exibidos">
-                  <button type="button" [class.active]="selectedOnly() === false" [attr.aria-pressed]="!selectedOnly()" (click)="selectedOnly.set(false)">Todos <span>{{ availablePublications().length }}</span></button>
-                  <button type="button" [class.active]="selectedOnly()" [attr.aria-pressed]="selectedOnly()" (click)="selectedOnly.set(true)">Selecionados <span>{{ selectedPublicationIds().length }}</span></button>
-                </div>
-                @if (hasPublicationFilters()) {
-                  <button class="program-picker-clear" type="button" (click)="clearPublicationFilters()">Limpar filtros</button>
-                }
+              </div>
+              <div class="add-content-meta">
+                <span class="add-content-count" aria-live="polite">
+                  <strong>{{ filteredAvailablePublications().length }}</strong> {{ filteredAvailablePublications().length === 1 ? 'resultado' : 'resultados' }}
+                </span>
+                <span class="add-content-hint">Selecione um ou mais itens</span>
               </div>
               @if (publicationsLoading()) {
-                <div class="program-picker-state" role="status">Carregando conteúdos publicados…</div>
+                <div class="add-content-empty" role="status"><strong>Carregando conteúdos publicados…</strong></div>
               } @else if (publicationsLoadError()) {
-                <div class="program-picker-state" role="alert">
+                <div class="add-content-empty" role="alert">
                   <strong>Não foi possível carregar os conteúdos.</strong>
                   <span>{{ publicationsLoadError() }}</span>
                   <button class="link-button" type="button" (click)="loadPublications()">Tentar novamente</button>
                 </div>
               } @else {
-                <div class="program-picker-results" aria-live="polite">
-                  <span>{{ filteredAvailablePublications().length }} {{ filteredAvailablePublications().length === 1 ? 'conteúdo encontrado' : 'conteúdos encontrados' }}</span>
-                  @if (selectedPublicationIds().length) { <span>{{ selectedPublicationIds().length }} na sequência</span> }
-                </div>
-                <div class="entry-picker">
-                @for (publication of filteredAvailablePublications(); track publication.id) {
-                  <div class="entry-option" [class.is-selected]="selectedPublicationIds().includes(publication.id)">
-                    <label class="entry-option-content">
-                      <input type="checkbox" [checked]="selectedPublicationIds().includes(publication.id)" [disabled]="entriesAdded()" (change)="togglePublication(publication.id, $event)">
+                <div class="add-content-list" role="list" aria-label="Conteúdos disponíveis">
+                  @for (publication of filteredAvailablePublications(); track publication.id) {
+                    <label class="add-content-item" role="listitem" [class.selected]="selectedPublicationIds().includes(publication.id)" [class.already-added]="entriesAdded()">
+                      <input type="checkbox" [checked]="selectedPublicationIds().includes(publication.id)" [disabled]="saving() || entriesAdded()" (change)="togglePublication(publication.id, $event)">
                       <span class="add-content-thumb"><app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/></span>
-                      <span class="program-entry-copy"><strong>{{ publication.title }}</strong>
-                        <small>{{ publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + (publication.displaySeconds ?? publication.originalDurationSeconds ?? 10) + ' s' }}</small>
+                      <span class="add-content-info">
+                        <span class="add-content-title-row"><strong>{{ publication.title }}</strong><small class="add-content-published">{{ entriesAdded() ? 'Na programação' : 'Publicado' }}</small></span>
+                        <small>{{ publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + (publication.displaySeconds ?? publication.originalDurationSeconds ?? 30) + ' s' }}</small>
+                      </span>
+                      <span class="add-content-status">
+                        @if (entriesAdded()) { Na programação }
+                        @else if (selectedPublicationIds().includes(publication.id)) { Selecionado }
+                        @else { Disponível }
                       </span>
                     </label>
-                    @if (selectedPublicationIds().includes(publication.id)) {
-                      <div class="program-schedule-fields">
-                        @if (scheduleComplete(publication.id)) {
-                          <span class="program-scheduled-label"><app-icon name="check" [size]="14"/> Agendado · {{ datesFor(publication.id).length }} {{ datesFor(publication.id).length === 1 ? 'dia' : 'dias' }}</span>
-                        } @else {
-                          <label>Data inicial
-                            <app-date-picker [name]="'programDate' + publication.id" [min]="today" required
-                              [disabled]="saving()" [ngModel]="scheduleFor(publication.id).date"
-                              (ngModelChange)="updateSchedule(publication.id, 'date', $event)"/>
-                          </label>
-                          <label>Data final
-                            <app-date-picker [name]="'programEndDate' + publication.id" [min]="scheduleFor(publication.id).date || today" required
-                              [disabled]="saving()" [ngModel]="scheduleFor(publication.id).endDate"
-                              (ngModelChange)="updateSchedule(publication.id, 'endDate', $event)"/>
-                          </label>
-                          <label>Início
-                            <input class="input" type="time" [name]="'programStart' + publication.id" required
-                              [disabled]="saving()" [ngModel]="scheduleFor(publication.id).startTime"
-                              (ngModelChange)="updateSchedule(publication.id, 'startTime', $event)">
-                          </label>
-                          <label>Fim
-                            <input class="input" type="time" [name]="'programEnd' + publication.id" required
-                              [disabled]="saving()" [ngModel]="scheduleFor(publication.id).endTime"
-                              (ngModelChange)="updateSchedule(publication.id, 'endTime', $event)">
-                          </label>
-                          @if (scheduledCount(publication.id)) {
-                            <small class="program-scheduled-progress">{{ scheduledCount(publication.id) }} de {{ datesFor(publication.id).length }} dias concluídos</small>
-                          }
-                        }
-                      </div>
-                    }
-                  </div>
-                } @empty {
-                  <div class="program-picker-empty">
-                    <strong>{{ availablePublications().length ? 'Nenhum conteúdo corresponde aos filtros' : 'Nenhum conteúdo publicado disponível' }}</strong>
-                    <span>{{ availablePublications().length ? 'Altere a busca ou o formato para ver outros resultados.' : 'Publique conteúdos na biblioteca antes de adicioná-los à programação.' }}</span>
-                    @if (hasPublicationFilters()) { <button class="link-button" type="button" (click)="clearPublicationFilters()">Limpar filtros</button> }
-                  </div>
-                }
+                  } @empty {
+                    <div class="add-content-empty">
+                      <app-icon name="search" [size]="18"/>
+                      <strong>{{ availablePublications().length ? 'Nenhum resultado para esta busca' : 'Nenhum conteúdo publicado disponível' }}</strong>
+                      <span>{{ availablePublications().length ? 'Tente outro título ou ajuste os filtros.' : 'Publique conteúdos na biblioteca antes de adicioná-los à programação.' }}</span>
+                      @if (hasPublicationFilters()) { <button class="link-button" type="button" (click)="clearPublicationFilters()">Limpar filtros</button> }
+                    </div>
+                  }
                 </div>
               }
-            </section>
-            @if (saving() && scheduleProgress().total) {
-              <div class="program-progress" role="status" aria-live="polite">
-                <span>Agendando {{ scheduleProgress().completed }} de {{ scheduleProgress().total }} períodos diários…</span>
-                <span class="program-progress-track"><i [style.width.%]="scheduleProgressPercent()"></i></span>
+              @if (error()) { <p class="error add-content-error" role="alert">{{ error() }}</p> }
+              <div class="add-content-footer">
+                <div class="add-content-selection">
+                  <strong>{{ selectedPublicationIds().length }} {{ selectedPublicationIds().length === 1 ? 'conteúdo selecionado' : 'conteúdos selecionados' }}</strong>
+                  <button type="button" class="link-button" [disabled]="!selectedPublicationIds().length || saving() || entriesAdded()" (click)="clearPublicationSelection()">Limpar seleção</button>
+                  <small>{{ selectedPublicationSummary() || 'Selecione conteúdos para adicionar à programação.' }}</small>
+                  <small class="add-content-schedule-note">{{ selected()?.name }} · {{ sharedSchedule().startTime }}–{{ sharedSchedule().endTime }}</small>
+                  @if (saving() && scheduleProgress().total) {
+                    <small class="add-content-progress" role="status" aria-live="polite">Agendando {{ scheduleProgress().completed }} de {{ scheduleProgress().total }} períodos diários…</small>
+                  }
+                </div>
+                <div class="actions">
+                  <button class="btn" type="button" [disabled]="saving()" (click)="closeModal()">Cancelar</button>
+                  <button class="btn primary" type="submit" [disabled]="saving() || !selectedPublicationIds().length || !schedulesValid()">
+                    {{ entriesAdded() ? 'Revisar e retomar agendamentos' : 'Revisar e agendar ' + selectedPublicationIds().length + (selectedPublicationIds().length === 1 ? ' conteúdo' : ' conteúdos') }}
+                  </button>
+                </div>
               </div>
             }
-            @if (error()) { <p class="error">{{ error() }}</p> }
-            <button class="btn primary block" type="submit" [disabled]="saving() || !selectedPublicationIds().length || !schedulesValid()">
-              {{ saving() ? 'Salvando…' : entriesAdded() ? 'Revisar e retomar agendamentos' : 'Revisar conteúdos e horários' }}
-            </button>
-            }
           </form>
-        }
-      </app-modal>
+        </app-modal>
+      }
     }
 
     @if (pendingDeletion(); as program) {
@@ -380,8 +410,7 @@ export class ProgramsPage implements OnInit {
   selectedPublicationIds = signal<number[]>([]);
   publicationSearch = signal('');
   publicationTypeFilter = signal<'ALL' | Publication['type']>('ALL');
-  selectedOnly = signal(false);
-  schedules = signal<Record<number, PublicationScheduleInput>>({});
+  sharedSchedule = signal<PublicationScheduleInput>({ date: '', endDate: '', startTime: '', endTime: '' });
   scheduledScheduleKeys = signal<string[]>([]);
   entriesAdded = signal(false);
   reviewingEntries = signal(false);
@@ -409,6 +438,7 @@ export class ProgramsPage implements OnInit {
     .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)));
   reviewScheduleCount = computed(() => this.selectedPublicationIds().reduce((count, id) =>
     count + this.datesFor(id).filter(date => !this.scheduledScheduleKeys().includes(this.scheduleKey(id, date))).length, 0));
+  selectedPublicationSummary = computed(() => this.selectedPublicationIds().map(id => this.publicationTitle(id)).join(' · '));
   filteredPrograms = computed(() => {
     const query = this.search().trim().toLocaleLowerCase();
     const status = this.statusFilter();
@@ -427,21 +457,21 @@ export class ProgramsPage implements OnInit {
   filteredAvailablePublications = computed(() => {
     const query = this.publicationSearch().trim().toLocaleLowerCase();
     const type = this.publicationTypeFilter();
-    const selectedOnly = this.selectedOnly();
     return this.availablePublications().filter(publication =>
       (!query || publication.title.toLocaleLowerCase().includes(query)) &&
-      (type === 'ALL' || publication.type === type) &&
-      (!selectedOnly || this.selectedPublicationIds().includes(publication.id)),
+      (type === 'ALL' || publication.type === type),
     );
   });
   playerToken = computed(() => this.auth.user()?.playerToken ?? null);
-  schedulesValid = computed(() => this.selectedPublicationIds().every(id => {
-    if (this.scheduleComplete(id)) return true;
-    const schedule = this.scheduleFor(id);
-    return datesBetweenInclusive(schedule.date, schedule.endDate).length > 0 && schedule.date >= this.today &&
-      !!schedule.startTime && !!schedule.endTime &&
-      toMinutes(schedule.endTime) > toMinutes(schedule.startTime);
-  }));
+  schedulesValid = computed(() => {
+    const schedule = this.sharedSchedule();
+    const valid = datesBetweenInclusive(schedule.date, schedule.endDate).length > 0 && schedule.date >= this.today &&
+      !!schedule.startTime && !!schedule.endTime && toMinutes(schedule.endTime) > toMinutes(schedule.startTime);
+    return this.selectedPublicationIds().every(id => {
+      if (this.scheduleComplete(id)) return true;
+      return valid;
+    });
+  });
 
   ngOnInit(): void {
     this.loadPublications();
@@ -536,8 +566,7 @@ export class ProgramsPage implements OnInit {
     this.selectedPublicationIds.set([]);
     this.publicationSearch.set('');
     this.publicationTypeFilter.set('ALL');
-    this.selectedOnly.set(false);
-    this.schedules.set({});
+    this.sharedSchedule.set(this.defaultPublicationSchedule());
     this.scheduledScheduleKeys.set([]);
     this.entriesAdded.set(false);
     this.reviewingEntries.set(false);
@@ -546,13 +575,17 @@ export class ProgramsPage implements OnInit {
   }
 
   hasPublicationFilters(): boolean {
-    return !!this.publicationSearch().trim() || this.publicationTypeFilter() !== 'ALL' || this.selectedOnly();
+    return !!this.publicationSearch().trim() || this.publicationTypeFilter() !== 'ALL';
   }
 
   clearPublicationFilters(): void {
     this.publicationSearch.set('');
     this.publicationTypeFilter.set('ALL');
-    this.selectedOnly.set(false);
+  }
+
+  clearPublicationSelection(): void {
+    if (this.saving() || this.entriesAdded()) return;
+    this.selectedPublicationIds.set([]);
   }
 
   closeModal(): void {
@@ -589,29 +622,16 @@ export class ProgramsPage implements OnInit {
     if (this.entriesAdded()) return;
     const checked = (event.target as HTMLInputElement).checked;
     this.selectedPublicationIds.update(ids => checked ? [...ids, id] : ids.filter(value => value !== id));
-    this.schedules.update(schedules => {
-      if (checked) {
-        return { ...schedules, [id]: schedules[id] ?? this.defaultPublicationSchedule() };
-      }
-      const { [id]: _removed, ...remaining } = schedules;
-      return remaining;
-    });
-  }
-
-  scheduleFor(id: number): PublicationScheduleInput {
-    return this.schedules()[id] ?? { date: '', endDate: '', startTime: '', endTime: '' };
   }
 
   private defaultPublicationSchedule(): PublicationScheduleInput {
     let startMinute = toMinutes(currentBusinessTime());
     let endMinute = startMinute + 60;
-    if (endMinute > 1440) {
+    if (endMinute > 1439) {
       startMinute = 1380;
-      endMinute = 1440;
+      endMinute = 1439;
     }
-    const formatTime = (minute: number) => minute === 1440
-      ? '24:00'
-      : `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+    const formatTime = (minute: number) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
     return {
       date: this.today,
       endDate: this.today,
@@ -620,8 +640,8 @@ export class ProgramsPage implements OnInit {
     };
   }
 
-  datesFor(id: number): string[] {
-    const schedule = this.scheduleFor(id);
+  datesFor(_id: number): string[] {
+    const schedule = this.sharedSchedule();
     return datesBetweenInclusive(schedule.date, schedule.endDate);
   }
 
@@ -634,11 +654,13 @@ export class ProgramsPage implements OnInit {
     return dates.length > 0 && this.scheduledCount(id) === dates.length;
   }
 
-  updateSchedule(id: number, field: keyof PublicationScheduleInput, value: string): void {
-    this.schedules.update(schedules => ({
-      ...schedules,
-      [id]: { ...this.scheduleFor(id), [field]: value },
-    }));
+  updateSharedSchedule(field: keyof PublicationScheduleInput, value: string): void {
+    this.sharedSchedule.update(schedule => {
+      const updated = { ...schedule, [field]: value };
+      if (field === 'date' && updated.endDate < value) updated.endDate = value;
+      if (field === 'endDate' && value < updated.date) updated.date = value;
+      return updated;
+    });
   }
 
   saveEntries(): void {
@@ -685,7 +707,7 @@ export class ProgramsPage implements OnInit {
     from(pending).pipe(
       concatMap(({ publicationId, date }) => {
         activeItem = { publicationId, date };
-        const schedule = this.scheduleFor(publicationId);
+        const schedule = this.sharedSchedule();
         return this.createScheduleUC.execute({
           publicationId,
           programId: program.id,
@@ -737,15 +759,8 @@ export class ProgramsPage implements OnInit {
     return this.publications().find(publication => publication.id === id)?.title ?? `Conteúdo ${id}`;
   }
 
-  scheduleSummary(id: number): string {
-    const schedule = this.scheduleFor(id);
-    const dates = this.datesFor(id);
-    const range = dates.length
-      ? `${this.formatDate(dates[0])}${dates.length > 1 ? ` a ${this.formatDate(dates[dates.length - 1])}` : ''}`
-      : 'Período não definido';
-    const time = schedule.startTime && schedule.endTime ? `${schedule.startTime}–${schedule.endTime}` : 'Horário não definido';
-    const completed = this.scheduledCount(id);
-    return `${range} · ${time}${completed ? ` · ${completed} de ${dates.length} dias concluídos` : ''}`;
+  publicationFor(id: number): Publication | undefined {
+    return this.publications().find(publication => publication.id === id);
   }
 
   removeEntry(program: Program, entryId: number): void {

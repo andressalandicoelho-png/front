@@ -11,7 +11,7 @@ import { IconComponent } from '@presentation/ui/icon.component';
       <aside class="side">
         <div class="sidebar-header">
           <a class="brand" routerLink="/calendario" aria-label="Office Total, calendário">
-            <img class="brand-logo" src="assets/office-total-logo.png" alt="">
+            <img class="brand-logo" src="assets/OfficeLogo.png" alt="Logo Office Total">
           </a>
           <button class="sidebar-toggle" type="button" [attr.aria-expanded]="!sidebarCollapsed()" aria-label="Recolher ou expandir barra lateral" (click)="toggleSidebar()">
             <app-icon [name]="sidebarCollapsed() ? 'right' : 'left'" [size]="16"/>
