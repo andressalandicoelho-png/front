@@ -1,16 +1,16 @@
 @media (min-width: 801px) {
   .side {
     background: #fff;
-    border-right: 1px solid #e8ebf1;
+    border-right: 1px solid var(--border);
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
-  .sidebar-header { border-bottom-color: #edf0f4; }
+  .sidebar-header { border-bottom-color: var(--border-soft); }
   .sidebar-header .brand { gap: 10px; }
-  .sidebar-header .brand-mark { border-radius: 8px; box-shadow: none; }
+  .sidebar-header .brand-mark { border-radius: var(--radius); box-shadow: none; }
   .sidebar-header .brand-name { color: #25324a; font-size: 14px; font-weight: 600; letter-spacing: -.2px; }
-  .sidebar-toggle { border-radius: 7px; color: #748097; }
+  .sidebar-toggle { border-radius: var(--radius-control); color: #748097; }
   .sidebar-toggle:hover { background: #f3f5f8; color: #33486f; }
   .side .nav { gap: 5px; padding: 20px 12px; }
   .side .nav-item {
@@ -18,7 +18,7 @@
     gap: 11px;
     padding: 9px 11px;
     border: 0;
-    border-radius: 9px;
+    border-radius: var(--radius-control);
     color: #596579;
     font-size: 14px;
     font-weight: 500;
@@ -37,7 +37,7 @@
     min-height: 68px;
     gap: 10px;
     padding: 12px 14px;
-    border-top-color: #edf0f4;
+    border-top-color: var(--border-soft);
     background: #fff;
   }
   .account-link:hover, .account-link.active { background: #f8f9fb; }

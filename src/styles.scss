@@ -43,3 +43,7 @@
 @use './styles/shared/components/search-field/search-field';
 @use './styles/shared/components/media-thumb/media-thumb';
 @use './styles/shared/foundation/empty-state';
+@use './styles/pages/login/components/login-form/responsive' as login-responsive;
+@use './styles/pages/users/components/user-list/responsive' as users-responsive;
+@use './styles/pages/profile/components/account/responsive' as profile-responsive;
+@use './styles/shared/components/modal/responsive' as modal-responsive;

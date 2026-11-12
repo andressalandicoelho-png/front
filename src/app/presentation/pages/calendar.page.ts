@@ -17,10 +17,10 @@ import { currentBusinessDate, currentBusinessTime, datesBetweenInclusive, toMinu
 import { errorMessage } from '@presentation/core/error-message';
 import { ToastService } from '@presentation/core/toast.service';
 import { longDate, monthTitle } from '@presentation/core/format';
+import { publicationTypeName } from '@presentation/formatters/publication-type-name';
 import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
-import { PageHeaderComponent } from '@presentation/ui/page-header.component';
 import { CalendarReviewTableComponent } from '@presentation/ui/calendar-review-table.component';
 import { PaginationComponent } from '@presentation/ui/pagination.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
@@ -29,11 +29,8 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
 
 @Component({
   selector: 'app-calendar',
-  imports: [DatePipe, RouterLink, FormsModule, DatePickerComponent, IconComponent, ModalComponent, PageHeaderComponent, CalendarReviewTableComponent, PaginationComponent, SecureMediaComponent],
+  imports: [DatePipe, RouterLink, FormsModule, DatePickerComponent, IconComponent, ModalComponent, CalendarReviewTableComponent, PaginationComponent, SecureMediaComponent],
   template: `
-    <header app-page-header class="page-head row-between" title="Uma visão de tudo que conecta."
-      description="Organize a comunicação das suas TVs, um dia de cada vez."></header>
-
     <section class="card cal">
       <div class="cal-head">
         <button class="icon-btn" type="button" (click)="move(-1)" aria-label="Mês anterior"><app-icon name="left" [size]="22"/></button>
@@ -78,9 +75,8 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
             </button>
           } @empty {
             <div class="calendar-agenda-empty empty-state">
-              <strong>Seu calendário ainda está livre</strong>
-              <span>Agende conteúdos para deixar a programação da TV pronta.</span>
-              @if (!isPast(today)) { <button class="btn primary small" type="button" (click)="addContent(today)"><app-icon name="plus" [size]="15"/> Agendar conteúdo hoje</button> }
+              <strong>Nenhum agendamento.</strong>
+              @if (!isPast(today)) { <button class="btn primary small" type="button" (click)="addContent(today)"><app-icon name="plus" [size]="15"/> Agendar hoje</button> }
             </div>
           }
           @if (monthEntries().length) {
@@ -93,7 +89,6 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
         }
       </div>
     </section>
-    <footer class="calendar-footer"><span><i></i> Conteúdo agendado</span><span>Horário de Brasília · GMT−3</span></footer>
     @if (openMenuDate(); as date) {
       <div class="calendar-day-popover" role="menu" [style.top.px]="dayMenuPosition().top" [style.left.px]="dayMenuPosition().left" (click)="$event.stopPropagation()">
         <div class="calendar-popover-heading">
@@ -109,9 +104,8 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
           </button>
         </span>
         <button type="button" role="menuitem" class="calendar-popover-action" (click)="viewPosts(date)">
-          <app-icon name="calendar" [size]="16"/> <span>Ver posts do dia</span>
+          <app-icon name="calendar" [size]="16"/> <span>Ver agendamentos</span>
         </button>
-        @if (!isPast(date)) { <p class="calendar-popover-note">Escolha a programação e os conteúdos que devem aparecer nesse horário.</p> }
       </div>
     }
 
@@ -251,7 +245,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
           <strong>{{ editing() ? 'Editar agendamento' : reviewingEntry() ? 'Revisar agendamento' : 'Adicionar ao dia' }}</strong>
           @if (reviewingEntry()) {
             <div class="program-review">
-              <p class="muted">A sequência define a ordem de reprodução; este horário define quando o conteúdo pode aparecer. A API ainda verifica conflitos antes de confirmar.</p>
+              <p class="muted">Confira o conteúdo e o período antes de confirmar.</p>
               <div class="program-review-heading">
                 <strong>{{ publicationTitle(form.publicationId) }}</strong>
                 <span>{{ programName(form.programId) }}</span>
@@ -263,7 +257,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
               </div>
             </div>
           } @else {
-          @if (isPast(day)) { <p class="muted">Não é possível adicionar programação para uma data passada.</p> }
+          @if (isPast(day)) { <p class="muted">Esta data já passou.</p> }
           <label class="field">Programação
             <select class="input" name="editProgram" [(ngModel)]="form.programId" required>
               <option [ngValue]="null" disabled>Escolha uma programação</option>
@@ -305,7 +299,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
       <app-modal class="calendar-modal calendar-removal-confirmation" title="Remover agendamento?" (closed)="pendingRemoval.set(null)">
         <div class="confirm-content"><span class="confirm-icon danger"><app-icon name="trash" [size]="22"/></span>
           <h2>Remover este conteúdo do calendário?</h2>
-          <p class="muted">“{{ titleOf(entry) }}” será removido do calendário em {{ entry.date | date:'dd/MM/yyyy' }}. A publicação continuará na biblioteca.</p>
+          <p class="muted">“{{ titleOf(entry) }}” sairá do calendário; a publicação continuará na biblioteca.</p>
           <div class="actions"><button class="btn" type="button" (click)="pendingRemoval.set(null)">Cancelar</button><button class="btn danger-button" type="button" (click)="confirmRemove(entry)">Remover agendamento</button></div>
         </div>
       </app-modal>
@@ -313,7 +307,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
     @if (addContentDate(); as date) {
       <app-modal class="calendar-modal add-content-modal"
         [title]="reviewingCalendarSchedule() ? 'Adicionar Conteúdos' : 'Adicionar conteúdos'"
-        [subtitle]="reviewingCalendarSchedule() ? 'Validação e Agendamento' : 'Selecione as mídias da biblioteca e configure os horários de exibição nas telas.'"
+        [subtitle]="reviewingCalendarSchedule() ? 'Revise o agendamento' : 'Selecione conteúdos e horários.'"
         (closed)="closeAddContent()">
         <div class="add-content-dialog">
           @if (reviewingCalendarSchedule()) {
@@ -393,13 +387,13 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
               </div>
             } @else {
               <div class="calendar-program-empty">
-                <p>Crie uma programação antes de agendar conteúdos para a TV.</p>
+                <p>Crie uma programação antes de agendar.</p>
                 <a class="btn primary small" routerLink="/programacao/nova" (click)="closeAddContent()">Criar programação</a>
               </div>
             }
           </div>
           <div class="add-content-library-head">
-            <div><strong>Conteúdos publicados</strong><small>Somente conteúdos publicados podem ser agendados.</small></div>
+            <div><strong>Conteúdos publicados</strong></div>
           </div>
           <div class="add-content-filters" role="search">
             <label class="search-field search-field--icon">
@@ -743,9 +737,7 @@ export class CalendarPage implements OnInit {
   }
   clearContentSelection(): void { this.selectedContentIds.set([]); }
   toMinutes = toMinutes;
-  typeName(type: Publication['type']): string {
-    return type === 'IMAGE' ? 'Imagem' : type === 'VIDEO' ? 'Vídeo' : type === 'MESSAGE' ? 'Mensagem' : 'Link';
-  }
+  readonly typeName = publicationTypeName;
   programColor(programId: number | null): string {
     if (programId === null) return '#8592a8';
     const colors = ['#159a72', '#dc8a28', '#4b78dc', '#a653be', '#d55252'];
@@ -776,7 +768,7 @@ export class CalendarPage implements OnInit {
     const programIds = this.selectedProgramIds();
     if (!selected.length || !programIds.length || !dates.length || toMinutes(this.addEndTime()) <= toMinutes(this.addStartTime())) return;
     if (this.isPast(date)) {
-      this.addContentError.set('Não é possível adicionar conteúdo a uma data passada.');
+      this.addContentError.set('Esta data já passou.');
       return;
     }
     this.addingContents.set(true);
@@ -787,7 +779,7 @@ export class CalendarPage implements OnInit {
     if (!pending.length) {
       this.addingContents.set(false);
       this.addContentDate.set(null);
-      this.toast.show('Os conteúdos selecionados já estão agendados nesse período e horário.');
+      this.toast.show('Conteúdos já agendados neste período e horário.');
       return;
     }
     this.addProgress.set({ completed: 0, total: pending.length });
@@ -811,15 +803,17 @@ export class CalendarPage implements OnInit {
         const title = failed ? this.pubs().find(publication => publication.id === failed.publicationId)?.title ?? `Conteúdo ${failed.publicationId}` : 'conteúdo';
         const dateLabel = failed ? this.popupFullDate(failed.date) : '';
         const programLabel = failed ? this.programName(failed.programId) : 'programação';
-        const partial = created ? ` ${created} agendamento(s) já concluídos.` : '';
-        this.addContentError.set(`${errorMessage(error)} Não foi possível agendar “${title}” em ${programLabel}, ${dateLabel}.${partial} Os agendamentos concluídos serão mantidos; tente novamente para continuar.`);
+        const partial = created
+          ? ` ${created} ${created === 1 ? 'agendamento concluído' : 'agendamentos concluídos'}.`
+          : '';
+        this.addContentError.set(`${errorMessage(error)} Falha ao agendar “${title}” em ${programLabel}, ${dateLabel}.${partial} Os agendamentos concluídos foram mantidos; tente novamente.`);
       },
       complete: () => {
         this.addingContents.set(false);
         this.addContentDate.set(null);
         this.selectedContentIds.set([]);
         this.reviewingCalendarSchedule.set(false);
-        this.toast.show(`${created} agendamento(s) criado(s): ${selected.length} conteúdo(s), ${programIds.length} programação(ões), ${dates.length} dia(s), ${this.addStartTime()}–${this.addEndTime()}.`);
+        this.toast.show(`${created} ${created === 1 ? 'agendamento criado' : 'agendamentos criados'}.`);
       },
     });
   }
@@ -898,7 +892,7 @@ export class CalendarPage implements OnInit {
     }
     this.error.set('');
     if (date < currentBusinessDate()) {
-      this.error.set('Não é possível programar para uma data passada.');
+      this.error.set('Esta data já passou.');
       return;
     }
     if (toMinutes(this.form.endTime) <= toMinutes(this.form.startTime)) {
@@ -935,7 +929,7 @@ export class CalendarPage implements OnInit {
     ).subscribe({
       next: entry => { created++; this.entries.update(entries => [...entries, entry]); },
       error: err => this.error.set(`${errorMessage(err)}${created ? ` ${created} dia(s) já foram agendados.` : ''} Ajuste o período e tente novamente.`),
-      complete: () => { this.toast.show(`${created} agendamento(s) criado(s)`); this.resetForm(); this.load(); },
+      complete: () => { this.toast.show(`${created} ${created === 1 ? 'agendamento criado' : 'agendamentos criados'}`); this.resetForm(); this.load(); },
     });
   }
 

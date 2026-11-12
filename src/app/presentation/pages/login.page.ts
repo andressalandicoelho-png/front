@@ -16,7 +16,7 @@ import { IconComponent } from '@presentation/ui/icon.component';
       </div>
       <div class="login-form-panel">
         <form class="login-card" (ngSubmit)="submit()">
-          <div class="login-heading"><h1>Bem vindo de volta!</h1><p class="muted">Por favor acesse com sua conta corporativa.</p></div>
+          <div class="login-heading"><h1>Entrar</h1><p class="muted">Acesse com sua conta corporativa.</p></div>
           <label class="field">E-mail<input class="input" type="email" name="email" placeholder="seuNome@officetotal.com" autocomplete="username" [(ngModel)]="email" required></label>
           <label class="field">Senha<input class="input" type="password" name="password" placeholder="Digite sua senha" autocomplete="current-password" [(ngModel)]="password" required></label>
           @if (error()) { <p class="error">{{ error() }}</p> }

@@ -3,8 +3,8 @@ app-modal.publication-modal .modal {
   max-width: 568px;
   max-height: min(90dvh, 760px);
   overflow: auto;
-  border: 1px solid #e4e8f0;
-  border-radius: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   background: #fff;
   box-shadow: 0 20px 60px rgba(10, 20, 42, .22);
 }
@@ -26,8 +26,8 @@ app-modal.publication-modal .modal-body { padding: 17px 27px 19px; }
 .publication-title-field .input {
   min-height: 38px;
   padding: 8px 12px;
-  border-color: #e5eaf2;
-  border-radius: 10px;
+  border-color: var(--border-control);
+  border-radius: var(--radius-control);
   background: #fff;
   color: #263650;
   font-size: 12px;
@@ -40,7 +40,7 @@ app-modal.publication-modal .modal-body { padding: 17px 27px 19px; }
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 3px;
   padding: 3px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: #f0f3f8;
 }
 .publication-type-tabs button {
@@ -52,7 +52,7 @@ app-modal.publication-modal .modal-body { padding: 17px 27px 19px; }
   gap: 5px;
   padding: 5px 4px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: #64728a;
   font-size: 10px;
@@ -65,8 +65,8 @@ app-modal.publication-modal .modal-body { padding: 17px 27px 19px; }
   justify-content: center;
   gap: 7px;
   padding: 12px;
-  border: 1px dashed #e2e8f1;
-  border-radius: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
   background: #fafbfd;
   color: #2459df;
   font-size: 11px;
@@ -75,14 +75,14 @@ app-modal.publication-modal .modal-body { padding: 17px 27px 19px; }
 .publication-drop small { color: #8792a8; font-size: 9px; }
 .publication-upload-icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 50%; background: #f0f3f8; color: #496381; }
 .publication-content-field { color: #3a4964; }
-.publication-content-field .input { background: #fff; border-color: #e5eaf2; }
+.publication-content-field .input { background: #fff; border-color: var(--border-control); }
 .publication-duration {
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 13px;
-  border: 1px solid #e6ebf2;
-  border-radius: 13px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius);
   background: #fafbfd;
 }
 .publication-duration-heading, .publication-duration-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -94,8 +94,8 @@ app-modal.publication-modal .modal-body { padding: 17px 27px 19px; }
   width: 28px;
   height: 28px;
   place-items: center;
-  border: 1px solid #e4e9f1;
-  border-radius: 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
   background: #fff;
   color: #42536d;
   font-size: 15px;
@@ -116,15 +116,15 @@ app-modal.publication-modal .modal-body { padding: 17px 27px 19px; }
 }
 .publication-duration-input::-webkit-inner-spin-button,
 .publication-duration-input::-webkit-outer-spin-button { margin: 0; appearance: none; }
-.publication-duration-input:focus { outline: 1px solid #9ab2fa; outline-offset: 1px; border-radius: 4px; }
+.publication-duration-input:focus { outline: 1px solid #9ab2fa; outline-offset: 1px; border-radius: var(--radius-control); }
 .publication-duration-input::placeholder { color: #7d8aa0; opacity: 1; }
 .publication-duration-unit { min-width: 8px; color: #73819a; font-size: 10px; }
 .publication-duration-presets { display: flex; align-items: center; gap: 5px; }
 .publication-duration-presets button {
   min-height: 26px;
   padding: 3px 7px;
-  border: 1px solid #e5eaf2;
-  border-radius: 7px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
   background: #fff;
   color: #43536b;
   font-size: 10px;
@@ -137,14 +137,14 @@ app-modal.publication-modal .modal-body { padding: 17px 27px 19px; }
   gap: 9px;
   margin-top: 1px;
   padding-top: 15px;
-  border-top: 1px solid #edf0f5;
+  border-top: 1px solid var(--border-subtle);
 }
 .publication-form-actions .btn { min-height: 34px; padding: 6px 15px; background: transparent; color: #596a84; font-size: 10px; font-weight: 500; }
 .publication-form-actions .btn.primary { background: #2860ed; color: #fff; font-weight: 600; }
 .publication-form-actions .btn.primary:hover { background: #1d50d2; }
 .publication-form-actions .publication-secondary-submit { background: #f0f3f8; }
 @media (max-width: 600px) {
-  app-modal.publication-modal .modal { max-height: 88dvh; border-radius: 16px; }
+  app-modal.publication-modal .modal { max-height: 88dvh; border-radius: var(--radius); }
   app-modal.publication-modal .modal-head { min-height: 72px; padding: 17px 16px 12px 19px; }
   app-modal.publication-modal .modal-body { padding: 15px 19px 17px; }
   .publication-form { gap: 15px; }

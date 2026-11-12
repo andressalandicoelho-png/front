@@ -1,8 +1,11 @@
-@media (max-width: 650px) {
+@media (max-width: 1500px) {
+  .program-create-form { grid-template-columns: minmax(0, 1fr); }
   .program-create-aside { position: static; order: -1; }
+}
+
+@media (max-width: 650px) {
   .program-summary { padding: 14px 16px; }
   .program-summary-body { padding-top: 12px; }
-  .program-create-info { margin: 0 0 14px; }
   .program-create-card { padding: 15px; }
   .program-library-head { flex-direction: column; }
   .program-library-search { width: 100%; }

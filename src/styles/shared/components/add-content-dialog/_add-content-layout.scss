@@ -1,9 +1,30 @@
+app-modal.add-content-modal {
+  position: fixed;
+  z-index: 1100;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100dvh;
+}
+app-modal.add-content-modal .backdrop {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  padding: clamp(12px, 2vw, 24px);
+  overflow: auto;
+}
 app-modal.add-content-modal .modal {
-  width: min(820px, calc(100vw - 40px));
+  box-sizing: border-box;
+  width: min(820px, 100%);
   max-width: 820px;
   height: min(84dvh, 720px);
-  border: 1px solid #dfe4ee;
-  border-radius: 12px;
+  max-height: calc(100dvh - 24px);
+  min-width: 0;
+  margin: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   background: #fff;
   box-shadow: 0 24px 70px rgba(18, 31, 65, .25);
 }
@@ -11,7 +32,7 @@ app-modal.add-content-modal .modal-head {
   min-height: 84px;
   align-items: flex-start;
   padding: 14px 20px;
-  border-bottom: 1px solid #edf0f5;
+  border-bottom: 1px solid var(--border-subtle);
 }
 app-modal.add-content-modal .modal-heading { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 app-modal.add-content-modal .modal-head strong { color: #1d2b45; font-size: 20px !important; font-weight: 650; }
@@ -27,8 +48,8 @@ app-modal.add-content-modal .modal-body { background: #fff; }
   width: 100%;
   margin: 12px 0 8px;
   padding: 14px 18px;
-  border: 1px solid #e3e8f0;
-  border-radius: 11px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius);
   background: #fafbfd;
 }
 .add-content-period-fields { display: grid; grid-template-columns: 1fr 1.2fr .8fr .8fr; gap: 10px; }
@@ -48,10 +69,10 @@ app-modal.add-content-modal .modal-body { background: #fff; }
 .add-content-context .calendar-program-options {
   gap: 7px;
   padding: 8px 0 0;
-  border-top: 1px solid #e8ebf2;
+  border-top: 1px solid var(--border-soft);
   border-bottom: 0;
 }
-.add-content-context .calendar-program-option { min-height: 32px; border-radius: 7px; font-size: 11px; }
+.add-content-context .calendar-program-option { min-height: 32px; border-radius: var(--radius-control); font-size: 11px; }
 .add-content-context .calendar-program-empty {
   min-height: 0;
   justify-content: space-between;
@@ -69,7 +90,7 @@ app-modal.add-content-modal .modal-body { background: #fff; }
 .add-content-library-head > div > strong { color: #263650; font-size: 14px; font-weight: 650; }
 .add-content-library-head > div > small { color: #8792a5; font-size: 10px; }
 .add-content-filters { grid-template-columns: minmax(0, 1fr) 170px; gap: 9px; padding: 0 18px 8px; }
-.add-content-filters .input { min-height: 36px; border-color: #e2e7ef; border-radius: 8px; background: #fff; font-size: 12px; }
+.add-content-filters .input { min-height: 36px; border-color: var(--border-control); border-radius: var(--radius-control); background: #fff; font-size: 12px; }
 .add-content-filters .search-field { min-width: 0; }
 .add-content-filters .search-field .input { padding-left: 36px; }
 .add-content-meta { min-height: 28px; padding: 0 18px 6px; }
@@ -77,8 +98,8 @@ app-modal.add-content-modal .modal-body { background: #fff; }
 .add-content-hint { color: #8a95a7; font-size: 10px; }
 .add-content-list {
   margin: 0 18px;
-  border: 1px solid #e3e8f0;
-  border-radius: 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius);
   background: #fff;
 }
 .add-content-item {
@@ -86,7 +107,7 @@ app-modal.add-content-modal .modal-body { background: #fff; }
   grid-template-columns: 16px 54px minmax(0, 1fr) minmax(86px, auto);
   gap: 10px;
   padding: 7px 12px;
-  border-bottom-color: #edf0f5;
+  border-bottom-color: var(--border-subtle);
 }
 .add-content-item.selected { background: #f2f6ff; box-shadow: inset 3px 0 #3470ed; }
 .add-content-thumb { width: 50px; height: 38px; }
@@ -102,23 +123,24 @@ app-modal.add-content-modal .modal-body { background: #fff; }
   line-height: 1.4;
 }
 .add-content-info > small { color: #7a869a; font-size: 10px; }
-.add-content-status { min-width: 82px; padding: 5px 7px; border: 1px solid #e5eaf2; border-radius: 7px; background: #f8f9fb; color: #69768a; font-size: 10px; }
-.add-content-item.selected .add-content-status { border-color: #dce6ff; background: #edf3ff; color: #2857c5; }
-.add-content-item.already-added .add-content-status { border-color: #e5eaf2; background: #f4f5f7; color: #727d8e; }
+.add-content-status { min-width: 82px; padding: 5px 7px; border: 0; border-radius: var(--radius-control); background: #f1f3f7; color: #69768a; font-size: 10px; }
+.add-content-item.selected .add-content-status { background: #edf3ff; color: #2857c5; }
+.add-content-item.already-added .add-content-status { background: #f4f5f7; color: #727d8e; }
 .add-content-footer {
   gap: 16px;
   padding: 12px 18px;
-  border-top-color: #e8ebf2;
+  border-top-color: var(--border-soft);
   background: #fafbfd;
 }
 .add-content-selection strong { color: #293d68; font-size: 11px; }
 .add-content-selection button { color: #2857c5; font-size: 10px; }
 .add-content-selection button.link-button { min-height: 30px; padding: 4px 0; font-size: 13px; font-weight: 600; }
 .add-content-selection small { color: #748097; font-size: 10px; }
-.add-content-footer .actions .btn { min-height: 36px; border: 1px solid #e0e6ef; border-radius: 8px; font-size: 11px; }
+.add-content-footer .actions .btn { min-height: 36px; border: 1px solid var(--border-control); border-radius: var(--radius-control); font-size: 11px; }
 .add-content-footer .actions .btn.primary { border-color: #2860ed; background: #2860ed; }
 @media (max-width: 650px) {
-  app-modal.add-content-modal .modal { width: min(100%, 560px); height: min(88dvh, 720px); max-height: calc(100dvh - 28px); }
+  app-modal.add-content-modal .backdrop { padding: 12px; }
+  app-modal.add-content-modal .modal { width: 100%; height: min(88dvh, 720px); max-height: calc(100dvh - 24px); border-radius: var(--radius); }
   app-modal.add-content-modal .modal-head { min-height: 78px; padding: 12px 16px; }
   app-modal.add-content-modal .modal-head strong { font-size: 18px !important; }
   app-modal.add-content-modal .modal-heading > small:last-child { font-size: 10px; }
@@ -141,5 +163,7 @@ app-modal.add-content-modal .modal-body { background: #fff; }
   .add-content-status { grid-column: 3; justify-self: start; }
   .add-content-thumb { width: 40px; }
   .add-content-hint { display: none; }
+  .add-content-footer .actions { grid-template-columns: minmax(0, 1fr); }
+  .add-content-footer .actions .btn { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 }
 

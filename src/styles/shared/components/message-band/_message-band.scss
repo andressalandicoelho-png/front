@@ -1,5 +1,5 @@
 app-message-band { display: block; width: 100%; min-height: 0; }
-.message-band { box-sizing: border-box; display: grid; width: 100%; height: 100%; grid-template-columns: minmax(90px, 9%) minmax(0, 1fr); gap: clamp(12px, 1.2vw, 20px); padding: clamp(10px, 1.5vw, 24px) clamp(16px, 2vw, 32px); border: 1px solid rgba(226, 235, 255, .24); border-radius: clamp(16px, 1.5vw, 28px); background: linear-gradient(120deg, rgba(7, 20, 48, .72), rgba(8, 24, 55, .62)); box-shadow: 0 16px 48px rgba(0, 0, 0, .24); backdrop-filter: blur(28px) saturate(145%); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.message-band { box-sizing: border-box; display: grid; width: 100%; height: 100%; grid-template-columns: minmax(90px, 9%) minmax(0, 1fr); gap: clamp(12px, 1.2vw, 20px); padding: clamp(10px, 1.5vw, 24px) clamp(16px, 2vw, 32px); border: 1px solid rgba(226, 235, 255, .24); border-radius: var(--radius); background: linear-gradient(120deg, rgba(7, 20, 48, .72), rgba(8, 24, 55, .62)); box-shadow: 0 16px 48px rgba(0, 0, 0, .24); backdrop-filter: blur(28px) saturate(145%); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .message-band.clock-only { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 8px; }
 .message-band.clock-only .message-band-clock { grid-template-rows: 1fr 1fr; border-right: 0; }
 .message-band.clock-only .message-band-copy { display: none; }
@@ -37,7 +37,7 @@ app-message-band { display: block; width: 100%; min-height: 0; }
 .message-band-measure { position: absolute; top: 0; left: 0; width: max-content; height: auto; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; }
 @keyframes message-band-marquee { to { transform: translateX(-50%); } }
 .program-preview-screen > app-message-band { min-height: 0; }
-.message-band.compact { grid-template-columns: minmax(50px, 12%) minmax(0, 1fr); gap: 6px; padding: 8px 12px; border-radius: 12px; }
+.message-band.compact { grid-template-columns: minmax(50px, 12%) minmax(0, 1fr); gap: 6px; padding: 8px 12px; border-radius: var(--radius); }
 .message-band.compact .message-band-clock { gap: 0; }
 .message-band.compact .message-band-date { gap: 4px; padding: 2px 0 0; }
 .message-band.compact .message-band-date > strong { font-size: clamp(9px, .65vw, 11px); }

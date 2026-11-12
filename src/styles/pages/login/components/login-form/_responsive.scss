@@ -1,0 +1,18 @@
+@media (max-width: 800px) {
+  .login {
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 800px) and (max-height: 600px) {
+  .login-panel { min-height: 112px; padding: 12px 18px; }
+  .login-panel > p { margin-top: 6px; }
+  .login-brand { gap: 10px; }
+  .login-brand strong { font-size: clamp(30px, 8vw, 42px); }
+  .login-form-panel { align-items: start; padding: 8px 16px 16px; }
+  .login-card { max-width: 440px; gap: 8px; padding: 12px 16px; }
+  .login-heading h1 { font-size: 22px; }
+}

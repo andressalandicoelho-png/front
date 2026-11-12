@@ -6,7 +6,6 @@ import { PublicationParticipation } from '@domain/report/report.entity';
 import { errorMessage } from '@presentation/core/error-message';
 import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { IconComponent } from '@presentation/ui/icon.component';
-import { PageHeaderComponent } from '@presentation/ui/page-header.component';
 import { PaginationComponent } from '@presentation/ui/pagination.component';
 
 const dateInput = (date: Date): string =>
@@ -14,28 +13,26 @@ const dateInput = (date: Date): string =>
 
 @Component({
   selector: 'app-reports',
-  imports: [DatePipe, FormsModule, DatePickerComponent, IconComponent, PageHeaderComponent, PaginationComponent],
+  imports: [DatePipe, FormsModule, DatePickerComponent, IconComponent, PaginationComponent],
   template: `
-    <header app-page-header class="page-head row-between" title="Relatórios"
-      description="Consulte as participações dos conteúdos nos agendamentos.">
-      <div class="actions report-export-actions">
-        <button class="btn" type="button" (click)="exportCsv()" [disabled]="!filtered().length || loading()">CSV</button>
-        <button class="btn primary" type="button" (click)="exportPdf()" [disabled]="!filtered().length || loading() || pdfExporting()">
-          <app-icon name="document" [size]="16"/> {{ pdfExporting() ? 'Gerando PDF…' : 'Exportar PDF' }}
-        </button>
-      </div>
-    </header>
-
     @if (pdfError()) { <div class="notice error-notice" role="alert">{{ pdfError() }}</div> }
 
     <section class="card report-filters">
-      <label class="search-field search-field--icon report-search report-search-field"><app-icon name="search" [size]="17"/><input class="input" type="search" placeholder="Buscar por conteúdo, autor ou e-mail" aria-label="Buscar por conteúdo, autor ou e-mail" [(ngModel)]="query" (ngModelChange)="page.set(0)"></label>
+      <div class="report-search-actions">
+        <label class="search-field search-field--icon report-search report-search-field"><app-icon name="search" [size]="17"/><input class="input" type="search" placeholder="Buscar por conteúdo, autor ou e-mail" aria-label="Buscar por conteúdo, autor ou e-mail" [(ngModel)]="query" (ngModelChange)="page.set(0)"></label>
+        <div class="actions report-export-actions">
+          <button class="btn" type="button" (click)="exportCsv()" [disabled]="!filtered().length || loading()">CSV</button>
+          <button class="btn primary" type="button" (click)="exportPdf()" [disabled]="!filtered().length || loading() || pdfExporting()">
+            <app-icon name="document" [size]="16"/> {{ pdfExporting() ? 'Gerando PDF…' : 'Exportar PDF' }}
+          </button>
+        </div>
+      </div>
       <div class="filter-grid">
         <label class="field">De<app-date-picker [(ngModel)]="from" (ngModelChange)="load()"></app-date-picker></label>
         <label class="field">Até<app-date-picker [(ngModel)]="to" (ngModelChange)="load()"></app-date-picker></label>
         <label class="field">Status<select class="input" [(ngModel)]="status"><option value="">Todos os status</option><option value="READY">Publicado</option><option value="DRAFT">Rascunho</option></select></label>
       </div>
-      <div class="row-between report-helper"><small class="muted">Cada linha representa um agendamento real; datas passadas são marcadas como encerradas.</small><button class="link-button" type="button" (click)="clearFilters()">Limpar filtros</button></div>
+      <div class="row-between report-helper"><small class="muted">Datas passadas aparecem como encerradas.</small><button class="link-button" type="button" (click)="clearFilters()">Limpar filtros</button></div>
     </section>
 
     <section class="card report-table-card">
@@ -56,7 +53,7 @@ const dateInput = (date: Date): string =>
           <div class="report-empty empty-state">
             <span class="empty-icon"><app-icon name="calendar" [size]="24"/></span>
             <h2>{{ loading() ? 'Carregando relatório…' : error() ? 'Não foi possível carregar os relatórios' : 'Nenhuma participação neste período' }}</h2>
-            <p class="muted">{{ error() || 'Não há agendamentos correspondentes aos filtros selecionados. Ajuste o período ou limpe os filtros.' }}</p>
+            <p class="muted">{{ error() || 'Ajuste os filtros.' }}</p>
             @if (error()) { <button class="btn primary" type="button" (click)="load()">Tentar novamente</button> }
           </div>
         }
@@ -70,7 +67,7 @@ const dateInput = (date: Date): string =>
         </footer>
       }
     </section>
-    <p class="muted report-note"><app-icon name="info" [size]="15"/> O relatório reflete os agendamentos cadastrados na agenda; não indica audiência nem confirma que um conteúdo foi visualizado na TV.</p>
+    <p class="muted report-note"><app-icon name="info" [size]="15"/> Mostra agendamentos, não visualizações.</p>
   `,
 })
 export class ReportsPage implements OnInit {

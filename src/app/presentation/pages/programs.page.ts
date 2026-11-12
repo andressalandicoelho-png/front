@@ -5,7 +5,10 @@ import { ListPublicationsUseCase } from '@application/publication/publication.us
 import {
   AddProgramEntriesUseCase, DeleteProgramUseCase, ListProgramsUseCase, RemoveProgramEntryUseCase, UpdateProgramUseCase,
 } from '@application/program/program.usecases';
-import { CreateScheduleEntryUseCase, ListScheduleUseCase } from '@application/schedule/schedule.usecases';
+import {
+  ScheduleProgramEntriesError, ScheduleProgramEntriesUseCase,
+} from '@application/program/schedule-program-entries.usecase';
+import { ListScheduleUseCase } from '@application/schedule/schedule.usecases';
 import { GeneratePlayerTokenUseCase } from '@application/user/user.usecases';
 import { Program } from '@domain/program/program.entity';
 import { Publication } from '@domain/publication/publication.entity';
@@ -14,30 +17,25 @@ import { currentBusinessDate, currentBusinessTime, datesBetweenInclusive, toMinu
 import { errorMessage } from '@presentation/core/error-message';
 import { AuthState } from '@presentation/core/auth.state';
 import { ToastService } from '@presentation/core/toast.service';
+import { publicationTypeName } from '@presentation/formatters/publication-type-name';
+import { PublicationScheduleForm } from '@presentation/models/publication-schedule-form';
 import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
-import { PageHeaderComponent } from '@presentation/ui/page-header.component';
 import { CalendarReviewTableComponent } from '@presentation/ui/calendar-review-table.component';
 import { ProgramPreviewComponent, ProgramPreviewItem } from '@presentation/ui/program-preview.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
-import { concatMap, from } from 'rxjs';
-
-interface PublicationScheduleInput { date: string; endDate: string; startTime: string; endTime: string; }
 
 @Component({
   selector: 'app-programs',
-  imports: [FormsModule, DatePickerComponent, IconComponent, ModalComponent, PageHeaderComponent, CalendarReviewTableComponent, ProgramPreviewComponent, SecureMediaComponent],
+  imports: [FormsModule, DatePickerComponent, IconComponent, ModalComponent, CalendarReviewTableComponent, ProgramPreviewComponent, SecureMediaComponent],
   template: `
-    <header app-page-header class="page-head row-between program-page-head" title="Programações"
-      description="Monte sequências de conteúdo e prepare cada TV para exibi-las."></header>
-
     @if (error()) { <div class="notice error-notice" role="alert">{{ error() }}</div> }
 
     <section class="program-workspace" aria-label="Gerenciar programações">
       <aside class="program-browser" aria-label="Lista de programações">
         <div class="program-browser-heading">
-          <div><h2>Suas programações</h2><span>{{ activeCount() }} ativas · {{ programs().length - activeCount() }} pausadas</span></div>
+          <div><h2>Suas programações</h2></div>
           <button class="btn primary small" type="button" (click)="openCreate()" aria-label="Criar nova programação">
             <app-icon name="plus" [size]="15"/> Nova
           </button>
@@ -60,8 +58,6 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                 <strong>{{ program.name }}</strong>
                 <span class="status" [class.live]="program.active">{{ program.active ? 'Ativa' : 'Pausada' }}</span>
               </span>
-              <span class="program-browser-item-meta">{{ program.entries.length }} {{ program.entries.length === 1 ? 'conteúdo' : 'conteúdos' }}</span>
-              <small>{{ programSummary(program) }}</small>
             </button>
           } @empty {
             <div class="program-browser-empty">
@@ -70,14 +66,12 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
             </div>
           }
         </nav>
-        <div class="program-browser-footer">{{ entryCount() }} conteúdos nas sequências</div>
       </aside>
 
       @if (selected(); as program) {
         <section class="program-inspector" aria-labelledby="program-inspector-title">
           <header class="program-inspector-head">
             <div class="program-inspector-title">
-              <span class="eyebrow">Detalhes da programação</span>
               <h2 id="program-inspector-title">{{ program.name }}</h2>
               <span class="status" [class.live]="program.active">{{ program.active ? 'Ativa' : 'Pausada' }}</span>
             </div>
@@ -94,10 +88,20 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
 
           <section class="program-connection" aria-labelledby="program-connection-title">
             <div class="program-section-heading">
-              <div><h3 id="program-connection-title">Conectar à TV</h3><p>O link abre esta programação no navegador da TV.</p></div>
-              <span class="program-connection-state" [class.ready]="program.active && program.entries.length > 0 && upcomingSchedules().length > 0 && !!playerToken()">
-                {{ !program.active ? 'Programação pausada' : !program.entries.length ? 'Adicione conteúdo' : programScheduleLoading() ? 'Verificando agenda' : programScheduleError() ? 'Agenda indisponível' : !upcomingSchedules().length ? 'Sem horário próximo' : playerToken() ? 'Pronta para testar' : 'Gere o link da TV' }}
-              </span>
+              <div><h3 id="program-connection-title">Conectar à TV</h3></div>
+              @if (!program.active) {
+                <span class="program-connection-state">Programação pausada</span>
+              } @else if (!program.entries.length) {
+                <span class="program-connection-state">Adicione conteúdo</span>
+              } @else if (programScheduleLoading()) {
+                <span class="program-connection-state" role="status">Verificando agenda</span>
+              } @else if (programScheduleError()) {
+                <span class="program-connection-state" role="alert">Agenda indisponível</span>
+              } @else if (upcomingSchedules().length) {
+                <span class="program-connection-state" [class.ready]="!!playerToken()">
+                  {{ playerToken() ? 'Pronta para testar' : 'Gere o link da TV' }}
+                </span>
+              }
             </div>
             @if (programScheduleLoading()) {
               <p class="program-connection-note" role="status">Consultando os horários dos próximos 30 dias…</p>
@@ -105,8 +109,6 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
               <p class="program-connection-note" role="alert">{{ programScheduleError() }} <button class="link-button" type="button" (click)="loadProgramSchedule(program.id)">Tentar novamente</button></p>
             } @else if (upcomingSchedules().length) {
               <p class="program-connection-note">{{ upcomingSchedules().length }} período(s) nos próximos 30 dias. Próximo: {{ formatDate(upcomingSchedules()[0].date) }}, {{ upcomingSchedules()[0].startTime }}–{{ upcomingSchedules()[0].endTime }}.</p>
-            } @else {
-              <p class="program-connection-note">Nenhum horário nos próximos 30 dias. A sequência define a ordem; o calendário define quando o conteúdo aparece.</p>
             }
             @if (playerToken(); as token) {
               <div class="program-tv-actions">
@@ -129,15 +131,13 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
 
           <section class="program-sequence" aria-labelledby="program-sequence-title">
             <div class="program-section-heading">
-              <div><h3 id="program-sequence-title">Sequência de conteúdo</h3><p>Os itens são reproduzidos nesta ordem dentro dos horários ativos do calendário.</p></div>
-              <span class="program-sequence-count">{{ program.entries.length }} itens</span>
+              <div><h3 id="program-sequence-title">Sequência de conteúdo</h3><p>A TV segue esta ordem nos horários ativos.</p></div>
             </div>
             @for (entry of program.entries; track entry.id; let index = $index) {
               <article class="program-sequence-item">
                 <span class="program-sequence-position">{{ (index + 1).toString().padStart(2, '0') }}</span>
                 <span class="program-sequence-thumb media-thumb"><app-secure-media [mediaId]="entry.mediaFileId" [type]="entry.publicationType === 'MESSAGE' ? 'MESSAGE' : entry.publicationType === 'VIDEO' ? 'VIDEO' : entry.publicationType === 'LINK' ? 'LINK' : 'IMAGE'"/></span>
                 <span class="program-sequence-copy">
-                  <strong>{{ entry.publicationTitle }}</strong>
                   @if (entry.publicationType === 'MESSAGE') {
                     <small>Mensagem · Fixa durante o horário agendado</small>
                   } @else {
@@ -159,15 +159,8 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
         </section>
       } @else {
         <section class="program-inspector program-inspector-empty empty-state" aria-live="polite">
-          @if (programs().length) {
-            <span class="empty-icon"><app-icon name="layers" [size]="24"/></span>
-            <h2>Selecione uma programação</h2>
-            <p>Os detalhes, a sequência e a conexão da TV aparecem aqui.</p>
-          } @else {
-            <span class="empty-icon"><app-icon name="tv" [size]="24"/></span>
-            <h2>Comece por uma programação</h2>
-            <p>Crie uma sequência para organizar o conteúdo que será exibido nas TVs.</p>
-          }
+          <span class="empty-icon"><app-icon [name]="programs().length ? 'layers' : 'tv'" [size]="24"/></span>
+          <h2>{{ programs().length ? 'Selecione uma programação' : 'Nenhuma programação' }}</h2>
         </section>
       }
     </section>
@@ -259,7 +252,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                 </div>
               </div>
               <div class="add-content-library-head">
-                <div><strong>Conteúdos publicados</strong><small>Somente conteúdos publicados podem ser agendados.</small></div>
+                <div><strong>Conteúdos publicados</strong></div>
               </div>
               <div class="add-content-filters" role="search">
                 <label class="search-field search-field--icon">
@@ -317,7 +310,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                 <div class="add-content-selection">
                   <strong>{{ selectedPublicationIds().length }} {{ selectedPublicationIds().length === 1 ? 'conteúdo selecionado' : 'conteúdos selecionados' }}</strong>
                   <button type="button" class="link-button" [disabled]="!selectedPublicationIds().length || saving() || entriesAdded()" (click)="clearPublicationSelection()">Limpar seleção</button>
-                  <small>{{ selectedPublicationSummary() || 'Selecione conteúdos para adicionar à programação.' }}</small>
+                  <small>{{ selectedPublicationSummary() || 'Selecione conteúdos.' }}</small>
                   <small class="add-content-schedule-note">{{ selected()?.name }} · {{ sharedSchedule().startTime }}–{{ sharedSchedule().endTime }}</small>
                   @if (saving() && scheduleProgress().total) {
                     <small class="add-content-progress" role="status" aria-live="polite">Agendando {{ scheduleProgress().completed }} de {{ scheduleProgress().total }} períodos diários…</small>
@@ -341,7 +334,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
         <div class="confirm-content program-delete-confirm">
           <span class="confirm-icon danger"><app-icon name="trash" [size]="22"/></span>
           <h2>Excluir “{{ program.name }}”?</h2>
-          <p class="muted">A programação e sua sequência de conteúdos serão excluídas. Os agendamentos vinculados sairão do calendário, mas serão preservados no histórico de relatórios. As publicações continuarão na biblioteca.</p>
+          <p class="muted">A sequência e os agendamentos sairão do calendário. O histórico e as publicações serão mantidos.</p>
           @if (deleteError()) { <p class="error" role="alert">{{ deleteError() }}</p> }
           <div class="actions">
             <button class="btn" type="button" [disabled]="deleting()" (click)="closeDeleteConfirmation()">Cancelar</button>
@@ -357,8 +350,7 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
       <app-modal title="Renovar link da TV?" (closed)="pendingTokenRenewal.set(false)">
         <div class="confirm-content">
           <span class="confirm-icon danger"><app-icon name="info" [size]="22"/></span>
-          <h2>Os links já compartilhados deixarão de funcionar.</h2>
-          <p class="muted">A renovação substitui o token da conta e afeta todas as programações ligadas a ele. Será necessário atualizar o endereço em cada TV.</p>
+          <p class="muted">Os links atuais de todas as programações serão invalidados. Atualize cada TV.</p>
           <div class="actions">
             <button class="btn" type="button" [disabled]="generatingToken()" (click)="pendingTokenRenewal.set(false)">Manter links atuais</button>
             <button class="btn danger-button" type="button" [disabled]="generatingToken()" (click)="confirmTokenRenewal()">{{ generatingToken() ? 'Renovando…' : 'Renovar todos os links' }}</button>
@@ -369,19 +361,20 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
   `,
 })
 export class ProgramsPage implements OnInit {
-  auth = inject(AuthState);
-  private router = inject(Router);
-  private route = inject(ActivatedRoute);
-  private listUC = inject(ListProgramsUseCase);
-  private updateUC = inject(UpdateProgramUseCase);
-  private deleteUC = inject(DeleteProgramUseCase);
-  private addEntriesUC = inject(AddProgramEntriesUseCase);
-  private createScheduleUC = inject(CreateScheduleEntryUseCase);
-  private listScheduleUC = inject(ListScheduleUseCase);
-  private removeEntryUC = inject(RemoveProgramEntryUseCase);
-  private publicationsUC = inject(ListPublicationsUseCase);
-  private tokenUC = inject(GeneratePlayerTokenUseCase);
-  private toast = inject(ToastService);
+  readonly auth = inject(AuthState);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly listProgramsUseCase = inject(ListProgramsUseCase);
+  private readonly updateProgramUseCase = inject(UpdateProgramUseCase);
+  private readonly deleteProgramUseCase = inject(DeleteProgramUseCase);
+  private readonly addProgramEntriesUseCase = inject(AddProgramEntriesUseCase);
+  private readonly scheduleProgramEntriesUseCase = inject(ScheduleProgramEntriesUseCase);
+  private readonly listScheduleUseCase = inject(ListScheduleUseCase);
+  private readonly removeProgramEntryUseCase = inject(RemoveProgramEntryUseCase);
+  private readonly listPublicationsUseCase = inject(ListPublicationsUseCase);
+  private readonly generatePlayerTokenUseCase = inject(GeneratePlayerTokenUseCase);
+  private readonly toastService = inject(ToastService);
+  readonly typeName = publicationTypeName;
 
   programs = signal<Program[]>([]);
   publications = signal<Publication[]>([]);
@@ -395,8 +388,8 @@ export class ProgramsPage implements OnInit {
   selectedPublicationIds = signal<number[]>([]);
   publicationSearch = signal('');
   publicationTypeFilter = signal<'ALL' | Publication['type']>('ALL');
-  sharedSchedule = signal<PublicationScheduleInput>({ date: '', endDate: '', startTime: '', endTime: '' });
-  scheduledScheduleKeys = signal<string[]>([]);
+  sharedSchedule = signal<PublicationScheduleForm>({ date: '', endDate: '', startTime: '', endTime: '' });
+  scheduledEntries = signal<Array<Pick<ScheduleEntry, 'publicationId' | 'date'>>>([]);
   entriesAdded = signal(false);
   reviewingEntries = signal(false);
   previewOpen = signal(false);
@@ -415,14 +408,12 @@ export class ProgramsPage implements OnInit {
   programScheduleLoading = signal(false);
   programScheduleError = signal('');
   private publicationsLoaded = false;
-  activeCount = computed(() => this.programs().filter(program => program.active).length);
-  entryCount = computed(() => this.programs().reduce((count, program) => count + program.entries.length, 0));
   previewItems = computed<ProgramPreviewItem[]>(() => (this.selected()?.entries ?? []).map(entry => this.previewItem(entry)));
   upcomingSchedules = computed(() => this.programSchedules()
     .filter(entry => entry.date > this.today || (entry.date === this.today && entry.endTime > this.currentBusinessTime()))
     .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)));
   reviewScheduleCount = computed(() => this.selectedPublicationIds().reduce((count, id) =>
-    count + this.datesFor(id).filter(date => !this.scheduledScheduleKeys().includes(this.scheduleKey(id, date))).length, 0));
+    count + this.datesFor().filter(date => !this.isScheduled(id, date)).length, 0));
   calendarReviewRows = computed(() => this.selectedPublicationIds().map(id => {
     const publication = this.publicationFor(id);
     return {
@@ -430,7 +421,7 @@ export class ProgramsPage implements OnInit {
       title: this.publicationTitle(id),
       type: publication?.type ?? 'LINK',
       status: this.scheduleComplete(id) ? 'Agendado' : 'Disponível',
-      scheduleSummary: `${this.scheduledCount(id)} de ${this.datesFor(id).length} dias agendados`,
+      scheduleSummary: `${this.scheduledCount(id)} de ${this.datesFor().length} dias agendados`,
     };
   }));
   selectedPublicationSummary = computed(() => this.selectedPublicationIds().map(id => this.publicationTitle(id)).join(' · '));
@@ -477,7 +468,7 @@ export class ProgramsPage implements OnInit {
     if (this.publicationsLoading() || this.publicationsLoaded) return;
     this.publicationsLoading.set(true);
     this.publicationsLoadError.set('');
-    this.publicationsUC.execute().subscribe({
+    this.listPublicationsUseCase.execute().subscribe({
       next: publications => {
         this.publications.set(publications);
         this.publicationsLoaded = true;
@@ -491,7 +482,7 @@ export class ProgramsPage implements OnInit {
   }
 
   load(): void {
-    this.listUC.execute().subscribe({
+    this.listProgramsUseCase.execute().subscribe({
       next: programs => {
         const ownerId = this.auth.user()?.id;
         const ownedPrograms = programs.filter(program => program.createdById === ownerId);
@@ -519,12 +510,6 @@ export class ProgramsPage implements OnInit {
         replaceUrl: true,
       });
     }
-  }
-  typeName(type: string): string { return type === 'IMAGE' ? 'Imagem' : type === 'VIDEO' ? 'Vídeo' : type === 'MESSAGE' ? 'Mensagem' : 'Link'; }
-  programSummary(program: Program): string {
-    const titles = program.entries.slice(0, 2).map(entry => entry.publicationTitle);
-    if (!titles.length) return 'Nenhum conteúdo na sequência';
-    return titles.length < program.entries.length ? `${titles.join(' · ')} · +${program.entries.length - titles.length}` : titles.join(' · ');
   }
   duration(entry: Program['entries'][number]): number {
     if (entry.publicationType === 'VIDEO') return Math.min(entry.displaySeconds ?? entry.originalDurationSeconds ?? 10, entry.originalDurationSeconds ?? 10);
@@ -562,7 +547,7 @@ export class ProgramsPage implements OnInit {
     this.publicationSearch.set('');
     this.publicationTypeFilter.set('ALL');
     this.sharedSchedule.set(this.defaultPublicationSchedule());
-    this.scheduledScheduleKeys.set([]);
+    this.scheduledEntries.set([]);
     this.entriesAdded.set(false);
     this.reviewingEntries.set(false);
     this.error.set('');
@@ -591,15 +576,14 @@ export class ProgramsPage implements OnInit {
 
   saveProgram(): void {
     const current = this.selected();
+    if (!current) return;
     this.saving.set(true);
-    const request = current ? this.updateUC.execute(current.id, { name: this.name.trim() }) : null;
-    if (!request) { this.saving.set(false); return; }
-    request.subscribe({
+    this.updateProgramUseCase.execute(current.id, { name: this.name.trim() }).subscribe({
       next: program => {
         this.saving.set(false);
         this.modal.set(false);
         this.selected.set(program);
-        this.toast.show('Programação atualizada');
+        this.toastService.show('Programação atualizada');
         this.load();
       },
       error: error => { this.saving.set(false); this.error.set(errorMessage(error)); },
@@ -607,8 +591,8 @@ export class ProgramsPage implements OnInit {
   }
 
   toggle(program: Program): void {
-    this.updateUC.execute(program.id, { active: !program.active }).subscribe({
-      next: updated => { this.selected.set(updated); this.toast.show(updated.active ? 'Programação ativada' : 'Programação pausada'); this.load(); },
+    this.updateProgramUseCase.execute(program.id, { active: !program.active }).subscribe({
+      next: updated => { this.selected.set(updated); this.toastService.show(updated.active ? 'Programação ativada' : 'Programação pausada'); this.load(); },
       error: error => this.error.set(errorMessage(error)),
     });
   }
@@ -619,7 +603,7 @@ export class ProgramsPage implements OnInit {
     this.selectedPublicationIds.update(ids => checked ? [...ids, id] : ids.filter(value => value !== id));
   }
 
-  private defaultPublicationSchedule(): PublicationScheduleInput {
+  private defaultPublicationSchedule(): PublicationScheduleForm {
     let startMinute = toMinutes(currentBusinessTime());
     let endMinute = startMinute + 60;
     if (endMinute > 1439) {
@@ -635,21 +619,25 @@ export class ProgramsPage implements OnInit {
     };
   }
 
-  datesFor(_id: number): string[] {
+  datesFor(): string[] {
     const schedule = this.sharedSchedule();
     return datesBetweenInclusive(schedule.date, schedule.endDate);
   }
 
   scheduledCount(id: number): number {
-    return this.datesFor(id).filter(date => this.scheduledScheduleKeys().includes(this.scheduleKey(id, date))).length;
+    return this.datesFor().filter(date => this.isScheduled(id, date)).length;
   }
 
   scheduleComplete(id: number): boolean {
-    const dates = this.datesFor(id);
+    const dates = this.datesFor();
     return dates.length > 0 && this.scheduledCount(id) === dates.length;
   }
 
-  updateSharedSchedule(field: keyof PublicationScheduleInput, value: string): void {
+  private isScheduled(publicationId: number, date: string): boolean {
+    return this.scheduledEntries().some(entry => entry.publicationId === publicationId && entry.date === date);
+  }
+
+  updateSharedSchedule(field: keyof PublicationScheduleForm, value: string): void {
     this.sharedSchedule.update(schedule => {
       const updated = { ...schedule, [field]: value };
       if (field === 'date' && updated.endDate < value) updated.endDate = value;
@@ -674,7 +662,7 @@ export class ProgramsPage implements OnInit {
       this.scheduleEntries(program);
       return;
     }
-    this.addEntriesUC.execute(program.id, this.selectedPublicationIds()).subscribe({
+    this.addProgramEntriesUseCase.execute(program.id, this.selectedPublicationIds()).subscribe({
       next: updated => {
         this.entriesAdded.set(true);
         this.selected.set(updated);
@@ -686,42 +674,38 @@ export class ProgramsPage implements OnInit {
   }
 
   private scheduleEntries(program: Program): void {
-    const pending = this.selectedPublicationIds().flatMap(publicationId =>
-      this.datesFor(publicationId)
-        .filter(date => !this.scheduledScheduleKeys().includes(this.scheduleKey(publicationId, date)))
-        .map(date => ({ publicationId, date })),
-    );
-    if (!pending.length) {
-      this.finishAddingEntries();
-      return;
-    }
-
-    this.scheduleProgress.set({ completed: 0, total: pending.length });
-    let scheduledNow = 0;
-    let activeItem = pending[0];
-    from(pending).pipe(
-      concatMap(({ publicationId, date }) => {
-        activeItem = { publicationId, date };
-        const schedule = this.sharedSchedule();
-        return this.createScheduleUC.execute({
-          publicationId,
-          programId: program.id,
-          date,
-          startTime: schedule.startTime,
-          endTime: schedule.endTime,
-        });
-      }),
-    ).subscribe({
-      next: entry => {
-        scheduledNow++;
-        this.scheduleProgress.update(progress => ({ ...progress, completed: scheduledNow }));
-        this.scheduledScheduleKeys.update(keys => [...keys, this.scheduleKey(entry.publicationId, entry.date)]);
+    const schedule = this.sharedSchedule();
+    this.scheduleProgress.set({ completed: 0, total: 0 });
+    this.scheduleProgramEntriesUseCase.execute({
+      programId: program.id,
+      publicationIds: this.selectedPublicationIds(),
+      dates: this.datesFor(),
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      alreadyScheduled: this.scheduledEntries(),
+    }).subscribe({
+      next: event => {
+        if (event.type === 'started') {
+          this.scheduleProgress.set({ completed: 0, total: event.total });
+          return;
+        }
+        this.scheduleProgress.set({ completed: event.completed, total: event.total });
+        this.scheduledEntries.update(entries => [
+          ...entries,
+          { publicationId: event.entry.publicationId, date: event.entry.date },
+        ]);
       },
       error: error => {
         this.saving.set(false);
-        const title = this.publications().find(publication => publication.id === activeItem.publicationId)?.title ?? `Conteúdo ${activeItem.publicationId}`;
-        const partial = scheduledNow ? ` ${scheduledNow} agendamento(s) já foram concluídos.` : '';
-        this.error.set(`${errorMessage(error)} Não foi possível agendar “${title}” em ${this.formatDate(activeItem.date)}.${partial} Ajuste o período ou horário e tente concluir novamente.`);
+        if (!(error instanceof ScheduleProgramEntriesError)) {
+          this.error.set(errorMessage(error));
+          return;
+        }
+        const title = this.publicationTitle(error.task.publicationId);
+        const partial = error.completed
+          ? ` ${error.completed} ${error.completed === 1 ? 'agendamento concluído' : 'agendamentos concluídos'}.`
+          : '';
+        this.error.set(`${errorMessage(error.originalError)} Falha ao agendar “${title}” em ${this.formatDate(error.task.date)}.${partial} Ajuste o período e tente novamente.`);
       },
       complete: () => this.finishAddingEntries(),
     });
@@ -729,11 +713,11 @@ export class ProgramsPage implements OnInit {
 
   private finishAddingEntries(): void {
     const contents = this.selectedPublicationIds().length;
-    const schedules = this.scheduledScheduleKeys().length;
+    const schedules = this.scheduledEntries().length;
     this.saving.set(false);
     this.modal.set(false);
     this.load();
-    this.toast.show(`${contents} conteúdo(s) adicionados em ${schedules} agendamento(s) diário(s).`);
+    this.toastService.show(`${contents} conteúdo(s) adicionados em ${schedules} agendamento(s) diário(s).`);
   }
 
   scheduleProgressPercent(): number {
@@ -746,10 +730,6 @@ export class ProgramsPage implements OnInit {
     return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
   }
 
-  private scheduleKey(publicationId: number, date: string): string {
-    return `${publicationId}:${date}`;
-  }
-
   publicationTitle(id: number): string {
     return this.publications().find(publication => publication.id === id)?.title ?? `Conteúdo ${id}`;
   }
@@ -759,8 +739,8 @@ export class ProgramsPage implements OnInit {
   }
 
   removeEntry(program: Program, entryId: number): void {
-    this.removeEntryUC.execute(program.id, entryId).subscribe({
-      next: updated => { this.selected.set(updated); this.load(); this.toast.show('Conteúdo removido da programação'); },
+    this.removeProgramEntryUseCase.execute(program.id, entryId).subscribe({
+      next: updated => { this.selected.set(updated); this.load(); this.toastService.show('Conteúdo removido da programação'); },
       error: error => this.error.set(errorMessage(error)),
     });
   }
@@ -779,13 +759,13 @@ export class ProgramsPage implements OnInit {
   confirmDelete(program: Program): void {
     this.deleting.set(true);
     this.deleteError.set('');
-    this.deleteUC.execute(program.id).subscribe({
+    this.deleteProgramUseCase.execute(program.id).subscribe({
       next: () => {
         this.deleting.set(false);
         this.pendingDeletion.set(null);
         this.selected.set(null);
         this.load();
-        this.toast.show('Programação excluída');
+        this.toastService.show('Programação excluída');
       },
       error: error => {
         this.deleting.set(false);
@@ -809,11 +789,11 @@ export class ProgramsPage implements OnInit {
 
   private issuePlayerToken(): void {
     this.generatingToken.set(true);
-    this.tokenUC.execute().subscribe({
+    this.generatePlayerTokenUseCase.execute().subscribe({
       next: token => {
         this.generatingToken.set(false);
         this.auth.setPlayerToken(token);
-        this.toast.show('Link renovado. Atualize o endereço em todas as TVs que usam suas programações.');
+        this.toastService.show('Link renovado. Atualize o endereço em todas as TVs que usam suas programações.');
       },
       error: error => { this.generatingToken.set(false); this.error.set(errorMessage(error)); },
     });
@@ -827,7 +807,7 @@ export class ProgramsPage implements OnInit {
     const end = endDate.toISOString().slice(0, 10);
     this.programScheduleLoading.set(true);
     this.programScheduleError.set('');
-    this.listScheduleUC.execute({ from: start, to: end }).subscribe({
+    this.listScheduleUseCase.execute({ from: start, to: end }).subscribe({
       next: entries => {
         this.programSchedules.set(entries.filter(entry => entry.programId === programId));
         this.programScheduleLoading.set(false);
@@ -844,7 +824,7 @@ export class ProgramsPage implements OnInit {
     const token = this.playerToken();
     if (!token) return;
     navigator.clipboard.writeText(this.playerUrl(token, programId)).then(
-      () => this.toast.show('Link copiado'),
+      () => this.toastService.show('Link copiado'),
       () => this.error.set('Não foi possível copiar o link. Selecione e copie o endereço manualmente.'),
     );
   }

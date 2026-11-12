@@ -1,0 +1,6 @@
+@media (max-width: 420px) {
+  .main app-profile .account-password .actions { flex-wrap: wrap; gap: 8px; }
+  .main app-profile .account-password .actions .btn { flex: 1 1 120px; }
+  .main app-profile .account-user { align-items: flex-start; }
+  .main app-profile .account-user .grow { overflow-wrap: anywhere; }
+}

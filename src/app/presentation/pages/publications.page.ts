@@ -15,7 +15,6 @@ import { ToastService } from '@presentation/core/toast.service';
 import { typeLabel } from '@presentation/core/format';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
-import { PageHeaderComponent } from '@presentation/ui/page-header.component';
 import { PaginationComponent } from '@presentation/ui/pagination.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
 import { generateVideoPreview } from '@presentation/ui/video-thumbnail';
@@ -32,16 +31,14 @@ interface ZipImagePreview {
 
 @Component({
   selector: 'app-publications',
-  imports: [FormsModule, IconComponent, ModalComponent, PageHeaderComponent, PaginationComponent, SecureMediaComponent],
+  imports: [FormsModule, IconComponent, ModalComponent, PaginationComponent, SecureMediaComponent],
   template: `
-    <header app-page-header class="page-head row-between" title="Conteúdos"
-      description="Crie, organize e reutilize conteúdos das suas programações.">
-      <button class="btn primary" type="button" (click)="openNew()"><app-icon name="plus" [size]="18"/> Novo conteúdo</button>
-    </header>
-
     <section class="card content-filters">
       <div class="content-filter-row">
-        <label class="search-field search-field--icon content-search-field"><app-icon name="search" [size]="16"/><input class="input" type="search" placeholder="Buscar conteúdo ou autor" aria-label="Buscar conteúdo ou autor" [ngModel]="search()" (ngModelChange)="search.set($event); page.set(0)"></label>
+        <div class="content-search-actions">
+          <label class="search-field search-field--icon content-search-field"><app-icon name="search" [size]="16"/><input class="input" type="search" placeholder="Buscar conteúdo ou autor" aria-label="Buscar conteúdo ou autor" [ngModel]="search()" (ngModelChange)="search.set($event); page.set(0)"></label>
+          <button class="btn primary" type="button" (click)="openNew()"><app-icon name="plus" [size]="18"/> Novo conteúdo</button>
+        </div>
         <select class="input content-filter-select" aria-label="Filtrar por formato" [ngModel]="typeFilter() ?? ''" (ngModelChange)="typeFilter.set($event || null); page.set(0)">
           <option value="">Formato: Todos</option>
           <option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option><option value="MESSAGE">Mensagem</option>
@@ -115,7 +112,7 @@ interface ZipImagePreview {
           </div>
         </article>
       } @empty {
-        <div class="empty wide"><p>{{ search() ? 'Nenhum conteúdo encontrado. Ajuste a busca ou os filtros.' : 'Sua biblioteca começa aqui. Crie seu primeiro conteúdo.' }}</p><button class="btn primary" type="button" (click)="openNew()">Novo conteúdo</button></div>
+        <div class="empty wide"><p>{{ search() ? 'Nenhum resultado. Ajuste a busca ou os filtros.' : 'Biblioteca vazia.' }}</p><button class="btn primary" type="button" (click)="openNew()">Novo conteúdo</button></div>
       }
     </section>
     @if (visible().length && pageCount() > 1) {
@@ -129,7 +126,7 @@ interface ZipImagePreview {
 
     @if (modal()) {
       <app-modal class="publication-modal" [title]="editing() ? 'Editar publicação' : 'Nova publicação'"
-        [subtitle]="editing() ? '' : 'Configure o conteúdo visual e a duração de exibição no terminal.'"
+        [subtitle]="editing() ? '' : 'Defina o conteúdo e o tempo de exibição.'"
         (closed)="closeModal()">
         <form class="stack publication-form" (ngSubmit)="save()">
           <label class="publication-title-field">
@@ -169,7 +166,7 @@ interface ZipImagePreview {
             <label class="field publication-content-field">Mensagem
               <textarea class="input" name="content" rows="5" placeholder="Texto que ficará fixo na faixa inferior do player" [(ngModel)]="form.content" [maxlength]="maxMessageContentLength" required></textarea>
             </label>
-            <small class="muted message-character-count">{{ form.content.length }} / {{ maxMessageContentLength }} caracteres · cerca de 1 minuto de leitura</small>
+            <small class="muted message-character-count">{{ form.content.length }} / {{ maxMessageContentLength }} caracteres</small>
           } @else if (!editing()) {
             @if (form.type === 'LINK') {
               <label class="field publication-content-field">Endereço do link
@@ -198,7 +195,7 @@ interface ZipImagePreview {
               @if (form.type === 'VIDEO') { <span class="video-thumbnail-label">Miniatura do vídeo</span> }
             </section>
           }
-          @if (previewLoading()) { <p class="muted" role="status">Lendo duração e gerando miniatura do vídeo…</p> }
+          @if (previewLoading()) { <p class="muted" role="status">Analisando vídeo…</p> }
           @if (previewError()) { <p class="muted" role="status">{{ previewError() }}</p> }
           @if (zipImages().length) {
             @if (zipImages()[zipIndex()]; as image) {
@@ -251,7 +248,7 @@ interface ZipImagePreview {
               <input class="input" type="number" min="1" name="orig" [(ngModel)]="form.originalDurationSeconds"
                 [readonly]="previewLoading() || videoDurationDetected()">
             </label>
-            <small class="muted">{{ videoDurationDetected() ? 'Duração detectada automaticamente do arquivo.' : 'Será detectada automaticamente; se não for possível, informe-a manualmente.' }}</small>
+            <small class="muted">{{ videoDurationDetected() ? 'Duração detectada automaticamente.' : 'Detectaremos a duração; se falhar, informe-a.' }}</small>
           }
           @if (error()) { <p class="error">{{ error() }}</p> }
           @if (zipBatchError()) { <p class="error" role="alert">{{ zipBatchError() }}</p> }
@@ -278,7 +275,7 @@ interface ZipImagePreview {
     }
     @if (pendingDelete(); as publication) {
       <app-modal title="Confirmar exclusão de conteúdo" (closed)="pendingDelete.set(null)">
-        <div class="confirm-content"><span class="confirm-icon danger"><app-icon name="trash" [size]="22"/></span><h2>Excluir “{{ publication.title }}”?</h2><p class="muted">O conteúdo será removido permanentemente da biblioteca e deixará de poder ser agendado.</p>
+        <div class="confirm-content"><span class="confirm-icon danger"><app-icon name="trash" [size]="22"/></span><h2>Excluir “{{ publication.title }}”?</h2><p class="muted">Exclusão permanente; não será possível agendá-lo novamente.</p>
           <div class="actions"><button class="btn" type="button" (click)="pendingDelete.set(null)">Cancelar</button><button class="btn danger-button" type="button" (click)="confirmRemove(publication)">Excluir conteúdo</button></div>
         </div>
       </app-modal>

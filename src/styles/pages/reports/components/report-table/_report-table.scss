@@ -1,5 +1,6 @@
 .main app-reports .report-filters { padding: 16px 18px 12px; }
-.main app-reports .report-search { margin-bottom: 14px; }
+.main app-reports .report-search-actions { display: flex; min-width: 0; align-items: center; gap: 12px; margin-bottom: 14px; }
+.main app-reports .report-search { min-width: 0; flex: 1; margin-bottom: 0; }
 .main app-reports .report-search .input { min-width: 0; }
 .main app-reports .report-search-field .input { padding-left: 36px; }
 .main app-reports .report-export-actions { align-items: center; }
@@ -32,13 +33,14 @@
 .report-empty { min-height: 300px; gap: 12px; padding: 24px; }
 .report-empty h2 { margin: 0; font-size: 18px; font-weight: 500; }
 .report-empty p { max-width: 560px; }
-.main app-reports .report-pagination { min-height: 56px; margin: 0; padding: 10px 18px; border-top: 1px solid #edf0f5; }
+.main app-reports .report-pagination { min-height: 56px; margin: 0; padding: 10px 18px; border-top: 1px solid var(--border-subtle); }
 .main app-reports .report-pagination .actions { align-items: center; }
 .main app-reports .report-note { display: flex; align-items: flex-start; gap: 8px; padding-top: 0; font-size: 11px; line-height: 1.5; }
 .main app-reports .report-note app-icon { flex: none; margin-top: 1px; color: #758096; }
 
 @media (max-width: 800px) {
   .main app-reports .report-filters { padding: 12px; }
+  .main app-reports .report-search-actions { gap: 8px; }
   .main app-reports .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
   .main app-reports .report-helper { align-items: flex-start; }
   .main app-reports .report-table-head { display: none; }
@@ -56,6 +58,9 @@
 }
 
 @media (max-width: 480px) {
+  .main app-reports .report-search-actions { flex-wrap: wrap; }
+  .main app-reports .report-search { flex: 1 1 100%; }
+  .main app-reports .report-export-actions { width: 100%; }
   .main app-reports .filter-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .main app-reports .report-helper { flex-direction: column; }
   .main app-reports .report-helper .link-button { align-self: flex-end; }

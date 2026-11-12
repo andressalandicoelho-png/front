@@ -8,7 +8,7 @@
     justify-content: space-between;
     gap: 6px;
     padding: 0 10px 0 14px;
-    border-bottom: 1px solid #eef0f4;
+    border-bottom: 1px solid var(--border-soft);
   }
   .sidebar-header .brand {
     min-width: 0;
@@ -46,7 +46,7 @@
     align-items: center;
     gap: 9px;
     padding: 8px 12px;
-    border-top: 1px solid #eef0f4;
+    border-top: 1px solid var(--border-soft);
     color: #344054;
     text-decoration: none;
   }

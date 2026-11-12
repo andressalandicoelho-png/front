@@ -98,14 +98,14 @@ export class PlayerPage implements OnInit, OnDestroy {
   async enterFullscreen(): Promise<void> {
     this.fullscreenError.set('');
     if (!document.fullscreenEnabled || typeof document.documentElement.requestFullscreen !== 'function') {
-      this.fullscreenError.set('Este navegador não permite ativar a tela cheia. Use o modo de tela cheia do navegador.');
+      this.fullscreenError.set('Este navegador não permite ativar tela cheia.');
       return;
     }
 
     try {
       await document.documentElement.requestFullscreen();
     } catch {
-      this.fullscreenError.set('Não foi possível ativar a tela cheia. Tente novamente pelo navegador.');
+      this.fullscreenError.set('Não foi possível ativar tela cheia. Tente novamente.');
     }
   }
 

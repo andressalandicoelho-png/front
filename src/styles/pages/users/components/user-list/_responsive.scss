@@ -1,0 +1,26 @@
+.main app-users .user-list-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+@media (max-width: 520px) {
+  .main app-users .row {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 6px 10px;
+    padding: 12px;
+  }
+
+  .main app-users .row .avatar { grid-column: 1; grid-row: 1 / span 2; }
+  .main app-users .row .grow { grid-column: 2 / -1; grid-row: 1; }
+  .main app-users .row .input.slim {
+    width: 100%;
+    min-width: 0;
+    max-width: 160px;
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .main app-users .row .btn.small { grid-column: 3; grid-row: 2; }
+}

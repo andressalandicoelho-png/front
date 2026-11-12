@@ -1,22 +1,21 @@
 .main { font-size: 15px; line-height: 1.5; }
 .main :is(h1, h2, h3, h4, h5, h6) { line-height: 1.25; }
-.main .page-head h1 { font-size: clamp(24px, 2vw, 30px) !important; font-weight: 600; letter-spacing: -.03em; }
-.main :is(h2, h3) { font-size: 20px !important; font-weight: 600; }
+.main h1 { font-size: clamp(18px, 1.65vw, 24px) !important; }
+.main :is(h2, h3) { font-size: clamp(16px, 1.35vw, 20px) !important; font-weight: 600; }
 .main :is(h4, h5, h6) { font-size: 16px !important; }
 .main :is(p, .muted, .error, .field, .title, .input, .btn, .link, .nav-item, .program-meta, .program-open, .report-row, .tile-info, .card-head strong) {
   font-size: 14px;
 }
 .main :is(.btn.small, .chip, .chip-btn, .calendar-popover-action, .calendar-popover-date) { font-size: 13px; }
-.main :is(small, .status, .eyebrow, .calendar-footer, .calendar-popover-note) { font-size: 12px; line-height: 1.45; }
-.main .page-head p { font-size: 14px; }
+.main :is(small, .status, .eyebrow, .calendar-popover-note) { font-size: 12px; line-height: 1.45; }
 .main .nav-item { font-size: 14px; }
 .main .modal-head strong { font-size: 18px !important; }
 .main app-modal .modal-body :is(label, .field, .muted, small) { font-size: 13px; }
 
 @media (max-width: 600px) {
   .main .input, .main input, .main select, .main textarea { font-size: 16px; }
-  .main .page-head h1 { font-size: 24px !important; }
-  .main :is(h2, h3) { font-size: 19px !important; }
+  .main h1 { font-size: clamp(18px, 5vw, 24px) !important; }
+  .main :is(h2, h3) { font-size: clamp(16px, 4vw, 19px) !important; }
   .main .nav-item { font-size: 12px; }
 }
 

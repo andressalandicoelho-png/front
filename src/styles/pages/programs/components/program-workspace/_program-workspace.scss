@@ -1,12 +1,11 @@
 .main > app-programs { display: block; width: 100%; max-width: 1440px; min-width: 0; }
-.main > app-programs > .program-page-head { align-items: center; margin-bottom: 18px; }
-.main app-programs .program-page-head h1 { margin-bottom: 3px; }
 .program-workspace {
   display: grid;
   min-height: 0;
   grid-template-columns: minmax(250px, 310px) minmax(0, 1fr);
-  border-top: 1px solid #dfe4ee;
-  border-bottom: 1px solid #dfe4ee;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
   background: #fff;
 }
 .program-browser {
@@ -14,7 +13,7 @@
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  border-right: 1px solid #e5e9f1;
+  border-right: 1px solid var(--border-soft);
   background: #f8f9fb;
 }
 .program-browser-heading {
@@ -24,41 +23,35 @@
   justify-content: space-between;
   gap: 10px;
   padding: 10px 14px;
-  border-bottom: 1px solid #e5e9f1;
+  border-bottom: 1px solid var(--border-soft);
 }
 .program-browser-heading > div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
 .program-browser-heading h2 { margin: 0; font-size: 13px; font-weight: 650; }
-.program-browser-heading span, .program-browser-total { color: #697386; font-size: 10px; }
-.program-browser-total { flex: none; }
 .program-browser-heading .btn { flex: none; min-height: 30px; padding: 4px 8px; font-size: 10px; }
-.program-search { min-height: 40px; margin: 10px 12px 8px; padding: 0 9px; border: 1px solid #dfe4ee; border-radius: 6px; background: #fff; }
+.program-search { min-height: 40px; margin: 10px 12px 8px; padding: 0 9px; border: 1px solid var(--border-control); border-radius: var(--radius-control); background: #fff; }
 .program-search .input { min-width: 0; min-height: 34px; padding: 6px 2px; border: 0; box-shadow: none; font-size: 11px; }
-.program-status-filter { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; margin: 0 12px 8px; padding: 3px; border: 1px solid #e2e6ee; border-radius: 6px; background: #eef0f4; }
+.program-status-filter { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; margin: 0 12px 8px; padding: 3px; border: 1px solid var(--border-soft); border-radius: var(--radius-control); background: #eef0f4; }
 .program-status-filter button { min-height: 28px; padding: 4px 5px; border: 0; border-radius: 4px; background: transparent; color: #596579; font: inherit; font-size: 10px; cursor: pointer; }
 .program-status-filter button.active { background: #fff; color: #2347a5; box-shadow: 0 1px 3px rgba(27, 44, 83, .12); font-weight: 600; }
 .program-browser-list { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 3px; overflow-y: auto; padding: 2px 8px 10px; }
-.program-browser-item { display: flex; min-width: 0; flex-direction: column; gap: 5px; padding: 10px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: #303849; font: inherit; text-align: left; cursor: pointer; }
+.program-browser-item { display: flex; min-width: 0; flex-direction: column; gap: 0; padding: 10px; border: 1px solid transparent; border-radius: var(--radius-control); background: transparent; color: #303849; font: inherit; text-align: left; cursor: pointer; }
 .program-browser-item:hover { background: #fff; }
-.program-browser-item.selected { border-color: #d7e1fb; background: #edf2ff; box-shadow: inset 2px 0 0 #2347a5; }
+.program-browser-item.selected { border-color: transparent; background: #edf2ff; box-shadow: inset 2px 0 0 #2347a5; }
 .program-browser-item-top { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; }
 .program-browser-item-top > strong { overflow: hidden; font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .program-browser-item .status { flex: none; padding: 3px 6px; font-size: 9px; }
-.program-browser-item-meta { color: #4b5565; font-size: 10px; }
-.program-browser-item > small { overflow: hidden; color: #7a8495; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .program-browser-empty { display: flex; min-height: 150px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 7px; padding: 18px 12px; color: #697386; font-size: 11px; }
 .program-browser-empty strong { color: #303849; font-size: 12px; }
 .program-browser-empty .btn { margin-top: 4px; }
-.program-browser-footer { padding: 9px 13px; border-top: 1px solid #e5e9f1; color: #697386; font-size: 10px; }
 .program-inspector { min-width: 0; padding: 0 22px 18px; background: #fff; }
-.program-inspector-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 18px 0 14px; border-bottom: 1px solid #e5e9f1; }
+.program-inspector-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 18px 0 14px; border-bottom: 1px solid var(--border-soft); }
 .program-inspector-title { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 7px 10px; }
-.program-inspector-title .eyebrow { width: 100%; margin: 0; color: #697386; font-size: 10px; }
 .program-inspector-title h2 { overflow-wrap: anywhere; margin: 0; font-size: 19px; font-weight: 650; }
 .program-inspector-title .status { flex: none; font-size: 10px; }
 .program-inspector-actions { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .program-inspector-actions .btn { min-height: 32px; padding: 5px 9px; font-size: 10px; }
 .program-inspector-actions .program-delete-button { color: #b42318; }
-.program-connection { padding: 15px 0; border-bottom: 1px solid #e5e9f1; }
+.program-connection { padding: 15px 0; border-bottom: 1px solid var(--border-soft); }
 .program-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .program-section-heading > div { min-width: 0; }
 .program-section-heading h3 { margin: 0; font-size: 12px; font-weight: 650; }
@@ -71,12 +64,10 @@
 .program-tv-actions .btn { min-height: 32px; padding: 5px 9px; font-size: 10px; }
 .program-token-warning { margin: 8px 0 0; color: #775619; font-size: 10px; }
 .program-sequence { padding-top: 15px; }
-.program-sequence-count { flex: none; color: #697386; font-size: 10px; }
-.program-sequence-item { display: grid; min-width: 0; grid-template-columns: 28px 54px minmax(0, 1fr) 34px; align-items: center; gap: 10px; min-height: 68px; border-bottom: 1px solid #edf0f5; }
+.program-sequence-item { display: grid; min-width: 0; grid-template-columns: 28px 54px minmax(0, 1fr) 34px; align-items: center; gap: 10px; min-height: 68px; border-bottom: 1px solid var(--border-subtle); }
 .program-sequence-position { color: #2347a5; font-size: 10px; font-variant-numeric: tabular-nums; }
 .program-sequence-thumb { width: 54px; height: 38px; }
 .program-sequence-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
-.program-sequence-copy strong { overflow: hidden; color: #303849; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .program-sequence-copy small { color: #697386; font-size: 10px; }
 .program-sequence-item .icon-btn { width: 30px; height: 30px; }
 .program-sequence-empty { display: flex; align-items: center; gap: 12px; padding: 18px 0; color: #697386; }
@@ -98,11 +89,9 @@
 }
 
 @media (max-width: 760px) {
-  .main > app-programs > .program-page-head { align-items: flex-start; }
   .program-workspace { min-height: 0; grid-template-columns: minmax(0, 1fr); }
-  .program-browser { border-right: 0; border-bottom: 1px solid #dfe4ee; }
+  .program-browser { border-right: 0; border-bottom: 1px solid var(--border); }
   .program-browser-list { max-height: 260px; }
-  .program-browser-footer { display: none; }
   .program-inspector { padding: 0 14px 18px; }
   .program-inspector-head { gap: 12px; padding-top: 14px; }
   .program-inspector-actions { width: 100%; }
@@ -110,10 +99,6 @@
 }
 
 @media (max-width: 480px) {
-  .main > app-programs > .program-page-head { flex-direction: row; align-items: center; gap: 10px; }
-  .main > app-programs > .program-page-head > div { min-width: 0; }
-  .main > app-programs > .program-page-head .btn { flex: none; min-height: 34px; padding: 5px 8px; font-size: 10px; }
-  .main > app-programs > .program-page-head .btn app-icon { width: 15px; height: 15px; }
   .program-browser-heading { padding-right: 11px; padding-left: 11px; }
   .program-search, .program-status-filter { margin-right: 10px; margin-left: 10px; }
   .program-inspector { padding-right: 10px; padding-left: 10px; }
@@ -144,7 +129,6 @@
     flex: 1;
     flex-direction: column;
   }
-  .main app-programs > .program-page-head { flex: none; }
   .main app-programs > .program-workspace { min-height: 0; flex: 1; }
   .main app-programs .program-inspector { min-height: 0; overflow-y: auto; }
 }

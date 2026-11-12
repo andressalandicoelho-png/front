@@ -67,7 +67,7 @@
 .program-review-list li strong { font-size: 12px; }
 .program-review-list li small, .program-review-list li > span:last-child { color: var(--muted); font-size: 10px; }
 .program-review-empty { padding: 14px; border-radius: var(--radius); color: var(--muted); background: var(--bg); font-size: 12px; }
-.notice.warning-notice { display: flex; flex-direction: column; gap: 5px; padding: 11px 13px; border: 1px solid #f3d9a2; border-radius: var(--radius); color: #775619; background: #fff8e9; font-size: 11px; }
+.notice.warning-notice { display: flex; flex-direction: column; gap: 5px; padding: 11px 13px; border: 1px solid #f3d9a2; border-radius: var(--radius-control); color: #775619; background: #fff8e9; font-size: 11px; }
 .program-readiness { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 12px 0 0; padding: 13px 15px; border: 1px solid var(--border-soft); border-radius: var(--radius); background: var(--bg); }
 .program-readiness > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
 .program-readiness > div strong { font-size: 12px; }

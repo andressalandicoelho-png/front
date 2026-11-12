@@ -1,12 +1,12 @@
 app-modal.calendar-modal .modal {
-  border: 1px solid #dfe4ee;
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   background: #fff;
   box-shadow: 0 8px 24px rgba(27, 44, 83, .18);
   color: #303849;
 }
 app-modal.calendar-modal .modal-head {
-  border-bottom-color: #edf0f5;
+  border-bottom-color: var(--border-subtle);
   background: #fff;
 }
 app-modal.calendar-modal .modal-body { background: #fff; }

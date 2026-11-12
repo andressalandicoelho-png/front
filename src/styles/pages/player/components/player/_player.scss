@@ -12,7 +12,7 @@
   gap: 7px;
   padding: 7px 10px;
   border: 1px solid rgba(255, 255, 255, .24);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   color: #fff;
   background: rgba(15, 20, 33, .72);
   font: inherit;
@@ -31,7 +31,7 @@
   margin: 0;
   padding: 8px 10px;
   border: 1px solid rgba(255, 255, 255, .2);
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   color: #fff;
   background: rgba(115, 34, 34, .88);
   font-size: 11px;
@@ -45,3 +45,17 @@
 .player-idle { height: 100%; display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; opacity: .8; }
 .player > app-message-band { position: absolute; z-index: 3; right: clamp(16px, 3vw, 56px); bottom: clamp(16px, 3vh, 32px); left: clamp(16px, 3vw, 56px); width: auto; height: clamp(130px, 20vh, 240px); }
 .player > app-message-band.clock-only { right: auto; width: clamp(88px, 9vw, 136px); height: clamp(88px, 9vw, 136px); }
+
+@media (max-width: 600px) {
+  .player-status { max-width: calc(100vw - 88px); padding: 8px 10px; }
+  .player-status > strong { font-size: 12px; }
+  .player-fullscreen { right: max(12px, env(safe-area-inset-right)); padding: 7px; }
+  .player-fullscreen span { display: none; }
+  .player > app-message-band {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    height: clamp(120px, 22vh, 176px);
+  }
+  .player > app-message-band.clock-only { width: clamp(72px, 19vw, 96px); height: clamp(72px, 19vw, 96px); }
+}

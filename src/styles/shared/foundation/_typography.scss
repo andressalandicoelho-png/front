@@ -2,7 +2,7 @@
 .main :is(h2, h3) { font-size: 14px !important; }
 .main :is(h4, h5, h6) { font-size: 12px !important; }
 .main :is(p, .muted, .error, .field, .title, .input, .btn, .link, .nav-item, .program-meta, .program-open, .report-row, .tile-info, .card-head strong) { font-size: 12px; }
-.main :is(.field, .muted, .error, small, .status, .eyebrow, .calendar-footer, .calendar-popover-note) { font-size: 11px; }
+.main :is(.field, .muted, .error, small, .status, .eyebrow, .calendar-popover-note) { font-size: 11px; }
 .main :is(.btn.small, .chip, .chip-btn, .calendar-popover-action, .calendar-popover-date) { font-size: 11px; }
 .main .summary-card > strong { font-size: 20px; }
 .main .calendar-day-popover .calendar-popover-title { font-size: 12px; }
