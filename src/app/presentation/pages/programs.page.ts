@@ -112,6 +112,9 @@ interface PublicationScheduleInput { date: string; endDate: string; startTime: s
                 <input class="input" aria-label="Link da programação para TV" readonly [value]="playerUrl(token, program.id)">
                 <button class="btn small" type="button" (click)="copyPlayerUrl(program.id)"><app-icon name="copy" [size]="15"/> Copiar</button>
                 <a class="btn small" [href]="playerUrl(token, program.id)" target="_blank" rel="noopener">Testar</a>
+                <button class="btn small" type="button" [disabled]="generatingToken()" (click)="generatePlayerToken()">
+                  <app-icon name="link" [size]="15"/> {{ generatingToken() ? 'Gerando…' : 'Gerar novo link' }}
+                </button>
               </div>
             } @else {
               <button class="btn small" type="button" [disabled]="generatingToken()" (click)="generatePlayerToken()">
