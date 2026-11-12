@@ -307,7 +307,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
     @if (addContentDate(); as date) {
       <app-modal class="calendar-modal add-content-modal"
         [title]="reviewingCalendarSchedule() ? 'Adicionar Conteúdos' : 'Adicionar conteúdos'"
-        [subtitle]="reviewingCalendarSchedule() ? 'Revise o agendamento' : 'Selecione conteúdos e horários.'"
+        [subtitle]="reviewingCalendarSchedule() ? 'Revise o agendamento' : ''"
         (closed)="closeAddContent()">
         <div class="add-content-dialog">
           @if (reviewingCalendarSchedule()) {
@@ -347,7 +347,7 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
                 <span class="calendar-review-ready"><i aria-hidden="true"></i>{{ calendarReviewItems().length }} {{ calendarReviewItems().length === 1 ? 'mídia pronta' : 'mídias prontas' }}</span>
                 <div class="actions">
                   <button class="btn" type="button" [disabled]="addingContents()" (click)="reviewingCalendarSchedule.set(false)">Voltar e ajustar</button>
-                  <button class="btn primary" type="button" [disabled]="addingContents() || !selectedProgramIds().length || !selectedNewContentCount() || knownScheduleConflicts().length || addEndDate() < date || toMinutes(addEndTime()) <= toMinutes(addStartTime())" (click)="confirmScheduleSelectedContent(date)">
+                  <button class="btn primary" type="button" [disabled]="addingContents() || !selectedNewContentCount() || knownScheduleConflicts().length || addEndDate() < date || toMinutes(addEndTime()) <= toMinutes(addStartTime())" (click)="confirmScheduleSelectedContent(date)">
                     {{ addingContents() ? 'Agendando…' : addContentError() ? 'Tentar novamente' : 'Confirmar agendamento' }}
                   </button>
                 </div>
@@ -369,12 +369,14 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
                 <input class="input" type="time" aria-label="Horário de fim do agendamento" [ngModel]="addEndTime()" (ngModelChange)="addEndTime.set($event)">
               </label>
             </div>
-            <div class="add-content-program-summary">
-              <app-icon name="layers" [size]="15"/>
-              <strong>Programações</strong>
-              <span>{{ selectedProgramNames() || 'Selecione uma ou mais programações' }}</span>
-              <small>{{ selectedProgramIds().length }} selecionada{{ selectedProgramIds().length === 1 ? '' : 's' }}</small>
-            </div>
+            @if (selectedProgramIds().length) {
+              <div class="add-content-program-summary">
+                <app-icon name="layers" [size]="15"/>
+                <strong>Programações</strong>
+                <span>{{ selectedProgramNames() }}</span>
+                <small>{{ selectedProgramIds().length }} selecionada{{ selectedProgramIds().length === 1 ? '' : 's' }}</small>
+              </div>
+            }
             @if (programs().length) {
               <div class="calendar-program-options" role="group" aria-label="Programações de destino. Você pode escolher mais de uma.">
                 @for (program of programs(); track program.id) {
@@ -439,15 +441,14 @@ interface EntryForm { publicationId: number | null; programId: number | null; en
             <div class="add-content-selection">
               <strong>{{ selectedNewContentCount() }} {{ selectedNewContentCount() === 1 ? 'novo conteúdo selecionado' : 'novos conteúdos selecionados' }}</strong>
               <button type="button" class="link-button" [disabled]="selectedNewContentCount() === 0 || addingContents()" (click)="clearContentSelection()">Limpar seleção</button>
-              <small>{{ selectedContentSummary() || 'Selecione conteúdos para montar a sequência.' }}</small>
-              <small class="add-content-schedule-note">{{ selectedProgramNames() || 'Escolha uma ou mais programações' }} · {{ addStartTime() }}–{{ addEndTime() }}</small>
+              @if (selectedContentSummary()) { <small>{{ selectedContentSummary() }}</small> }
               @if (addingContents()) {
                 <small class="add-content-progress" role="status" aria-live="polite">Agendando {{ addProgress().completed }} de {{ addProgress().total }} períodos diários…</small>
               }
             </div>
             <div class="actions">
               <button class="btn" type="button" [disabled]="addingContents()" (click)="closeAddContent()">Cancelar</button>
-              <button class="btn primary" type="button" [disabled]="!selectedProgramIds().length || !selectedNewContentCount() || isPast(date) || addEndDate() < date || toMinutes(addEndTime()) <= toMinutes(addStartTime()) || addingContents()" (click)="scheduleSelectedContent(date)">
+              <button class="btn primary" type="button" [disabled]="!selectedNewContentCount() || isPast(date) || addEndDate() < date || toMinutes(addEndTime()) <= toMinutes(addStartTime()) || addingContents()" (click)="scheduleSelectedContent(date)">
                 {{ addingContents() ? 'Agendando…' : addContentError() ? 'Tentar novamente' : 'Agendar ' + selectedNewContentCount() + (selectedNewContentCount() === 1 ? ' conteúdo' : ' conteúdos') }}
               </button>
             </div>
@@ -755,6 +756,11 @@ export class CalendarPage implements OnInit {
     return this.programsById().get(id ?? -1) ?? 'Sem programação';
   }
   scheduleSelectedContent(date: string): void {
+    this.addContentError.set('');
+    if (!this.selectedProgramIds().length) {
+      this.addContentError.set('Selecione uma programação antes de agendar o conteúdo.');
+      return;
+    }
     if (!this.reviewingCalendarSchedule()) {
       this.reviewingCalendarSchedule.set(true);
       return;
@@ -766,7 +772,11 @@ export class CalendarPage implements OnInit {
     const selected = this.selectedContentIds().filter(id => !this.alreadyScheduled().has(id));
     const dates = datesBetweenInclusive(date, this.addEndDate());
     const programIds = this.selectedProgramIds();
-    if (!selected.length || !programIds.length || !dates.length || toMinutes(this.addEndTime()) <= toMinutes(this.addStartTime())) return;
+    if (!programIds.length) {
+      this.addContentError.set('Selecione uma programação antes de agendar o conteúdo.');
+      return;
+    }
+    if (!selected.length || !dates.length || toMinutes(this.addEndTime()) <= toMinutes(this.addStartTime())) return;
     if (this.isPast(date)) {
       this.addContentError.set('Esta data já passou.');
       return;

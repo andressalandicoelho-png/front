@@ -97,32 +97,33 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
                 <span class="program-connection-state" role="status">Verificando agenda</span>
               } @else if (programScheduleError()) {
                 <span class="program-connection-state" role="alert">Agenda indisponível</span>
-              } @else if (upcomingSchedules().length) {
-                <span class="program-connection-state" [class.ready]="!!playerToken()">
-                  {{ playerToken() ? 'Pronta para testar' : 'Gere o link da TV' }}
-                </span>
               }
             </div>
             @if (programScheduleLoading()) {
               <p class="program-connection-note" role="status">Consultando os horários dos próximos 30 dias…</p>
             } @else if (programScheduleError()) {
               <p class="program-connection-note" role="alert">{{ programScheduleError() }} <button class="link-button" type="button" (click)="loadProgramSchedule(program.id)">Tentar novamente</button></p>
-            } @else if (upcomingSchedules().length) {
-              <p class="program-connection-note">{{ upcomingSchedules().length }} período(s) nos próximos 30 dias. Próximo: {{ formatDate(upcomingSchedules()[0].date) }}, {{ upcomingSchedules()[0].startTime }}–{{ upcomingSchedules()[0].endTime }}.</p>
             }
             @if (playerToken(); as token) {
               <div class="program-tv-actions">
-                <input class="input" aria-label="Link da programação para TV" readonly [value]="playerUrl(token, program.id)">
+                <input class="input" [class.copied]="copiedProgramId() === program.id" aria-label="Link da programação para TV" readonly [value]="playerUrl(token, program.id)">
                 <button class="btn small" type="button" (click)="copyPlayerUrl(program.id)"><app-icon name="copy" [size]="15"/> Copiar</button>
-                <a class="btn small" [href]="playerUrl(token, program.id)" target="_blank" rel="noopener">Testar</a>
+                @if (canTestProgram()) {
+                  <a class="btn small" [href]="playerUrl(token, program.id)" target="_blank" rel="noopener">Testar</a>
+                } @else {
+                  <button class="btn small" type="button" disabled>Testar</button>
+                }
                 <button class="btn small" type="button" [disabled]="generatingToken()" (click)="generatePlayerToken()">
-                  <app-icon name="link" [size]="15"/> {{ generatingToken() ? 'Gerando…' : 'Gerar novo link' }}
+                  <app-icon name="link" [size]="15"/> {{ generatingToken() ? 'Gerando…' : 'Gerar link' }}
                 </button>
               </div>
             } @else {
-              <button class="btn small" type="button" [disabled]="generatingToken()" (click)="generatePlayerToken()">
-                {{ generatingToken() ? 'Gerando link…' : auth.user()?.hasPlayerToken ? 'Renovar link da TV' : 'Gerar link da TV' }}
-              </button>
+              <div class="program-tv-actions">
+                <button class="btn small" type="button" disabled>Testar</button>
+                <button class="btn small" type="button" [disabled]="generatingToken()" (click)="generatePlayerToken()">
+                  {{ generatingToken() ? 'Gerando link…' : auth.user()?.hasPlayerToken ? 'Renovar link da TV' : 'Gerar link da TV' }}
+                </button>
+              </div>
               @if (auth.user()?.hasPlayerToken) {
                 <p class="program-token-warning">Renovar o link invalida os endereços de TV já compartilhados.</p>
               }
@@ -130,30 +131,43 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
           </section>
 
           <section class="program-sequence" aria-labelledby="program-sequence-title">
-            <div class="program-section-heading">
-              <div><h3 id="program-sequence-title">Sequência de conteúdo</h3><p>A TV segue esta ordem nos horários ativos.</p></div>
+            <div class="program-section-heading program-sequence-heading">
+              <h3 id="program-sequence-title">Sequência de conteúdo</h3>
+              <label class="search-field program-sequence-search">
+                <app-icon name="search" [size]="16"/>
+                <input class="input" type="search" placeholder="Buscar conteúdo" aria-label="Buscar conteúdo agendado"
+                  [ngModel]="sequenceSearch()" (ngModelChange)="sequenceSearch.set($event)">
+              </label>
             </div>
-            @for (entry of program.entries; track entry.id; let index = $index) {
+            @for (item of filteredSequenceEntries(); track item.entry.id) {
               <article class="program-sequence-item">
-                <span class="program-sequence-position">{{ (index + 1).toString().padStart(2, '0') }}</span>
-                <span class="program-sequence-thumb media-thumb"><app-secure-media [mediaId]="entry.mediaFileId" [type]="entry.publicationType === 'MESSAGE' ? 'MESSAGE' : entry.publicationType === 'VIDEO' ? 'VIDEO' : entry.publicationType === 'LINK' ? 'LINK' : 'IMAGE'"/></span>
+                <span class="program-sequence-position">{{ item.position.toString().padStart(2, '0') }}</span>
+                <span class="program-sequence-thumb media-thumb"><app-secure-media [mediaId]="item.entry.mediaFileId" [type]="item.entry.publicationType === 'MESSAGE' ? 'MESSAGE' : item.entry.publicationType === 'VIDEO' ? 'VIDEO' : item.entry.publicationType === 'LINK' ? 'LINK' : 'IMAGE'"/></span>
                 <span class="program-sequence-copy">
-                  @if (entry.publicationType === 'MESSAGE') {
+                  @if (item.entry.publicationType === 'MESSAGE') {
                     <small>Mensagem · Fixa durante o horário agendado</small>
                   } @else {
-                    <small>{{ typeName(entry.publicationType) }} · {{ duration(entry) }} s</small>
+                    <small>{{ item.entry.publicationTitle }}</small>
                   }
                 </span>
-                <button type="button" class="icon-btn danger" [attr.aria-label]="'Remover ' + entry.publicationTitle + ' da sequência'" title="Remover da sequência" (click)="removeEntry(program, entry.id)">
+                <button type="button" class="icon-btn danger" [attr.aria-label]="'Remover ' + item.entry.publicationTitle + ' da sequência'" title="Remover da sequência" (click)="removeEntry(program, item.entry.id)">
                   <app-icon name="trash" [size]="17"/>
                 </button>
               </article>
             } @empty {
-              <div class="program-sequence-empty">
-                <span class="empty-icon"><app-icon name="layers" [size]="22"/></span>
-                <div><strong>Sequência vazia</strong><p>Adicione conteúdos publicados para definir o que esta TV deve reproduzir.</p></div>
-                <button class="btn primary small" type="button" (click)="openAddEntries()"><app-icon name="plus" [size]="15"/> Adicionar conteúdo</button>
-              </div>
+              @if (program.entries.length) {
+                <div class="program-sequence-empty">
+                  <span class="empty-icon"><app-icon name="search" [size]="22"/></span>
+                  <div><strong>Nenhum conteúdo encontrado</strong><p>Tente outro termo de busca.</p></div>
+                  <button class="link-button" type="button" (click)="sequenceSearch.set('')">Limpar busca</button>
+                </div>
+              } @else {
+                <div class="program-sequence-empty">
+                  <span class="empty-icon"><app-icon name="layers" [size]="22"/></span>
+                  <div><strong>Sequência vazia</strong><p>Adicione conteúdos publicados para definir o que esta TV deve reproduzir.</p></div>
+                  <button class="btn primary small" type="button" (click)="openAddEntries()"><app-icon name="plus" [size]="15"/> Adicionar conteúdo</button>
+                </div>
+              }
             }
           </section>
         </section>
@@ -387,6 +401,7 @@ export class ProgramsPage implements OnInit {
   modalMode = signal<'edit' | 'add'>('edit');
   selectedPublicationIds = signal<number[]>([]);
   publicationSearch = signal('');
+  sequenceSearch = signal('');
   publicationTypeFilter = signal<'ALL' | Publication['type']>('ALL');
   sharedSchedule = signal<PublicationScheduleForm>({ date: '', endDate: '', startTime: '', endTime: '' });
   scheduledEntries = signal<Array<Pick<ScheduleEntry, 'publicationId' | 'date'>>>([]);
@@ -399,11 +414,13 @@ export class ProgramsPage implements OnInit {
   name = '';
   saving = signal(false);
   generatingToken = signal(false);
+  copiedProgramId = signal<number | null>(null);
   error = signal('');
   pendingDeletion = signal<Program | null>(null);
   pendingTokenRenewal = signal(false);
   deleteError = signal('');
   deleting = signal(false);
+  private copiedLinkTimer: ReturnType<typeof setTimeout> | null = null;
   programSchedules = signal<ScheduleEntry[]>([]);
   programScheduleLoading = signal(false);
   programScheduleError = signal('');
@@ -433,6 +450,15 @@ export class ProgramsPage implements OnInit {
       (status === 'ALL' || program.active === (status === 'ACTIVE')),
     );
   });
+  filteredSequenceEntries = computed(() => {
+    const query = this.sequenceSearch().trim().toLocaleLowerCase();
+    return (this.selected()?.entries ?? [])
+      .map((entry, index) => ({ entry, position: index + 1 }))
+      .filter(({ entry }) => !query ||
+        `${entry.publicationTitle} ${entry.publicationType} ${entry.publicationContent ?? ''}`
+          .toLocaleLowerCase()
+          .includes(query));
+  });
   availablePublications = computed(() => {
     const assigned = new Set(this.selected()?.entries.map(entry => entry.publicationId) ?? []);
     const retryingSelection = new Set(this.entriesAdded() ? this.selectedPublicationIds() : []);
@@ -449,6 +475,11 @@ export class ProgramsPage implements OnInit {
     );
   });
   playerToken = computed(() => this.auth.user()?.playerToken ?? null);
+  canTestProgram = computed(() => {
+    const program = this.selected();
+    return !!program && program.active && program.entries.length > 0 && !!this.playerToken() &&
+      !this.programScheduleLoading() && !this.programScheduleError() && this.upcomingSchedules().length > 0;
+  });
   schedulesValid = computed(() => {
     const schedule = this.sharedSchedule();
     const valid = datesBetweenInclusive(schedule.date, schedule.endDate).length > 0 && schedule.date >= this.today &&
@@ -501,6 +532,7 @@ export class ProgramsPage implements OnInit {
 
   select(program: Program): void {
     this.selected.set(program);
+    this.sequenceSearch.set('');
     this.loadProgramSchedule(program.id);
     if (this.route.snapshot.queryParamMap.has('programId')) {
       this.router.navigate([], {
@@ -824,7 +856,15 @@ export class ProgramsPage implements OnInit {
     const token = this.playerToken();
     if (!token) return;
     navigator.clipboard.writeText(this.playerUrl(token, programId)).then(
-      () => this.toastService.show('Link copiado'),
+      () => {
+        this.copiedProgramId.set(programId);
+        if (this.copiedLinkTimer) clearTimeout(this.copiedLinkTimer);
+        this.copiedLinkTimer = setTimeout(() => {
+          if (this.copiedProgramId() === programId) this.copiedProgramId.set(null);
+          this.copiedLinkTimer = null;
+        }, 2000);
+        this.toastService.show('Link copiado');
+      },
       () => this.error.set('Não foi possível copiar o link. Selecione e copie o endereço manualmente.'),
     );
   }
