@@ -1,0 +1,84 @@
+    <app-calendar-month-view
+      [month]="cursor()"
+      [grid]="grid()"
+      [entries]="entries()"
+      [entriesByDate]="entriesByDate()"
+      [today]="today"
+      [selected]="selected()"
+      [loading]="loadingEntries()"
+      [loadError]="loadError()"
+      [titleFor]="titleOf"
+      (monthChanged)="move($event)"
+      (daySelected)="select($event)"
+      (addRequested)="addContent($event)"
+      (viewRequested)="viewPosts($event)"
+      (loadRequested)="load()"/>
+
+    @if (selected(); as day) {
+      @if (viewOnly()) {
+        <app-calendar-day-posts-dialog
+          [date]="day"
+          [dateLabel]="dayLabel()"
+          [entries]="dayEntries()"
+          [publicationsById]="publicationsById()"
+          [titleFor]="titleOf"
+          [programNameFor]="programName"
+          [today]="today"
+          [currentTime]="currentTime()"
+          [canAddContent]="!isPast(day)"
+          [loading]="loadingEntries()"
+          [syncError]="loadError()"
+          (closed)="closeDayPosts()"
+          (loadRequested)="load()"
+          (addRequested)="scheduleDay($event)"
+          (removeRequested)="remove($event)"/>
+      } @else {
+        <app-calendar-entry-dialog
+          [date]="day"
+          [dateLabel]="dayLabel()"
+          [entries]="dayEntries()"
+          [programs]="programs()"
+          [readyPublications]="readyPubs()"
+          [form]="form"
+          [editing]="editing()"
+          [reviewing]="reviewingEntry()"
+          [past]="isPast(day)"
+          [error]="error()"
+          [titleFor]="titleOf"
+          [programNameFor]="programName"
+          [publicationTitle]="publicationTitle"
+          [publicationOf]="publicationOf"
+          [formatDate]="formatDate"
+          (closed)="selected.set(null)"
+          (editRequested)="edit($event)"
+          (removeRequested)="remove($event)"
+          (formChanged)="form = $event"
+          (reviewBackRequested)="reviewingEntry.set(false)"
+          (resetRequested)="resetForm()"
+          (saveRequested)="save(day)"/>
+      }
+    }
+    @if (pendingRemoval(); as entry) {
+      <app-confirm-action
+        [stackAboveModal]="true"
+        title="Remover agendamento?"
+        heading="Remover este conteúdo do calendário?"
+        [message]="'“' + titleOf(entry) + '” sairá do calendário; a publicação continuará na biblioteca.'"
+        confirmLabel="Remover agendamento"
+        (cancelled)="pendingRemoval.set(null)"
+        (confirmed)="confirmRemove(entry)"/>
+    }
+    @if (addContentDate(); as date) {
+      <app-calendar-add-content-dialog
+        [date]="date"
+        [today]="today"
+        [programs]="programs()"
+        [programsById]="programsById()"
+        [publicationsById]="publicationsById()"
+        [entries]="entries()"
+        [busy]="addingContents()"
+        [failureMessage]="addContentError()"
+        [progress]="addProgress()"
+        (closed)="closeAddContent()"
+        (scheduleRequested)="scheduleSelectedContent($event)"/>
+    }

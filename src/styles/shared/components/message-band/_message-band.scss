@@ -48,7 +48,7 @@ app-message-band { display: block; width: 100%; min-height: 0; }
 .message-band.compact .message-band-text > p { font-size: clamp(12px, 1vw, 15px); -webkit-line-clamp: 2; }
 
 @media (prefers-reduced-motion: reduce) {
-  .message-band-transition-badge { display: none !important; }
+  .message-band-item-enter .message-band-transition-badge { display: none; }
   .message-band-text > p.message-band-marquee { display: -webkit-box; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
   .message-band-marquee-track { display: none; }
   .message-band-marquee .message-band-marquee-static { position: static; width: auto; height: auto; overflow: visible; clip: auto; clip-path: none; white-space: normal; }

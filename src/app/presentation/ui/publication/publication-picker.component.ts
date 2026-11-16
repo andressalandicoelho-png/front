@@ -2,7 +2,7 @@ import { Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { displayDurationSeconds, Publication, PublicationType } from '@domain/publication/publication.entity';
 import { publicationTypeName } from '@presentation/formatters/publication-type-name';
-import { IconComponent } from './icon.component';
+import { IconComponent } from '../shared/icon.component';
 import { PublicationSelectionItemComponent } from './publication-selection-item.component';
 
 @Component({
@@ -29,7 +29,7 @@ import { PublicationSelectionItemComponent } from './publication-selection-item.
     <div class="add-content-meta">
       <span class="add-content-count" aria-live="polite">
         <strong>{{ filteredPublications().length }}</strong>
-        {{ filteredPublications().length === 1 ? 'resultado' : 'resultados' }}
+        @if (filteredPublications().length === 1) { resultado } @else { resultados }
       </span>
       <span class="add-content-hint">Selecione um ou mais itens</span>
     </div>
@@ -50,15 +50,24 @@ import { PublicationSelectionItemComponent } from './publication-selection-item.
             [disabled]="selectionDisabled() || alreadyAdded()"
             [selected]="selectedIds().includes(publication.id)"
             [alreadyAdded]="alreadyAdded()"
-            [badge]="alreadyAdded() ? 'Na programação' : 'Publicado'"
+            [badge]="publicationBadge()"
             [description]="description(publication)"
-            [status]="alreadyAdded() ? 'Na programação' : selectedIds().includes(publication.id) ? 'Selecionado' : 'Disponível'"
+            [status]="publicationStatus(publication.id)"
             (selectionChanged)="selectionChanged.emit({ publicationId: publication.id, checked: $event })"/>
         } @empty {
           <div class="add-content-empty empty-state">
             <app-icon name="search" [size]="18"/>
-            <strong>{{ publications().length ? 'Nenhum resultado para esta busca' : 'Nenhum conteúdo publicado disponível' }}</strong>
-            <span>{{ publications().length ? 'Tente outro título ou ajuste os filtros.' : 'Publique conteúdos na biblioteca antes de adicioná-los à programação.' }}</span>
+            <strong>
+              @if (publications().length) { Nenhum resultado para esta busca }
+              @else { Nenhum conteúdo publicado disponível }
+            </strong>
+            <span>
+              @if (publications().length) {
+                Tente outro título ou ajuste os filtros.
+              } @else {
+                Publique conteúdos na biblioteca antes de adicioná-los à programação.
+              }
+            </span>
             @if (hasFilters()) {
               <button class="link-button" type="button" (click)="clearFilters()">Limpar filtros</button>
             }
@@ -68,7 +77,10 @@ import { PublicationSelectionItemComponent } from './publication-selection-item.
     }
     <div class="add-content-footer">
       <div class="add-content-selection">
-        <strong>{{ selectedIds().length }} {{ selectedIds().length === 1 ? 'conteúdo selecionado' : 'conteúdos selecionados' }}</strong>
+        <strong>
+          {{ selectedIds().length }}
+          @if (selectedIds().length === 1) { conteúdo selecionado } @else { conteúdos selecionados }
+        </strong>
         <button type="button" class="link-button" [disabled]="!selectedIds().length || selectionDisabled()" (click)="clearSelectionRequested.emit()">Limpar seleção</button>
         <small>{{ selectedSummary() || 'Selecione conteúdos.' }}</small>
         <ng-content select="[picker-selection-details]"/>
@@ -114,7 +126,8 @@ export class PublicationPickerComponent {
     return this.selectedIds()
       .flatMap(id => {
         const publication = publicationsById.get(id);
-        return publication ? [publication.title] : [];
+        if (publication) return [publication.title];
+        return [];
       })
       .join(' · ');
   });
@@ -129,8 +142,18 @@ export class PublicationPickerComponent {
   }
 
   description(publication: Publication): string {
-    return publication.type === 'MESSAGE'
-      ? 'Fixa durante o horário agendado'
-      : `${publicationTypeName(publication.type)} · ${displayDurationSeconds(publication.type, publication.displaySeconds, publication.originalDurationSeconds)} s`;
+    if (publication.type === 'MESSAGE') return 'Fixa durante o horário agendado';
+    return `${publicationTypeName(publication.type)} · ${displayDurationSeconds(publication.type, publication.displaySeconds, publication.originalDurationSeconds)} s`;
+  }
+
+  publicationBadge(): string {
+    if (this.alreadyAdded()) return 'Na programação';
+    return 'Publicado';
+  }
+
+  publicationStatus(publicationId: number): string {
+    if (this.alreadyAdded()) return 'Na programação';
+    if (this.selectedIds().includes(publicationId)) return 'Selecionado';
+    return 'Disponível';
   }
 }

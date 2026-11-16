@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { errorMessage } from '@presentation/core/error-message';
 import { AuthState } from '@presentation/core/auth.state';
-import { IconComponent } from '@presentation/ui/icon.component';
+import { IconComponent } from '@presentation/ui/shared/icon.component';
 
 @Component({
   selector: 'app-login',
@@ -20,7 +20,9 @@ import { IconComponent } from '@presentation/ui/icon.component';
           <label class="field">E-mail<input class="input" type="email" name="email" placeholder="seuNome@officetotal.com" autocomplete="username" [(ngModel)]="email" required></label>
           <label class="field">Senha<input class="input" type="password" name="password" placeholder="Digite sua senha" autocomplete="current-password" [(ngModel)]="password" required></label>
           @if (error()) { <p class="error">{{ error() }}</p> }
-          <button class="btn primary block" type="submit" [disabled]="loading() || !email || !password">{{ loading() ? 'Entrando…' : 'Entrar' }}</button>
+          <button class="btn primary block" type="submit" [disabled]="loading() || !email || !password">
+            @if (loading()) { Entrando… } @else { Entrar }
+          </button>
           <a class="link login-forgot" href="mailto:suporte@officetotal.com.br?subject=Esqueci%20minha%20senha">Esqueci a senha</a>
         </form>
       </div>

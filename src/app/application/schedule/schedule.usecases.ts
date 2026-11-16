@@ -23,7 +23,8 @@ export class CreateScheduleEntryUseCase {
   private repo = inject(ScheduleRepository);
   execute(input: NewScheduleEntry): Observable<ScheduleEntry> {
     const error = validateScheduleEntry(input);
-    return error ? throwError(() => new Error(error)) : this.repo.create(input);
+    if (error) return throwError(() => new Error(error));
+    return this.repo.create(input);
   }
 }
 

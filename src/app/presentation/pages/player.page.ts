@@ -3,8 +3,8 @@ import { Component, HostListener, OnDestroy, OnInit, computed, inject, input, si
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { LoadPlayerPlaylistUseCase } from '@application/player/player.usecases';
 import { PlayerItem, PlayerPlaylist } from '@domain/player/player.entity';
-import { IconComponent } from '@presentation/ui/icon.component';
-import { MessageBandComponent } from '@presentation/ui/message-band.component';
+import { IconComponent } from '@presentation/ui/shared/icon.component';
+import { MessageBandComponent } from '@presentation/ui/shared/message-band.component';
 
 const DEFAULT_REFRESH_MS = 60_000;
 const IDLE_RETRY_MS = 5_000;
@@ -30,7 +30,15 @@ const IDLE_RETRY_MS = 5_000;
       @if (programName() && (current() || messages().length)) {
         <div class="player-status">
           <strong>{{ programName() }}</strong>
-          <span [class.disconnected]="!connected() || !programActive()">{{ !connected() ? 'Conexão interrompida · tentando reconectar' : programActive() ? 'Player conectado' : 'Programação pausada' }}</span>
+          <span [class.disconnected]="!connected() || !programActive()">
+            @if (!connected()) {
+              Conexão interrompida · tentando reconectar
+            } @else if (programActive()) {
+              Player conectado
+            } @else {
+              Programação pausada
+            }
+          </span>
           @if (lastUpdated()) { <small>Atualizado {{ lastUpdated() | date:'HH:mm:ss' }}</small> }
         </div>
       }
@@ -65,7 +73,8 @@ export class PlayerPage implements OnInit, OnDestroy {
   current = signal<PlayerItem | null>(null);
   currentItems = computed(() => {
     const item = this.current();
-    return item ? [item] : [];
+    if (!item) return [];
+    return [item];
   });
   messages = signal<PlayerItem[]>([]);
   programName = signal('');

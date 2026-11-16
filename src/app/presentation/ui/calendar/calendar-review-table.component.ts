@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core';
 import type { PublicationType } from '@domain/publication/publication.entity';
-import { IconComponent } from '@presentation/ui/icon.component';
+import { IconComponent } from '@presentation/ui/shared/icon.component';
 
 export interface CalendarReviewRow {
   id: number;
@@ -20,7 +20,15 @@ export interface CalendarReviewRow {
         @for (row of rows; track row.id) {
           <div class="calendar-review-row" role="listitem">
             <span class="calendar-review-file">
-              <span class="calendar-review-file-icon"><app-icon [name]="row.type === 'IMAGE' ? 'image' : row.type === 'VIDEO' ? 'video' : 'document'" [size]="14"/></span>
+              <span class="calendar-review-file-icon">
+                @if (row.type === 'IMAGE') {
+                  <app-icon name="image" [size]="14"/>
+                } @else if (row.type === 'VIDEO') {
+                  <app-icon name="video" [size]="14"/>
+                } @else {
+                  <app-icon name="document" [size]="14"/>
+                }
+              </span>
               <strong>{{ row.title }}</strong>
             </span>
             <span class="calendar-review-status">{{ row.status }}</span>

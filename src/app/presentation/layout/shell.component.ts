@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthState } from '@presentation/core/auth.state';
-import { IconComponent } from '@presentation/ui/icon.component';
+import { IconComponent } from '@presentation/ui/shared/icon.component';
 
 @Component({
   selector: 'app-shell',
@@ -14,17 +14,17 @@ import { IconComponent } from '@presentation/ui/icon.component';
             <img class="brand-logo" src="assets/OfficeLogo.png" alt="Logo Office Total">
           </a>
           <button class="sidebar-toggle" type="button" [attr.aria-expanded]="!sidebarCollapsed()" aria-label="Recolher ou expandir barra lateral" (click)="toggleSidebar()">
-            <app-icon [name]="sidebarCollapsed() ? 'right' : 'left'" [size]="16"/>
+            <app-icon [name]="sidebarToggleIcon()" [size]="16"/>
           </button>
         </div>
         <nav class="nav">
           @for (item of items(); track item.path) {
-            <a [routerLink]="item.path" routerLinkActive="active" class="nav-item" [attr.aria-label]="item.label" [attr.title]="sidebarCollapsed() ? item.label : null">
+            <a [routerLink]="item.path" routerLinkActive="active" class="nav-item" [attr.aria-label]="item.label" [attr.title]="sidebarItemTitle(item.label)">
               <app-icon [name]="item.icon" [size]="20"/><span>{{ item.label }}</span>
             </a>
           }
         </nav>
-        <a class="account-link" routerLink="/perfil" routerLinkActive="active" [attr.title]="sidebarCollapsed() ? auth.user()?.name : null">
+        <a class="account-link" routerLink="/perfil" routerLinkActive="active" [attr.title]="accountTitle()">
           <span class="avatar">{{ auth.user()?.name?.[0] ?? 'U' }}</span>
           <span class="account-copy">
             <strong>{{ auth.user()?.name }}</strong>
@@ -59,15 +59,36 @@ export class ShellComponent {
   private resizingSidebar = false;
   sidebarWidth = signal(this.loadSidebarWidth());
   sidebarCollapsed = signal(localStorage.getItem(this.sidebarCollapsedStorageKey) === 'true');
-  layoutSidebarWidth = computed(() => this.sidebarCollapsed() ? 68 : this.sidebarWidth());
+  layoutSidebarWidth = computed(() => {
+    if (this.sidebarCollapsed()) return 68;
+    return this.sidebarWidth();
+  });
 
-  items = () => [
-    { path: '/calendario', label: 'Calendário', icon: 'calendar' },
-    { path: '/publicacoes', label: 'Conteúdos', icon: 'document' },
-    { path: '/programacao', label: 'Programação', icon: 'layers' },
-    { path: '/relatorios', label: 'Relatórios', icon: 'chart' },
-    ...(this.auth.isAdmin() ? [{ path: '/usuarios', label: 'Usuários', icon: 'users' }] : []),
-  ];
+  items = () => {
+    const items = [
+      { path: '/calendario', label: 'Calendário', icon: 'calendar' },
+      { path: '/publicacoes', label: 'Conteúdos', icon: 'document' },
+      { path: '/programacao', label: 'Programação', icon: 'layers' },
+      { path: '/relatorios', label: 'Relatórios', icon: 'chart' },
+    ];
+    if (this.auth.isAdmin()) items.push({ path: '/usuarios', label: 'Usuários', icon: 'users' });
+    return items;
+  };
+
+  sidebarToggleIcon(): string {
+    if (this.sidebarCollapsed()) return 'right';
+    return 'left';
+  }
+
+  sidebarItemTitle(label: string): string | null {
+    if (this.sidebarCollapsed()) return label;
+    return null;
+  }
+
+  accountTitle(): string | null {
+    if (this.sidebarCollapsed()) return this.auth.user()?.name ?? null;
+    return null;
+  }
 
   toggleSidebar(): void {
     const collapsed = !this.sidebarCollapsed();
@@ -108,7 +129,8 @@ export class ShellComponent {
       this.sidebarWidth.set(240);
       localStorage.setItem(this.sidebarCollapsedStorageKey, 'false');
     }
-    const step = event.shiftKey ? 24 : 8;
+    let step = 8;
+    if (event.shiftKey) step = 24;
     let width: number;
     switch (event.key) {
       case 'ArrowLeft':
@@ -137,7 +159,8 @@ export class ShellComponent {
 
   private loadSidebarWidth(): number {
     const savedWidth = Number(localStorage.getItem(this.sidebarWidthStorageKey));
-    return Number.isFinite(savedWidth) && savedWidth >= 180 && savedWidth <= 360 ? savedWidth : 240;
+    if (Number.isFinite(savedWidth) && savedWidth >= 180 && savedWidth <= 360) return savedWidth;
+    return 240;
   }
 
   private saveSidebarWidth(): void {

@@ -5,9 +5,10 @@ import { GetPublicationReportUseCase } from '@application/report/report.usecases
 import { PublicationParticipation } from '@domain/report/report.entity';
 import { errorMessage } from '@presentation/core/error-message';
 import { formatDate } from '@presentation/core/format';
-import { DatePickerComponent } from '@presentation/ui/date-picker.component';
-import { IconComponent } from '@presentation/ui/icon.component';
-import { PaginationComponent } from '@presentation/ui/pagination.component';
+import { movePage, paginate } from '@presentation/core/pagination';
+import { DatePickerComponent } from '@presentation/ui/shared/date-picker.component';
+import { IconComponent } from '@presentation/ui/shared/icon.component';
+import { PaginationComponent } from '@presentation/ui/shared/pagination.component';
 
 const dateInput = (date: Date): string =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -24,7 +25,8 @@ const dateInput = (date: Date): string =>
         <div class="actions report-export-actions">
           <button class="btn" type="button" (click)="exportCsv()" [disabled]="!filtered().length || loading()">CSV</button>
           <button class="btn primary" type="button" (click)="exportPdf()" [disabled]="!filtered().length || loading() || pdfExporting()">
-            <app-icon name="document" [size]="16"/> {{ pdfExporting() ? 'Gerando PDF…' : 'Exportar PDF' }}
+            <app-icon name="document" [size]="16"/>
+            @if (pdfExporting()) { Gerando PDF… } @else { Exportar PDF }
           </button>
         </div>
       </div>
@@ -38,7 +40,13 @@ const dateInput = (date: Date): string =>
 
     <section class="card report-table-card">
       <div class="card-head report-table-card-head">
-        <div class="report-table-title"><strong>Participações agendadas</strong><span class="chip">{{ filtered().length }} {{ filtered().length === 1 ? 'registro' : 'registros' }}</span></div>
+        <div class="report-table-title">
+          <strong>Participações agendadas</strong>
+          <span class="chip">
+            {{ filtered().length }}
+            @if (filtered().length === 1) { registro } @else { registros }
+          </span>
+        </div>
       </div>
       <div class="report-table">
         <div class="report-table-head"><span>Conteúdo</span><span>Autor</span><span>Data agendada</span><span>Status</span><span>Horário</span></div>
@@ -47,13 +55,21 @@ const dateInput = (date: Date): string =>
             <div class="report-title"><strong>{{ item.title }}</strong><small>{{ item.type }} · #{{ item.publicationId }}</small></div>
             <span>{{ item.authorName }}<small>{{ item.authorEmail }}</small></span>
             <span>{{ item.scheduledDate | date:'dd/MM/yyyy' }}</span>
-            <span class="status" [class.live]="item.status === 'READY'">{{ item.status === 'READY' ? 'Publicado' : 'Rascunho' }}</span>
+            <span class="status" [class.live]="item.status === 'READY'">{{ contentStatusLabel(item.status) }}</span>
             <span>{{ item.startTime }}–{{ item.endTime }}<small>{{ item.participationStatus }}</small></span>
           </article>
         } @empty {
           <div class="report-empty empty-state">
             <span class="empty-icon"><app-icon name="calendar" [size]="24"/></span>
-            <h2>{{ loading() ? 'Carregando relatório…' : error() ? 'Não foi possível carregar os relatórios' : 'Nenhuma participação neste período' }}</h2>
+            <h2>
+              @if (loading()) {
+                Carregando relatório…
+              } @else if (error()) {
+                Não foi possível carregar os relatórios
+              } @else {
+                Nenhuma participação neste período
+              }
+            </h2>
             <p class="muted">{{ error() || 'Ajuste os filtros.' }}</p>
             @if (error()) { <button class="btn primary" type="button" (click)="load()">Tentar novamente</button> }
           </div>
@@ -93,8 +109,9 @@ export class ReportsPage implements OnInit {
       (!this.status || row.status === this.status),
     );
   });
-  pageItems = computed(() => this.filtered().slice(this.page() * this.pageSize(), (this.page() + 1) * this.pageSize()));
-  pageCount = computed(() => Math.max(1, Math.ceil(this.filtered().length / this.pageSize())));
+  private readonly pagination = computed(() => paginate(this.filtered(), this.page(), this.pageSize()));
+  pageItems = computed(() => this.pagination().items);
+  pageCount = computed(() => this.pagination().count);
 
   ngOnInit(): void {
     this.updatePageSize();
@@ -102,7 +119,8 @@ export class ReportsPage implements OnInit {
   }
   @HostListener('window:resize')
   updatePageSize(): void {
-    const nextSize = window.innerWidth <= 800 ? 5 : 8;
+    let nextSize = 8;
+    if (window.innerWidth <= 800) nextSize = 5;
     if (this.pageSize() !== nextSize) {
       this.pageSize.set(nextSize);
       this.page.set(0);
@@ -130,8 +148,13 @@ export class ReportsPage implements OnInit {
     this.load();
   }
 
-  previousPage(): void { this.page.update(value => Math.max(0, value - 1)); }
-  nextPage(): void { this.page.update(value => Math.min(this.pageCount() - 1, value + 1)); }
+  previousPage(): void { movePage(this.page, this.pageCount, -1); }
+  nextPage(): void { movePage(this.page, this.pageCount, 1); }
+
+  contentStatusLabel(status: string): string {
+    if (status === 'READY') return 'Publicado';
+    return 'Rascunho';
+  }
 
   exportCsv(): void {
     const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
@@ -160,7 +183,9 @@ export class ReportsPage implements OnInit {
     const report = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageWidth = report.internal.pageSize.getWidth();
     const pageHeight = report.internal.pageSize.getHeight();
-    const statusLabel = this.status ? (this.status === 'READY' ? 'Publicado' : 'Rascunho') : 'Todos';
+    let statusLabel = 'Todos';
+    if (this.status === 'READY') statusLabel = 'Publicado';
+    else if (this.status === 'DRAFT') statusLabel = 'Rascunho';
     const queryLabel = this.query.trim() || 'Sem busca';
 
     report.setFillColor(36, 73, 166);
@@ -193,7 +218,7 @@ export class ReportsPage implements OnInit {
         this.formatDate(item.scheduledDate),
         item.startTime,
         item.endTime,
-        item.status === 'READY' ? 'Publicado' : 'Rascunho',
+        this.contentStatusLabel(item.status),
         item.participationStatus,
       ]),
       theme: 'grid',
@@ -230,7 +255,8 @@ export class ReportsPage implements OnInit {
 
       report.save(`relatorio-agendamentos-${this.from}-${this.to}.pdf`);
     } catch (error) {
-      this.pdfError.set(error instanceof Error ? error.message : 'Não foi possível gerar o PDF.');
+      if (error instanceof Error) this.pdfError.set(error.message);
+      else this.pdfError.set('Não foi possível gerar o PDF.');
     } finally {
       this.pdfExporting.set(false);
     }

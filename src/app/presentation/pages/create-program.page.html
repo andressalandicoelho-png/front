@@ -1,0 +1,73 @@
+    @if (error()) { <div class="notice error-notice" role="alert">{{ error() }}</div> }
+    @if (createdProgram(); as created) {
+      <div class="notice program-created-notice" role="status">
+        <strong>“{{ created.name }}” criada.</strong>
+        <span>Conclua os agendamentos abaixo.</span>
+      </div>
+    }
+    @if (saving() && scheduleProgress().total) {
+      <app-schedule-progress [progress]="scheduleProgress()"/>
+    }
+
+    <form class="program-create-form" (ngSubmit)="save()">
+      <app-program-create-content-panel
+        [name]="name"
+        [publications]="selectedPublications()"
+        [created]="!!createdProgram()"
+        [summaryPeriod]="summaryPeriod()"
+        [durationLabel]="totalDurationLabel()"
+        [scheduledEntryCount]="scheduledEntryCount()"
+        [scheduleSummaryFor]="scheduleSummary"
+        (nameChanged)="name = $event"
+        (addRequested)="openPublicationPicker()"
+        (previewProgramRequested)="previewOpen.set(true)"
+        (previewRequested)="previewPublication.set($event)"
+        (removeRequested)="togglePublication($event.id)"/>
+
+      <app-program-create-dialogs
+        [libraryOpen]="libraryOpen()"
+        [publications]="readyPublications()"
+        [selectedIds]="pickerPublicationIds()"
+        [schedule]="pickerSchedule()"
+        [minDate]="today"
+        [loading]="loading()"
+        [loadError]="publicationLoadError()"
+        [scheduleValid]="pickerScheduleValid()"
+        [previewItems]="previewItems()"
+        [previewOpen]="previewOpen()"
+        [previewPublication]="previewPublication()"
+        (libraryClosed)="closePublicationPicker()"
+        (selectionConfirmed)="confirmPublicationSelection()"
+        (scheduleChanged)="updatePickerSchedule($event.field, $event.value)"
+        (selectionChanged)="togglePickerPublication($event.publicationId, $event.checked)"
+        (clearSelectionRequested)="pickerPublicationIds.set([])"
+        (retryRequested)="loadPublications()"
+        (previewClosed)="previewOpen.set(false)"
+        (publicationPreviewClosed)="previewPublication.set(null)"/>
+
+      <app-program-creation-review-dialog
+        [open]="reviewOpen()"
+        [name]="name.trim()"
+        [items]="previewItems()"
+        [contentCount]="selectedPublications().length"
+        [scheduledCount]="scheduledEntryCount()"
+        [saving]="saving()"
+        (closed)="reviewOpen.set(false)"
+        (confirmed)="confirmSave()"/>
+
+      <footer class="program-create-footer">
+        <span class="program-create-copyright">© {{ currentYear }} Office Total</span>
+        <div class="program-create-actions">
+          <a class="btn" routerLink="/programacao">Cancelar</a>
+          <button class="btn primary" type="submit" [disabled]="saving()">
+            @if (saving()) {
+              Salvando…
+            } @else if (createdProgram()) {
+              Concluir agendamentos
+            } @else {
+              Criar programação
+            }
+          </button>
+        </div>
+      </footer>
+    </form>

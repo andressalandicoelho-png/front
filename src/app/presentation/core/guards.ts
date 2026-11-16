@@ -6,11 +6,17 @@ import { AuthState } from './auth.state';
 export const authGuard: CanActivateFn = () => {
   const auth = inject(AuthState);
   const router = inject(Router);
-  return auth.restore().pipe(map(ok => (ok ? true : router.createUrlTree(['/login']))));
+  return auth.restore().pipe(map(ok => {
+    if (ok) return true;
+    return router.createUrlTree(['/login']);
+  }));
 };
 
 export const adminGuard: CanActivateFn = () => {
   const auth = inject(AuthState);
   const router = inject(Router);
-  return auth.restore().pipe(map(ok => (ok && auth.isAdmin() ? true : router.createUrlTree(['/']))));
+  return auth.restore().pipe(map(ok => {
+    if (ok && auth.isAdmin()) return true;
+    return router.createUrlTree(['/']);
+  }));
 };

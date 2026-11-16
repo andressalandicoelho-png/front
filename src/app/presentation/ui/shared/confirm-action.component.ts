@@ -15,7 +15,7 @@ import { ModalComponent } from './modal.component';
         <div class="actions">
           <button class="btn" type="button" [disabled]="busy()" (click)="cancelled.emit()">Cancelar</button>
           <button class="btn danger-button" type="button" [disabled]="busy()" (click)="confirmed.emit()">
-            {{ busy() ? busyLabel() : confirmLabel() }}
+            @if (busy()) { {{ busyLabel() }} } @else { {{ confirmLabel() }} }
           </button>
         </div>
       </div>

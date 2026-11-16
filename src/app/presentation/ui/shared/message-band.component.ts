@@ -30,7 +30,7 @@ export interface MessageBandItem {
   host: { '[class.clock-only]': 'clockOnly()' },
   template: `
     <aside class="message-band" [class.compact]="compact()" [class.clock-only]="clockOnly()"
-      [attr.aria-label]="clockOnly() ? 'Data e hora atuais' : 'Mensagens do player'">
+      [attr.aria-label]="ariaLabel()">
       <div class="message-band-clock" aria-label="Data e hora atuais em Brasília">
         <time class="message-band-time">{{ time() }}</time>
         <div class="message-band-date" [class.message-band-date--full]="fullDate()">
@@ -79,8 +79,13 @@ export class MessageBandComponent implements AfterViewInit, OnInit, OnDestroy {
   currentMessage = computed(() => this.messages()[this.currentIndex()] ?? null);
   visibleMessages = computed(() => {
     const message = this.currentMessage();
-    return message ? [message] : [];
+    if (message) return [message];
+    return [];
   });
+  ariaLabel(): string {
+    if (this.clockOnly()) return 'Data e hora atuais';
+    return 'Mensagens do player';
+  }
 
   private messageSignature = '';
   private rotationTimer?: ReturnType<typeof setTimeout>;

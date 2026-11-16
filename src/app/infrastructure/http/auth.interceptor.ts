@@ -13,9 +13,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const isPublic = req.url.includes('/player/') || req.url.endsWith('/auth/login');
   const token = session.getToken();
 
-  const authReq = isApi && !isPublic && token
-    ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
-    : req;
+  let authReq = req;
+  if (isApi && !isPublic && token) {
+    authReq = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
+  }
 
   return next(authReq).pipe(
     catchError((err: HttpErrorResponse) => {

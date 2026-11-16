@@ -1,7 +1,7 @@
 import { Component, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PublicationScheduleForm } from '@presentation/models/publication-schedule-form';
-import { DatePickerComponent } from './date-picker.component';
+import { DatePickerComponent } from '../shared/date-picker.component';
 
 @Component({
   selector: 'app-publication-schedule-fields',

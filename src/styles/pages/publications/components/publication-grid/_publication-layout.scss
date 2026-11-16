@@ -143,7 +143,6 @@
   .main app-publications .tile-meta .status.live { background: #edf6f1; color: #287452; }
   .main app-publications .tile-attribution { display: flex; min-height: 26px; flex: none; align-items: center; gap: 8px; overflow: hidden; margin: 0 12px; padding: 5px 0 6px; border-top: 1px solid var(--border-subtle); color: #2347a5; }
   .main app-publications .tile-attribution app-icon { flex: none; color: #65759f; }
-  .main app-publications .tile-attribution app-icon svg { width: 12px !important; height: 12px !important; }
   .main app-publications .tile-attribution small { overflow: hidden; font-size: 9px; font-weight: 500; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
   .main app-publications > .pagination {
     min-height: 36px;

@@ -1,8 +1,9 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, effect, inject, input, signal } from '@angular/core';
 import { MediaRepository } from '@domain/media/media.repository';
 import { PublicationType } from '@domain/publication/publication.entity';
+import { from, Subscription } from 'rxjs';
 import { IconComponent } from './icon.component';
-import { generateVideoThumbnail } from './video-thumbnail';
+import { generateVideoThumbnail } from '../publication/video-thumbnail';
 
 /** Exibe mídia protegida (GET /media/:id exige token) baixando como blob. */
 @Component({
@@ -33,7 +34,10 @@ import { generateVideoThumbnail } from './video-thumbnail';
       } @else if (type() === 'MESSAGE') {
         <div class="media-ph message-ph"><strong>MSG</strong></div>
       } @else {
-        <div class="media-ph"><app-icon [name]="type() === 'LINK' ? 'link' : 'image'" [size]="28"/></div>
+        <div class="media-ph">
+          @if (type() === 'LINK') { <app-icon name="link" [size]="28"/> }
+          @else { <app-icon name="image" [size]="28"/> }
+        </div>
       }
     }`,
   styles: [`
@@ -68,28 +72,31 @@ export class SecureMediaComponent implements AfterViewInit, OnDestroy {
       this.setUrl(null);
       if (id === null || type === 'LINK' || type === 'MESSAGE' || !this.visible()) return;
 
-      const sub = this.repo.blob(id).subscribe({
+      const sub = new Subscription();
+      sub.add(this.repo.blob(id).subscribe({
         next: blob => {
           if (generation !== this.requestGeneration) return;
           this.setUrl(URL.createObjectURL(blob));
           if (type === 'VIDEO') {
-            void generateVideoThumbnail(blob).then(
-              thumbnail => {
+            sub.add(from(generateVideoThumbnail(blob)).subscribe({
+              next: thumbnail => {
                 if (generation === this.requestGeneration) this.thumbnail.set(thumbnail);
               },
-              error => {
+              error: error => {
                 if (generation === this.requestGeneration) {
-                  this.thumbnailError.set(error instanceof Error ? error.message : 'Não foi possível gerar a miniatura do vídeo.');
+                  let message = 'Não foi possível gerar a miniatura do vídeo.';
+                  if (error instanceof Error) message = error.message;
+                  this.thumbnailError.set(message);
                 }
               },
-            );
+            }));
           }
         },
         error: () => {
           if (generation !== this.requestGeneration) return;
           this.thumbnailError.set('Não foi possível carregar a miniatura do vídeo.');
         },
-      });
+      }));
       onCleanup(() => {
         this.requestGeneration++;
         sub.unsubscribe();

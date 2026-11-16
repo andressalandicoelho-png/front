@@ -1,0 +1,90 @@
+    @if (open()) {
+      <app-modal class="calendar-modal add-content-modal" title="Adicionar conteúdos"
+        subtitle="Selecione as mídias da biblioteca e configure os horários de exibição."
+        (closed)="requestClose()">
+        <form class="add-content-dialog" (ngSubmit)="saveEntries()">
+          @if (reviewing()) {
+            <section class="calendar-review-screen">
+              <div class="calendar-review-overview">
+                <div class="calendar-review-programs">
+                  <i aria-hidden="true"></i>
+                  <strong>{{ program()?.name }}</strong>
+                </div>
+                <div class="calendar-review-counts">
+                  <span>
+                    {{ selectedPublicationIds().length }}
+                    @if (selectedPublicationIds().length === 1) { conteúdo } @else { conteúdos }
+                  </span>
+                  <span>{{ reviewScheduleCount() }} períodos diários</span>
+                </div>
+              </div>
+              <div class="calendar-review-period">
+                <span>
+                  <app-icon name="calendar" [size]="13"/> {{ formatDate(sharedSchedule().date) }}
+                  @if (sharedSchedule().endDate !== sharedSchedule().date) { a {{ formatDate(sharedSchedule().endDate) }} }
+                </span>
+                <span><app-icon name="clock" [size]="13"/> {{ sharedSchedule().startTime }}–{{ sharedSchedule().endTime }}</span>
+              </div>
+              <app-calendar-review-table [rows]="reviewRows()" lastColumnHeading="Agendamentos"
+                emptyMessage="Selecione conteúdos para revisar o agendamento."/>
+              @if (error()) { <p class="error add-content-error" role="alert">{{ error() }}</p> }
+              @if (saving() && scheduleProgress().total) {
+                <app-schedule-progress [progress]="scheduleProgress()"/>
+              }
+              <div class="add-content-footer calendar-review-footer">
+                <span class="calendar-review-ready">
+                  <i aria-hidden="true"></i>{{ selectedPublicationIds().length }}
+                  @if (selectedPublicationIds().length === 1) { mídia pronta } @else { mídias prontas }
+                </span>
+                <div class="actions">
+                  <button class="btn" type="button" [disabled]="saving()" (click)="reviewing.set(false)">Voltar e ajustar</button>
+                  <button class="btn primary" type="button" [disabled]="saving() || !selectedPublicationIds().length || !schedulesValid()" (click)="confirmSaveEntries()">
+                    @if (saving()) {
+                      Agendando…
+                    } @else if (entriesAdded()) {
+                      Retomar agendamentos
+                    } @else {
+                      Confirmar agendamento
+                    }
+                  </button>
+                </div>
+              </div>
+            </section>
+          } @else {
+            <div class="add-content-context">
+              <app-publication-schedule-fields [schedule]="sharedSchedule()" [minDate]="today()"
+                [disabled]="saving()" namePrefix="programSchedule"
+                (scheduleChanged)="updateSharedSchedule($event.field, $event.value)"/>
+              <div class="add-content-program-summary">
+                <app-icon name="layers" [size]="15"/>
+                <strong>Programação</strong>
+                <span>{{ program()?.name }}</span>
+                <small>Destino selecionado</small>
+              </div>
+            </div>
+            <app-publication-picker
+              [publications]="availablePublications()"
+              [selectedIds]="selectedPublicationIds()"
+              [loading]="publicationsLoading()"
+              [loadError]="publicationsLoadError()"
+              [selectionDisabled]="saving() || entriesAdded()"
+              [alreadyAdded]="entriesAdded()"
+              [cancelDisabled]="cancelDisabled()"
+              [confirmDisabled]="saving() || !selectedPublicationIds().length || !schedulesValid()"
+              [confirmLabel]="confirmLabel()"
+              (selectionChanged)="togglePublication($event.publicationId, $event.checked)"
+              (clearSelectionRequested)="clearPublicationSelection()"
+              (retryRequested)="loadPublications()"
+              (cancelled)="requestClose()">
+              <div picker-selection-details>
+                <small class="add-content-schedule-note">{{ program()?.name }} · {{ sharedSchedule().startTime }}–{{ sharedSchedule().endTime }}</small>
+                @if (saving() && scheduleProgress().total) {
+                  <app-schedule-progress [progress]="scheduleProgress()"/>
+                }
+                @if (error()) { <small class="error add-content-error" role="alert">{{ error() }}</small> }
+              </div>
+            </app-publication-picker>
+          }
+        </form>
+      </app-modal>
+    }

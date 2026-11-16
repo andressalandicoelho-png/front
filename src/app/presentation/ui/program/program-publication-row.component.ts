@@ -1,8 +1,8 @@
 import { Component, input, output } from '@angular/core';
 import { PublicationType } from '@domain/publication/publication.entity';
 import { publicationTypeName } from '@presentation/formatters/publication-type-name';
-import { IconComponent } from './icon.component';
-import { SecureMediaComponent } from './secure-media.component';
+import { IconComponent } from '../shared/icon.component';
+import { SecureMediaComponent } from '../shared/secure-media.component';
 
 @Component({
   selector: 'app-program-publication-row',

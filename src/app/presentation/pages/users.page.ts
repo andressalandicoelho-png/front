@@ -6,8 +6,8 @@ import {
 import { Role, User } from '@domain/user/user.entity';
 import { errorMessage } from '@presentation/core/error-message';
 import { ToastService } from '@presentation/core/toast.service';
-import { IconComponent } from '@presentation/ui/icon.component';
-import { ModalComponent } from '@presentation/ui/modal.component';
+import { IconComponent } from '@presentation/ui/shared/icon.component';
+import { ModalComponent } from '@presentation/ui/shared/modal.component';
 
 @Component({
   selector: 'app-users',
@@ -17,20 +17,37 @@ import { ModalComponent } from '@presentation/ui/modal.component';
       <div class="user-list-toolbar">
         <button class="btn primary" type="button" (click)="openNew()"><app-icon name="plus" [size]="18"/> Novo usuário</button>
       </div>
-      @for (u of users(); track u.id) {
-        <div class="row">
-          <span class="avatar">{{ u.name[0] }}</span>
-          <div class="grow">
-            <div class="title">{{ u.name }}</div>
-            <div class="muted">{{ u.email }}</div>
-          </div>
-          <select class="input slim" [ngModel]="u.roles.includes('ADMIN') ? 'ADMIN' : 'EDITOR'" (ngModelChange)="setRole(u, $event)" aria-label="Papel">
-            <option value="EDITOR">Editor</option><option value="ADMIN">Administrador</option>
-          </select>
-          <button class="btn small" type="button" (click)="toggleActive(u)">{{ u.active ? 'Desativar' : 'Reativar' }}</button>
+      @if (usersLoading() && !users().length) {
+        <div class="empty" role="status"><p>Carregando usuários…</p></div>
+      } @else if (loadError() && !users().length) {
+        <div class="empty" role="alert">
+          <p>{{ loadError() }}</p>
+          <button class="link-button" type="button" (click)="load()">Tentar novamente</button>
         </div>
-      } @empty {
-        <div class="empty"><p>Nenhum usuário cadastrado.</p></div>
+      } @else {
+        @if (loadError()) {
+          <div class="notice error-notice" role="alert">
+            {{ loadError() }} <button class="link-button" type="button" (click)="load()">Tentar novamente</button>
+          </div>
+        }
+        @if (usersLoading()) { <p class="muted" role="status">Atualizando usuários…</p> }
+        @for (u of users(); track u.id) {
+          <div class="row">
+            <span class="avatar">{{ u.name[0] }}</span>
+            <div class="grow">
+              <div class="title">{{ u.name }}</div>
+              <div class="muted">{{ u.email }}</div>
+            </div>
+            <select class="input slim" [ngModel]="roleOf(u)" (ngModelChange)="setRole(u, $event)" aria-label="Papel">
+              <option value="EDITOR">Editor</option><option value="ADMIN">Administrador</option>
+            </select>
+            <button class="btn small" type="button" (click)="toggleActive(u)">
+              @if (u.active) { Desativar } @else { Reativar }
+            </button>
+          </div>
+        } @empty {
+          @if (!usersLoading()) { <div class="empty"><p>Nenhum usuário cadastrado.</p></div> }
+        }
       }
     </section>
 
@@ -59,14 +76,41 @@ export class UsersPage implements OnInit {
   private toast = inject(ToastService);
 
   users = signal<User[]>([]);
+  usersLoading = signal(false);
+  loadError = signal('');
   modal = signal(false);
   error = signal('');
   form = { name: '', email: '', password: '', role: 'EDITOR' as Role };
+  private loadRequestId = 0;
 
   ngOnInit(): void { this.load(); }
-  load(): void { this.listUC.execute().subscribe(l => this.users.set(l)); }
+  load(): void {
+    const requestId = ++this.loadRequestId;
+    this.usersLoading.set(true);
+    this.loadError.set('');
+    this.listUC.execute().subscribe({
+      next: users => {
+        if (requestId !== this.loadRequestId) return;
+        this.users.set(users);
+        this.usersLoading.set(false);
+      },
+      error: error => {
+        if (requestId !== this.loadRequestId) return;
+        this.loadError.set(errorMessage(error));
+        this.usersLoading.set(false);
+      },
+      complete: () => {
+        if (requestId === this.loadRequestId) this.usersLoading.set(false);
+      },
+    });
+  }
 
   openNew(): void { this.form = { name: '', email: '', password: '', role: 'EDITOR' }; this.error.set(''); this.modal.set(true); }
+
+  roleOf(user: User): Role {
+    if (user.roles.includes('ADMIN')) return 'ADMIN';
+    return 'EDITOR';
+  }
 
   create(): void {
     this.createUC.execute({ name: this.form.name.trim(), email: this.form.email.trim(), password: this.form.password, roles: [this.form.role] })
@@ -85,7 +129,11 @@ export class UsersPage implements OnInit {
 
   toggleActive(u: User): void {
     this.activeUC.execute(u.id, !u.active).subscribe({
-      next: () => { this.toast.show(u.active ? 'Usuário desativado' : 'Usuário reativado'); this.load(); },
+      next: () => {
+        if (u.active) this.toast.show('Usuário desativado');
+        else this.toast.show('Usuário reativado');
+        this.load();
+      },
       error: e => this.toast.show(errorMessage(e)),
     });
   }

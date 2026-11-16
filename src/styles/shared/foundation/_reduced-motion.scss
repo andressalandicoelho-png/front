@@ -1,0 +1,23 @@
+@media (prefers-reduced-motion: reduce) {
+  :root .main,
+  :root .main::before,
+  :root .main::after,
+  :root .main *,
+  :root .main *::before,
+  :root .main *::after,
+  :root .side,
+  :root .side::before,
+  :root .side::after,
+  :root .side *,
+  :root .side *::before,
+  :root .side *::after,
+  :root .player,
+  :root .player::before,
+  :root .player::after,
+  :root .player *,
+  :root .player *::before,
+  :root .player *::after {
+    animation: none;
+    transition: none;
+  }
+}

@@ -1,315 +1,33 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ListPublicationsUseCase } from '@application/publication/publication.usecases';
 import {
-  AddProgramEntriesUseCase, DeleteProgramUseCase, ListProgramsUseCase, RemoveProgramEntryUseCase, UpdateProgramUseCase,
+  DeleteProgramUseCase, ListProgramsUseCase, RemoveProgramEntryUseCase, UpdateProgramUseCase,
 } from '@application/program/program.usecases';
-import {
-  ScheduleProgramEntriesError, ScheduleProgramEntriesUseCase,
-} from '@application/program/schedule-program-entries.usecase';
 import { ListExpiredProgramPublicationsUseCase, ListScheduleUseCase } from '@application/schedule/schedule.usecases';
 import { GeneratePlayerTokenUseCase } from '@application/user/user.usecases';
 import { Program } from '@domain/program/program.entity';
-import { displayDurationSeconds, Publication } from '@domain/publication/publication.entity';
-import { ScheduleEntry } from '@domain/schedule/schedule.entity';
-import { currentBusinessDate, currentBusinessTime, datesBetweenInclusive } from '@domain/schedule/schedule.rules';
+import { currentBusinessDate, currentBusinessTime } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@presentation/core/error-message';
 import { formatDate } from '@presentation/core/format';
-import { createDefaultPublicationSchedule, isPublicationScheduleValid, updatePublicationSchedule } from '@presentation/core/publication-schedule';
 import { AuthState } from '@presentation/core/auth.state';
 import { ToastService } from '@presentation/core/toast.service';
-import { PublicationScheduleForm } from '@presentation/models/publication-schedule-form';
-import { ConfirmActionComponent } from '@presentation/ui/confirm-action.component';
-import { ContentPreviewComponent } from '@presentation/ui/content-preview.component';
-import { IconComponent } from '@presentation/ui/icon.component';
-import { ModalComponent } from '@presentation/ui/modal.component';
-import { CalendarReviewTableComponent } from '@presentation/ui/calendar-review-table.component';
-import { ProgramPreviewComponent, ProgramPreviewItem } from '@presentation/ui/program-preview.component';
-import { PublicationPickerComponent } from '@presentation/ui/publication-picker.component';
-import { PublicationScheduleFieldsComponent } from '@presentation/ui/publication-schedule-fields.component';
-import { ProgramPublicationRowComponent } from '@presentation/ui/program-publication-row.component';
+import { IconComponent } from '@presentation/ui/shared/icon.component';
+import { ProgramPreviewComponent, ProgramPreviewItem } from '@presentation/ui/program/program-preview.component';
+import { ProgramBrowserComponent } from '@presentation/ui/program/program-browser.component';
+import { ProgramConnectionPanelComponent } from '@presentation/ui/program/program-connection-panel.component';
+import { ProgramSequenceComponent } from '@presentation/ui/program/program-sequence.component';
+import { ProgramAddEntriesDialogComponent } from '@presentation/ui/program/program-add-entries-dialog.component';
+import { ProgramDialogsComponent } from '@presentation/ui/program/program-dialogs.component';
+import {
+  copyProgramPlayerUrl, nextProgramSchedule, nextProgramScheduleLabel,
+  programPreviewItem, upcomingProgramSchedules,
+} from './program-page.helpers';
+import { ProgramScheduleState } from './program-schedule-state';
 
 @Component({
   selector: 'app-programs',
-  imports: [FormsModule, ConfirmActionComponent, ContentPreviewComponent, IconComponent, ModalComponent, CalendarReviewTableComponent, ProgramPreviewComponent, PublicationPickerComponent, PublicationScheduleFieldsComponent, ProgramPublicationRowComponent],
-  template: `
-    @if (error()) { <div class="notice error-notice" role="alert">{{ error() }}</div> }
-
-    <section class="program-workspace" aria-label="Gerenciar programações">
-      <aside class="program-browser" aria-label="Lista de programações">
-        <div class="program-browser-heading">
-          <div><h2>Programações</h2></div>
-          <button class="btn primary small" type="button" (click)="openCreate()" aria-label="Criar nova programação">
-            <app-icon name="plus" [size]="15"/> Nova
-          </button>
-        </div>
-        <label class="search-field program-search">
-          <app-icon name="search" [size]="16"/>
-          <input class="input" type="search" placeholder="Buscar por nome" aria-label="Buscar programação por nome"
-            [ngModel]="search()" (ngModelChange)="search.set($event)">
-        </label>
-        <div class="program-status-filter" role="group" aria-label="Filtrar por estado">
-          <button type="button" [class.active]="statusFilter() === 'ALL'" [attr.aria-pressed]="statusFilter() === 'ALL'" (click)="statusFilter.set('ALL')">Todas</button>
-          <button type="button" [class.active]="statusFilter() === 'ACTIVE'" [attr.aria-pressed]="statusFilter() === 'ACTIVE'" (click)="statusFilter.set('ACTIVE')">Ativas</button>
-          <button type="button" [class.active]="statusFilter() === 'PAUSED'" [attr.aria-pressed]="statusFilter() === 'PAUSED'" (click)="statusFilter.set('PAUSED')">Pausadas</button>
-        </div>
-        <nav class="program-browser-list" aria-label="Selecionar programação">
-          @for (program of filteredPrograms(); track program.id) {
-            <button type="button" class="program-browser-item" [class.selected]="selected()?.id === program.id"
-              [attr.aria-current]="selected()?.id === program.id ? 'true' : null" (click)="select(program)">
-              <span class="program-browser-item-top">
-                <strong>{{ program.name }}</strong>
-                <span class="status" [class.live]="program.active">{{ program.active ? 'Ativa' : 'Pausada' }}</span>
-              </span>
-            </button>
-          } @empty {
-            <div class="program-browser-empty">
-              <strong>{{ programs().length ? 'Nenhum resultado' : 'Nenhuma programação ainda' }}</strong>
-              <span>{{ programs().length ? 'Tente outro nome ou estado.' : 'Crie uma programação para organizar o conteúdo de uma TV.' }}</span>
-            </div>
-          }
-        </nav>
-      </aside>
-
-      @if (selected(); as program) {
-        <section class="program-inspector" aria-labelledby="program-inspector-title">
-          <header class="program-inspector-head">
-            <div class="program-inspector-title">
-              <h2 id="program-inspector-title">{{ program.name }}</h2>
-              <span class="status" [class.live]="program.active">{{ program.active ? 'Ativa' : 'Pausada' }}</span>
-            </div>
-            <div class="program-inspector-actions">
-              <button class="btn small program-delete-button" type="button" (click)="requestDelete(program)"><app-icon name="trash" [size]="15"/> Excluir</button>
-              <button class="btn primary small" type="button" (click)="openAddEntries()"><app-icon name="plus" [size]="15"/> Adicionar conteúdo</button>
-            </div>
-          </header>
-
-          <section class="program-sequence" aria-label="Sequência de conteúdo">
-            <label class="search-field program-sequence-search">
-              <app-icon name="search" [size]="16"/>
-              <input class="input" type="search" placeholder="Buscar conteúdo nesta programação" aria-label="Buscar conteúdo agendado"
-                [ngModel]="sequenceSearch()" (ngModelChange)="sequenceSearch.set($event)">
-            </label>
-            <div class="program-sequence-table-head" aria-hidden="true">
-              <span>Ordem</span><span>Conteúdo</span><span>Tipo</span><span>Visualizar</span><span>Excluir</span>
-            </div>
-            <div class="program-sequence-list">
-              @for (item of filteredSequenceEntries(); track item.entry.id) {
-                <app-program-publication-row
-                  [position]="item.position"
-                  [title]="item.entry.publicationTitle"
-                  [type]="item.entry.publicationType"
-                  [mediaId]="item.entry.mediaFileId"
-                  [detailLabel]="nextScheduleLabelFor(item.entry.publicationId)"
-                  (previewRequested)="previewEntry.set(item.entry)"
-                  (removeRequested)="requestRemoveEntry(program, item.entry)"/>
-              } @empty {
-                @if (sequenceSearch().trim()) {
-                  <div class="program-sequence-empty">
-                    <span class="empty-icon"><app-icon name="search" [size]="22"/></span>
-                    <div><strong>Nenhum conteúdo encontrado</strong><p>Tente outro termo de busca.</p></div>
-                    <button class="link-button" type="button" (click)="sequenceSearch.set('')">Limpar busca</button>
-                  </div>
-                } @else if (allEntriesExpired(program)) {
-                  <div class="program-sequence-empty">
-                    <span class="empty-icon"><app-icon name="layers" [size]="22"/></span>
-                    <div><strong>Conteúdos já exibidos</strong><p>Não há novas exibições agendadas.</p></div>
-                  </div>
-                } @else {
-                  <div class="program-sequence-empty">
-                    <span class="empty-icon"><app-icon name="layers" [size]="22"/></span>
-                    <div><strong>Sequência vazia</strong><p>Adicione conteúdos publicados para definir o que esta TV deve reproduzir.</p></div>
-                    <button class="btn primary small" type="button" (click)="openAddEntries()"><app-icon name="plus" [size]="15"/> Adicionar conteúdo</button>
-                  </div>
-                }
-              }
-            </div>
-          </section>
-        </section>
-        <aside class="program-connection-panel" aria-labelledby="program-connection-title">
-          <header class="program-connection-heading">
-            <span class="program-connection-icon"><app-icon name="tv" [size]="17"/></span>
-            <h3 id="program-connection-title">Conectar à TV</h3>
-          </header>
-          @if (!program.active) {
-            <span class="program-connection-state">Programação pausada</span>
-          } @else if (!program.entries.length) {
-            <span class="program-connection-state">Adicione conteúdo</span>
-          } @else if (programScheduleLoading()) {
-            <span class="program-connection-state" role="status">Verificando agenda</span>
-          } @else if (programScheduleError()) {
-            <span class="program-connection-state" role="alert">Agenda indisponível</span>
-          }
-          @if (programScheduleLoading()) {
-            <p class="program-connection-note" role="status">Consultando os horários dos próximos 30 dias…</p>
-          } @else if (programScheduleError()) {
-            <p class="program-connection-note" role="alert">{{ programScheduleError() }} <button class="link-button" type="button" (click)="loadProgramSchedule(program.id)">Tentar novamente</button></p>
-          }
-          @if (playerToken(); as token) {
-            <label class="program-connection-label" for="program-player-link">Link da programação</label>
-            <input id="program-player-link" class="input program-player-link" [class.copied]="copiedProgramId() === program.id" aria-label="Link da programação para TV" readonly [value]="playerUrl(token, program.id)">
-            <button class="btn primary block" type="button" (click)="copyPlayerUrl(program.id)"><app-icon name="copy" [size]="15"/> Copiar link</button>
-          } @else {
-            <button class="btn primary block" type="button" [disabled]="generatingToken()" (click)="generatePlayerToken()">
-              {{ generatingToken() ? 'Gerando link…' : auth.user()?.hasPlayerToken ? 'Renovar link da TV' : 'Gerar link da TV' }}
-            </button>
-          }
-          <button class="btn block" type="button" [disabled]="!program.entries.length" (click)="previewOpen.set(true)"><app-icon name="tv" [size]="15"/> Ver prévia</button>
-          @if (auth.user()?.hasPlayerToken && !playerToken()) {
-            <p class="program-token-warning">Renovar o link invalida os endereços de TV já compartilhados.</p>
-          }
-          @if (playerToken()) {
-            <div class="program-connection-divider"></div>
-            <strong class="program-connection-secondary-title">Precisa de outro link?</strong>
-            <button class="btn block" type="button" [disabled]="generatingToken()" (click)="generatePlayerToken()">
-              <app-icon name="link" [size]="15"/> {{ generatingToken() ? 'Gerando…' : 'Gerar link' }}
-            </button>
-          }
-          <button class="btn block program-connection-toggle" type="button" (click)="toggle(program)">{{ program.active ? 'Pausar' : 'Ativar' }}</button>
-        </aside>
-      } @else {
-        <section class="program-inspector program-inspector-empty empty-state" aria-live="polite">
-          <span class="empty-icon"><app-icon [name]="programs().length ? 'layers' : 'tv'" [size]="24"/></span>
-          <h2>{{ programs().length ? 'Selecione uma programação' : 'Nenhuma programação' }}</h2>
-        </section>
-      }
-    </section>
-
-    @if (selected(); as program) {
-      <app-program-preview
-        [title]="'Prévia · ' + program.name"
-      [items]="previewItems()"
-        [open]="previewOpen()"
-        (closed)="previewOpen.set(false)"/>
-    }
-
-    @if (previewEntry(); as entry) {
-      <app-modal [title]="entry.publicationTitle" (closed)="previewEntry.set(null)">
-        <app-content-preview [type]="entry.publicationType" [content]="entry.publicationContent"
-          [mediaId]="entry.mediaFileId" [linkUrl]="entry.linkUrl" [autoplay]="entry.publicationType === 'VIDEO'"/>
-      </app-modal>
-    }
-
-    @if (modal()) {
-      <app-modal class="calendar-modal add-content-modal" title="Adicionar conteúdos"
-          subtitle="Selecione as mídias da biblioteca e configure os horários de exibição."
-          (closed)="closeModal()">
-          <form class="add-content-dialog" (ngSubmit)="saveEntries()">
-            @if (reviewingEntries()) {
-              <section class="calendar-review-screen">
-                <div class="calendar-review-overview">
-                  <div class="calendar-review-programs">
-                    <i aria-hidden="true"></i>
-                    <strong>{{ selected()?.name }}</strong>
-                  </div>
-                  <div class="calendar-review-counts">
-                    <span>{{ selectedPublicationIds().length }} {{ selectedPublicationIds().length === 1 ? 'conteúdo' : 'conteúdos' }}</span>
-                    <span>{{ reviewScheduleCount() }} períodos diários</span>
-                  </div>
-                </div>
-                <div class="calendar-review-period">
-                  <span><app-icon name="calendar" [size]="13"/> {{ formatDate(sharedSchedule().date) }}{{ sharedSchedule().endDate !== sharedSchedule().date ? ' a ' + formatDate(sharedSchedule().endDate) : '' }}</span>
-                  <span><app-icon name="clock" [size]="13"/> {{ sharedSchedule().startTime }}–{{ sharedSchedule().endTime }}</span>
-                </div>
-                <app-calendar-review-table [rows]="calendarReviewRows()" lastColumnHeading="Agendamentos"
-                  emptyMessage="Selecione conteúdos para revisar o agendamento."/>
-                @if (error()) { <p class="error add-content-error" role="alert">{{ error() }}</p> }
-                @if (saving() && scheduleProgress().total) {
-                  <div class="program-progress" role="status" aria-live="polite">
-                    <span>Agendando {{ scheduleProgress().completed }} de {{ scheduleProgress().total }} períodos diários…</span>
-                    <span class="program-progress-track"><i [style.width.%]="scheduleProgressPercent()"></i></span>
-                  </div>
-                }
-                <div class="add-content-footer calendar-review-footer">
-                  <span class="calendar-review-ready"><i aria-hidden="true"></i>{{ selectedPublicationIds().length }} {{ selectedPublicationIds().length === 1 ? 'mídia pronta' : 'mídias prontas' }}</span>
-                  <div class="actions">
-                    <button class="btn" type="button" [disabled]="saving()" (click)="reviewingEntries.set(false)">Voltar e ajustar</button>
-                    <button class="btn primary" type="button" [disabled]="saving() || !selectedPublicationIds().length || !schedulesValid()" (click)="confirmSaveEntries()">
-                      {{ saving() ? 'Agendando…' : entriesAdded() ? 'Retomar agendamentos' : 'Confirmar agendamento' }}
-                    </button>
-                  </div>
-                </div>
-              </section>
-            } @else {
-              <div class="add-content-context">
-                <app-publication-schedule-fields [schedule]="sharedSchedule()" [minDate]="today"
-                  [disabled]="saving()" namePrefix="programSchedule"
-                  (scheduleChanged)="updateSharedSchedule($event.field, $event.value)"/>
-                <div class="add-content-program-summary">
-                  <app-icon name="layers" [size]="15"/>
-                  <strong>Programação</strong>
-                  <span>{{ selected()?.name }}</span>
-                  <small>Destino selecionado</small>
-                </div>
-              </div>
-              <app-publication-picker
-                [publications]="availablePublications()"
-                [selectedIds]="selectedPublicationIds()"
-                [loading]="publicationsLoading()"
-                [loadError]="publicationsLoadError()"
-                [selectionDisabled]="saving() || entriesAdded()"
-                [alreadyAdded]="entriesAdded()"
-                [cancelDisabled]="modalCloseDisabled()"
-                [confirmDisabled]="saving() || !selectedPublicationIds().length || !schedulesValid()"
-                [confirmLabel]="saving() ? 'Agendando…' : entriesAdded() ? 'Revisar e retomar agendamentos' : 'Revisar e agendar ' + selectedPublicationIds().length + (selectedPublicationIds().length === 1 ? ' conteúdo' : ' conteúdos')"
-                (selectionChanged)="togglePublication($event.publicationId, $event.checked)"
-                (clearSelectionRequested)="clearPublicationSelection()"
-                (retryRequested)="loadPublications()"
-                (cancelled)="closeModal()">
-                <div picker-selection-details>
-                  <small class="add-content-schedule-note">{{ selected()?.name }} · {{ sharedSchedule().startTime }}–{{ sharedSchedule().endTime }}</small>
-                  @if (saving() && scheduleProgress().total) {
-                    <div class="program-progress" role="status" aria-live="polite">
-                      <span>Agendando {{ scheduleProgress().completed }} de {{ scheduleProgress().total }} períodos diários…</span>
-                      <span class="program-progress-track"><i [style.width.%]="scheduleProgressPercent()"></i></span>
-                    </div>
-                  }
-                  @if (error()) { <small class="error add-content-error" role="alert">{{ error() }}</small> }
-                </div>
-              </app-publication-picker>
-            }
-          </form>
-      </app-modal>
-    }
-
-    @if (pendingEntryRemoval(); as pending) {
-      <app-confirm-action
-        title="Excluir conteúdo da programação?"
-        [heading]="'Excluir “' + pending.entry.publicationTitle + '”?'"
-        message="O conteúdo será removido da sequência desta programação. A publicação e os agendamentos no calendário serão mantidos."
-        confirmLabel="Excluir conteúdo"
-        [busy]="deletingEntry()"
-        [error]="entryRemovalError()"
-        (cancelled)="closeEntryRemoval()"
-        (confirmed)="confirmEntryRemoval()"/>
-    }
-
-    @if (pendingDeletion(); as program) {
-      <app-confirm-action
-        title="Excluir programação?"
-        [heading]="'Excluir “' + program.name + '”?'"
-        message="A sequência e os agendamentos sairão do calendário. O histórico e as publicações serão mantidos."
-        confirmLabel="Excluir programação"
-        [busy]="deleting()"
-        [error]="deleteError()"
-        (cancelled)="closeDeleteConfirmation()"
-        (confirmed)="confirmDelete(program)"/>
-    }
-
-    @if (pendingTokenRenewal()) {
-      <app-modal title="Renovar link da TV?" (closed)="pendingTokenRenewal.set(false)">
-        <div class="confirm-content">
-          <span class="confirm-icon danger"><app-icon name="info" [size]="22"/></span>
-          <p class="muted">Os links atuais de todas as programações serão invalidados. Atualize cada TV.</p>
-          <div class="actions">
-            <button class="btn" type="button" [disabled]="generatingToken()" (click)="pendingTokenRenewal.set(false)">Manter links atuais</button>
-            <button class="btn danger-button" type="button" [disabled]="generatingToken()" (click)="confirmTokenRenewal()">{{ generatingToken() ? 'Renovando…' : 'Renovar todos os links' }}</button>
-          </div>
-        </div>
-      </app-modal>
-    }
-  `,
+  imports: [IconComponent, ProgramPreviewComponent, ProgramBrowserComponent, ProgramConnectionPanelComponent, ProgramSequenceComponent, ProgramAddEntriesDialogComponent, ProgramDialogsComponent],
+  templateUrl: './programs.page.html',
 })
 export class ProgramsPage implements OnInit, OnDestroy {
   readonly auth = inject(AuthState);
@@ -318,36 +36,23 @@ export class ProgramsPage implements OnInit, OnDestroy {
   private readonly listProgramsUseCase = inject(ListProgramsUseCase);
   private readonly updateProgramUseCase = inject(UpdateProgramUseCase);
   private readonly deleteProgramUseCase = inject(DeleteProgramUseCase);
-  private readonly addProgramEntriesUseCase = inject(AddProgramEntriesUseCase);
-  private readonly scheduleProgramEntriesUseCase = inject(ScheduleProgramEntriesUseCase);
   private readonly listExpiredProgramPublicationsUseCase = inject(ListExpiredProgramPublicationsUseCase);
   private readonly listScheduleUseCase = inject(ListScheduleUseCase);
   private readonly removeProgramEntryUseCase = inject(RemoveProgramEntryUseCase);
-  private readonly listPublicationsUseCase = inject(ListPublicationsUseCase);
   private readonly generatePlayerTokenUseCase = inject(GeneratePlayerTokenUseCase);
   private readonly toastService = inject(ToastService);
   readonly formatDate = formatDate;
+  private readonly scheduleState = new ProgramScheduleState(
+    this.listExpiredProgramPublicationsUseCase, this.listScheduleUseCase,
+  );
 
   programs = signal<Program[]>([]);
-  publications = signal<Publication[]>([]);
-  publicationsLoading = signal(false);
-  publicationsLoadError = signal('');
   selected = signal<Program | null>(null);
-  search = signal('');
-  statusFilter = signal<'ALL' | 'ACTIVE' | 'PAUSED'>('ALL');
   modal = signal(false);
-  selectedPublicationIds = signal<number[]>([]);
-  sequenceSearch = signal('');
-  sharedSchedule = signal<PublicationScheduleForm>({ date: '', endDate: '', startTime: '', endTime: '' });
-  scheduledEntries = signal<Array<Pick<ScheduleEntry, 'publicationId' | 'date'>>>([]);
-  entriesAdded = signal(false);
-  reviewingEntries = signal(false);
   previewOpen = signal(false);
   previewEntry = signal<Program['entries'][number] | null>(null);
-  scheduleProgress = signal({ completed: 0, total: 0 });
   today = currentBusinessDate();
   currentBusinessTime = signal(currentBusinessTime());
-  saving = signal(false);
   generatingToken = signal(false);
   copiedProgramId = signal<number | null>(null);
   error = signal('');
@@ -358,101 +63,29 @@ export class ProgramsPage implements OnInit, OnDestroy {
   pendingTokenRenewal = signal(false);
   deleteError = signal('');
   deleting = signal(false);
-  private copiedLinkTimer: ReturnType<typeof setTimeout> | null = null;
-  programSchedules = signal<ScheduleEntry[]>([]);
-  expiredPublicationIds = signal<number[] | null>(null);
-  programScheduleLoading = signal(false);
-  programScheduleError = signal('');
-  private publicationsLoaded = false;
-  private expiredPublicationRequest = 0;
+  private readonly copiedLinkTimer: { value: ReturnType<typeof setTimeout> | null } = { value: null };
+  readonly programSchedules = this.scheduleState.programSchedules;
+  readonly expiredPublicationIds = this.scheduleState.expiredPublicationIds;
+  readonly programScheduleLoading = this.scheduleState.programScheduleLoading;
+  readonly programScheduleError = this.scheduleState.programScheduleError;
   private scheduleStatusTimer: ReturnType<typeof setInterval> | null = null;
-  previewItems = computed<ProgramPreviewItem[]>(() => (this.selected()?.entries ?? []).map(entry => this.previewItem(entry)));
-  upcomingSchedules = computed(() => this.programSchedules()
-    .filter(entry => entry.date > this.today || (entry.date === this.today && entry.endTime > this.currentBusinessTime()))
-    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)));
-  reviewScheduleCount = computed(() => this.selectedPublicationIds().reduce((count, id) =>
-    count + this.datesFor().filter(date => !this.isScheduled(id, date)).length, 0));
-  calendarReviewRows = computed(() => this.selectedPublicationIds().map(id => {
-    const publication = this.publicationFor(id);
-    return {
-      id,
-      title: this.publicationTitle(id),
-      type: publication?.type ?? 'LINK',
-      status: this.scheduleComplete(id) ? 'Agendado' : 'Disponível',
-      scheduleSummary: `${this.scheduledCount(id)} de ${this.datesFor().length} dias agendados`,
-    };
-  }));
-  filteredPrograms = computed(() => {
-    const query = this.search().trim().toLocaleLowerCase();
-    const status = this.statusFilter();
-    return this.programs().filter(program =>
-      program.name.toLocaleLowerCase().includes(query) &&
-      (status === 'ALL' || program.active === (status === 'ACTIVE')),
-    );
-  });
-  filteredSequenceEntries = computed(() => {
-    const query = this.sequenceSearch().trim().toLocaleLowerCase();
-    const expiredPublicationIds = new Set(this.expiredPublicationIds() ?? []);
-    return (this.selected()?.entries ?? [])
-      .filter(entry => !expiredPublicationIds.has(entry.publicationId))
-      .filter(entry => !query ||
-        `${entry.publicationTitle} ${entry.publicationType} ${entry.publicationContent ?? ''}`
-          .toLocaleLowerCase()
-          .includes(query))
-      .map((entry, index) => ({ entry, position: index + 1 }));
-  });
-  availablePublications = computed(() => {
-    const assigned = new Set(this.selected()?.entries.map(entry => entry.publicationId) ?? []);
-    const retryingSelection = new Set(this.entriesAdded() ? this.selectedPublicationIds() : []);
-    return this.publications().filter(publication =>
-      publication.status === 'READY' && (!assigned.has(publication.id) || retryingSelection.has(publication.id)),
-    );
-  });
+  previewItems = computed<ProgramPreviewItem[]>(() => (this.selected()?.entries ?? []).map(entry =>
+    programPreviewItem(entry, nextProgramSchedule(this.upcomingSchedules(), entry.publicationId), this.formatDate)));
+  upcomingSchedules = computed(() =>
+    upcomingProgramSchedules(this.programSchedules(), this.today, this.currentBusinessTime()));
   playerToken = computed(() => this.auth.user()?.playerToken ?? null);
-  canTestProgram = computed(() => {
-    const program = this.selected();
-    return !!program && program.active && program.entries.length > 0 && !!this.playerToken() &&
-      !this.programScheduleLoading() && !this.programScheduleError() && this.upcomingSchedules().length > 0;
-  });
-  schedulesValid = computed(() => {
-    const schedule = this.sharedSchedule();
-    const valid = isPublicationScheduleValid(schedule, this.today);
-    return this.selectedPublicationIds().every(id => {
-      if (this.scheduleComplete(id)) return true;
-      return valid;
-    });
-  });
-
   ngOnInit(): void {
-    this.loadPublications();
     this.load();
     this.scheduleStatusTimer = setInterval(() => {
       this.today = currentBusinessDate();
       this.currentBusinessTime.set(currentBusinessTime());
       const selected = this.selected();
-      if (selected) this.loadExpiredPublicationIds(selected.id);
+      if (selected) this.scheduleState.refreshExpiredPublications(selected.id);
     }, 60_000);
   }
 
   ngOnDestroy(): void {
     if (this.scheduleStatusTimer) clearInterval(this.scheduleStatusTimer);
-  }
-
-  loadPublications(): void {
-    if (this.publicationsLoading() || this.publicationsLoaded) return;
-    this.publicationsLoading.set(true);
-    this.publicationsLoadError.set('');
-    this.listPublicationsUseCase.execute().subscribe({
-      next: publications => {
-        this.publications.set(publications);
-        this.publicationsLoaded = true;
-        this.publicationsLoading.set(false);
-      },
-      error: error => {
-        this.publicationsLoadError.set(errorMessage(error));
-        this.publicationsLoading.set(false);
-      },
-    });
   }
 
   load(): void {
@@ -463,13 +96,14 @@ export class ProgramsPage implements OnInit, OnDestroy {
         this.programs.set(ownedPrograms);
         const requestedProgramId = Number(this.route.snapshot.queryParamMap.get('programId'));
         const selected = this.selected();
-        const target = ownedPrograms.find(program => program.id === requestedProgramId)
-          ?? (selected ? ownedPrograms.find(program => program.id === selected.id) : undefined);
+        let target = ownedPrograms.find(program => program.id === requestedProgramId);
+        if (!target && selected) {
+          target = ownedPrograms.find(program => program.id === selected.id);
+        }
         this.selected.set(target ?? null);
         if (target) this.loadProgramSchedule(target.id);
         else {
-          this.programSchedules.set([]);
-          this.expiredPublicationIds.set(null);
+          this.scheduleState.clear();
         }
       },
       error: error => this.error.set(errorMessage(error)),
@@ -478,7 +112,6 @@ export class ProgramsPage implements OnInit, OnDestroy {
 
   select(program: Program): void {
     this.selected.set(program);
-    this.sequenceSearch.set('');
     this.loadProgramSchedule(program.id);
     if (this.route.snapshot.queryParamMap.has('programId')) {
       this.router.navigate([], {
@@ -489,30 +122,10 @@ export class ProgramsPage implements OnInit, OnDestroy {
       });
     }
   }
-  duration(entry: Program['entries'][number]): number {
-    return displayDurationSeconds(entry.publicationType, entry.displaySeconds, entry.originalDurationSeconds);
-  }
-  nextScheduleFor(publicationId: number): ScheduleEntry | undefined {
-    return this.upcomingSchedules().find(entry => entry.publicationId === publicationId);
-  }
   nextScheduleLabelFor(publicationId: number): string {
-    const schedule = this.nextScheduleFor(publicationId);
-    return schedule
-      ? `Próxima exibição: ${this.formatDate(schedule.date)} · ${schedule.startTime}–${schedule.endTime}`
-      : '';
+    return nextProgramScheduleLabel(nextProgramSchedule(this.upcomingSchedules(), publicationId), this.formatDate);
   }
-  private previewItem(entry: Program['entries'][number]): ProgramPreviewItem {
-    const schedule = this.nextScheduleFor(entry.publicationId);
-    return {
-      title: entry.publicationTitle,
-      type: entry.publicationType,
-      content: entry.publicationContent,
-      mediaId: entry.mediaFileId,
-      linkUrl: entry.linkUrl,
-      seconds: schedule ? Math.min(this.duration(entry), schedule.turnSeconds ?? this.duration(entry)) : this.duration(entry),
-      schedule: schedule ? `${this.formatDate(schedule.date)} · ${schedule.startTime}–${schedule.endTime}` : undefined,
-    };
-  }
+  allEntriesExpired(program: Program): boolean { return this.scheduleState.allEntriesExpired(program); }
   playerUrl(token: string, programId: number): string { return `${location.origin}/player/${token}/program/${programId}`; }
 
   openCreate(): void {
@@ -520,150 +133,28 @@ export class ProgramsPage implements OnInit, OnDestroy {
   }
 
   openAddEntries(): void {
-    this.loadPublications();
-    this.selectedPublicationIds.set([]);
-    this.sharedSchedule.set(createDefaultPublicationSchedule(this.today));
-    this.scheduledEntries.set([]);
-    this.entriesAdded.set(false);
-    this.reviewingEntries.set(false);
     this.error.set('');
     this.modal.set(true);
   }
 
-  clearPublicationSelection(): void {
-    if (this.saving() || this.entriesAdded()) return;
-    this.selectedPublicationIds.set([]);
-  }
-
-  closeModal(): void {
-    if (this.modalCloseDisabled()) return;
-    this.modal.set(false);
-  }
-
-  modalCloseDisabled(): boolean {
-    return this.saving() || (this.entriesAdded() &&
-      !this.selectedPublicationIds().every(id => this.scheduleComplete(id)));
-  }
-
   toggle(program: Program): void {
     this.updateProgramUseCase.execute(program.id, { active: !program.active }).subscribe({
-      next: updated => { this.selected.set(updated); this.toastService.show(updated.active ? 'Programação ativada' : 'Programação pausada'); this.load(); },
+      next: updated => {
+        this.selected.set(updated);
+        if (updated.active) this.toastService.show('Programação ativada');
+        else this.toastService.show('Programação pausada');
+        this.load();
+      },
       error: error => this.error.set(errorMessage(error)),
     });
   }
 
-  togglePublication(id: number, checked: boolean): void {
-    if (this.entriesAdded()) return;
-    this.selectedPublicationIds.update(ids => checked ? [...ids, id] : ids.filter(value => value !== id));
-  }
-
-  datesFor(): string[] {
-    const schedule = this.sharedSchedule();
-    return datesBetweenInclusive(schedule.date, schedule.endDate);
-  }
-
-  scheduledCount(id: number): number {
-    return this.datesFor().filter(date => this.isScheduled(id, date)).length;
-  }
-
-  scheduleComplete(id: number): boolean {
-    const dates = this.datesFor();
-    return dates.length > 0 && this.scheduledCount(id) === dates.length;
-  }
-
-  private isScheduled(publicationId: number, date: string): boolean {
-    return this.scheduledEntries().some(entry => entry.publicationId === publicationId && entry.date === date);
-  }
-
-  updateSharedSchedule(field: keyof PublicationScheduleForm, value: string): void {
-    this.sharedSchedule.update(schedule => updatePublicationSchedule(schedule, field, value));
-  }
-
-  saveEntries(): void {
-    const program = this.selected();
-    if (!program) return;
-    this.error.set('');
-    this.reviewingEntries.set(true);
-  }
-
-  confirmSaveEntries(): void {
-    const program = this.selected();
-    if (!program) return;
-    this.reviewingEntries.set(false);
-    this.saving.set(true);
-    if (this.entriesAdded()) {
-      this.scheduleEntries(program);
-      return;
-    }
-    this.addProgramEntriesUseCase.execute(program.id, this.selectedPublicationIds()).subscribe({
-      next: updated => {
-        this.entriesAdded.set(true);
-        this.selected.set(updated);
-        this.programs.update(programs => programs.map(item => item.id === updated.id ? updated : item));
-        this.scheduleEntries(updated);
-      },
-      error: error => { this.saving.set(false); this.error.set(errorMessage(error)); },
-    });
-  }
-
-  private scheduleEntries(program: Program): void {
-    const schedule = this.sharedSchedule();
-    this.scheduleProgress.set({ completed: 0, total: 0 });
-    this.scheduleProgramEntriesUseCase.execute({
-      programId: program.id,
-      publicationIds: this.selectedPublicationIds(),
-      dates: this.datesFor(),
-      startTime: schedule.startTime,
-      endTime: schedule.endTime,
-      alreadyScheduled: this.scheduledEntries(),
-    }).subscribe({
-      next: event => {
-        if (event.type === 'started') {
-          this.scheduleProgress.set({ completed: 0, total: event.total });
-          return;
-        }
-        this.scheduleProgress.set({ completed: event.completed, total: event.total });
-        this.scheduledEntries.update(entries => [
-          ...entries,
-          { publicationId: event.entry.publicationId, date: event.entry.date },
-        ]);
-      },
-      error: error => {
-        this.saving.set(false);
-        if (!(error instanceof ScheduleProgramEntriesError)) {
-          this.error.set(errorMessage(error));
-          return;
-        }
-        const title = this.publicationTitle(error.task.publicationId);
-        const partial = error.completed
-          ? ` ${error.completed} ${error.completed === 1 ? 'agendamento concluído' : 'agendamentos concluídos'}.`
-          : '';
-        this.error.set(`${errorMessage(error.originalError)} Falha ao agendar “${title}” em ${this.formatDate(error.task.date)}.${partial} Ajuste o período e tente novamente.`);
-      },
-      complete: () => this.finishAddingEntries(),
-    });
-  }
-
-  private finishAddingEntries(): void {
-    const contents = this.selectedPublicationIds().length;
-    const schedules = this.scheduledEntries().length;
-    this.saving.set(false);
-    this.modal.set(false);
-    this.load();
-    this.toastService.show(`${contents} conteúdo(s) adicionados em ${schedules} agendamento(s) diário(s).`);
-  }
-
-  scheduleProgressPercent(): number {
-    const { completed, total } = this.scheduleProgress();
-    return total ? Math.round(completed / total * 100) : 0;
-  }
-
-  publicationTitle(id: number): string {
-    return this.publications().find(publication => publication.id === id)?.title ?? `Conteúdo ${id}`;
-  }
-
-  publicationFor(id: number): Publication | undefined {
-    return this.publications().find(publication => publication.id === id);
+  updateSelectedProgram(program: Program): void {
+    this.selected.set(program);
+    this.programs.update(programs => programs.map(item => {
+      if (item.id === program.id) return program;
+      return item;
+    }));
   }
 
   requestRemoveEntry(program: Program, entry: Program['entries'][number]): void {
@@ -753,63 +244,13 @@ export class ProgramsPage implements OnInit, OnDestroy {
 
   loadProgramSchedule(programId: number): void {
     this.currentBusinessTime.set(currentBusinessTime());
-    const start = this.today;
-    const endDate = new Date(`${start}T00:00:00.000Z`);
-    endDate.setUTCDate(endDate.getUTCDate() + 29);
-    const end = endDate.toISOString().slice(0, 10);
-    this.programScheduleLoading.set(true);
-    this.programScheduleError.set('');
-    this.expiredPublicationIds.set(null);
-    this.loadExpiredPublicationIds(programId);
-    this.listScheduleUseCase.execute({ from: start, to: end }).subscribe({
-      next: entries => {
-        this.programSchedules.set(entries.filter(entry => entry.programId === programId));
-        this.programScheduleLoading.set(false);
-      },
-      error: error => {
-        this.programSchedules.set([]);
-        this.programScheduleError.set(errorMessage(error));
-        this.programScheduleLoading.set(false);
-      },
-    });
-  }
-
-  private loadExpiredPublicationIds(programId: number): void {
-    const request = ++this.expiredPublicationRequest;
-    this.listExpiredProgramPublicationsUseCase.execute(programId).subscribe({
-      next: ids => {
-        if (request === this.expiredPublicationRequest && this.selected()?.id === programId) {
-          this.expiredPublicationIds.set(ids);
-        }
-      },
-      error: () => {
-        if (request === this.expiredPublicationRequest && this.selected()?.id === programId && this.expiredPublicationIds() === null) {
-          this.expiredPublicationIds.set([]);
-        }
-      },
-    });
-  }
-
-  allEntriesExpired(program: Program): boolean {
-    const expired = this.expiredPublicationIds();
-    return !!expired?.length && program.entries.length > 0 &&
-      program.entries.every(entry => expired.includes(entry.publicationId));
+    this.scheduleState.load(programId, this.today);
   }
 
   copyPlayerUrl(programId: number): void {
     const token = this.playerToken();
     if (!token) return;
-    navigator.clipboard.writeText(this.playerUrl(token, programId)).then(
-      () => {
-        this.copiedProgramId.set(programId);
-        if (this.copiedLinkTimer) clearTimeout(this.copiedLinkTimer);
-        this.copiedLinkTimer = setTimeout(() => {
-          if (this.copiedProgramId() === programId) this.copiedProgramId.set(null);
-          this.copiedLinkTimer = null;
-        }, 2000);
-        this.toastService.show('Link copiado');
-      },
-      () => this.error.set('Não foi possível copiar o link. Selecione e copie o endereço manualmente.'),
-    );
+    copyProgramPlayerUrl(token, programId, this.copiedProgramId, this.copiedLinkTimer,
+      message => this.toastService.show(message), message => this.error.set(message));
   }
 }

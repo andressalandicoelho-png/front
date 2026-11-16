@@ -1,0 +1,186 @@
+    <app-modal class="calendar-modal add-content-modal"
+      [title]="dialogTitle()"
+      [subtitle]="dialogSubtitle()"
+      (closed)="requestClose()">
+      <div class="add-content-dialog">
+        @if (reviewing()) {
+          <section class="calendar-review-screen">
+            <div class="calendar-review-overview">
+              <div class="calendar-review-programs">
+                <i aria-hidden="true"></i>
+                <strong>{{ selectedProgramNames() }}</strong>
+              </div>
+              <div class="calendar-review-counts">
+                <span>{{ selectedProgramIds().length }} @if (selectedProgramIds().length === 1) { programação } @else { programações }</span>
+                <span>{{ calendarReviewItems().length }} @if (calendarReviewItems().length === 1) { conteúdo } @else { conteúdos }</span>
+                <span>{{ calendarReviewCount() }} períodos diários</span>
+              </div>
+            </div>
+
+            <div class="calendar-review-period">
+              <span>
+                <app-icon name="calendar" [size]="13"/> {{ formatDate(date()) }}
+                @if (endDate() !== date()) { a {{ formatDate(endDate()) }} }
+              </span>
+              <span><app-icon name="clock" [size]="13"/> {{ startTime() }}–{{ endTime() }}</span>
+            </div>
+
+            <app-calendar-review-table [rows]="calendarReviewRows()" lastColumnHeading="Combinações"
+              emptyMessage="Não há conteúdos novos para agendar neste período."/>
+
+            @if (knownScheduleConflicts().length) {
+              <div class="notice warning-notice calendar-review-warning" role="alert">
+                <strong>Há horários sobrepostos conhecidos:</strong>
+                @for (conflict of knownScheduleConflicts(); track conflict.programId + ':' + conflict.publicationId + ':' + conflict.date) {
+                  <span>{{ conflict.title }} · {{ conflict.programName }} · {{ formatDate(conflict.date) }} · {{ conflict.startTime }}–{{ conflict.endTime }} já está agendado.</span>
+                }
+                <small>Volte e altere as datas ou o horário antes de continuar.</small>
+              </div>
+            }
+            @if (validationError() || failureMessage()) {
+              <p class="error add-content-error" role="alert">{{ validationError() || failureMessage() }}</p>
+            }
+
+            <div class="add-content-footer calendar-review-footer">
+              <span class="calendar-review-ready">
+                <i aria-hidden="true"></i>{{ calendarReviewItems().length }}
+                @if (calendarReviewItems().length === 1) { mídia pronta } @else { mídias prontas }
+              </span>
+              <div class="actions">
+                <button class="btn" type="button" [disabled]="busy()" (click)="reviewing.set(false)">Voltar e ajustar</button>
+                <button class="btn primary" type="button" [disabled]="!canConfirm()" (click)="requestSchedule()">
+                  @if (busy()) {
+                    Agendando…
+                  } @else if (failureMessage()) {
+                    Tentar novamente
+                  } @else {
+                    Confirmar agendamento
+                  }
+                </button>
+              </div>
+            </div>
+            @if (busy() && progress().total) {
+              <p class="add-content-progress" role="status" aria-live="polite">Agendando {{ progress().completed }} de {{ progress().total }} períodos diários…</p>
+            }
+          </section>
+        } @else {
+          <div class="add-content-context">
+            <div class="add-content-period-fields">
+              <label class="calendar-schedule-time">Data de início
+                <span class="calendar-schedule-date">{{ formatDate(date()) }}<app-icon name="calendar" [size]="14"/></span>
+              </label>
+              <label class="calendar-schedule-time">Repetir até a data
+                <app-date-picker ariaLabel="Último dia do agendamento" [min]="date()" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)" required/>
+              </label>
+              <label class="calendar-schedule-time">De
+                <input class="input" type="time" aria-label="Horário de início do agendamento" [ngModel]="startTime()" (ngModelChange)="startTime.set($event)">
+              </label>
+              <label class="calendar-schedule-time">Até
+                <input class="input" type="time" aria-label="Horário de fim do agendamento" [ngModel]="endTime()" (ngModelChange)="endTime.set($event)">
+              </label>
+            </div>
+            @if (selectedProgramIds().length) {
+              <div class="add-content-program-summary">
+                <app-icon name="layers" [size]="15"/>
+                <strong>Programações</strong>
+                <span>{{ selectedProgramNames() }}</span>
+                <small>{{ selectedProgramIds().length }} selecionada@if (selectedProgramIds().length !== 1) { s }</small>
+              </div>
+            }
+            @if (programs().length) {
+              <div class="calendar-program-options" role="group" aria-label="Programações de destino. Você pode escolher mais de uma.">
+                @for (program of programs(); track program.id) {
+                  <button type="button" class="calendar-program-option" [class.selected]="selectedProgramIds().includes(program.id)" [attr.aria-pressed]="selectedProgramIds().includes(program.id)" [disabled]="busy()" (click)="toggleProgram(program.id)">
+                    <app-icon name="layers" [size]="15"/>
+                    <span>{{ program.name }}</span>
+                    @if (selectedProgramIds().includes(program.id)) { <app-icon name="check" [size]="15"/> }
+                  </button>
+                }
+              </div>
+            } @else {
+              <div class="calendar-program-empty">
+                <p>Crie uma programação antes de agendar.</p>
+                <a class="btn primary small" routerLink="/programacao/nova" (click)="requestClose()">Criar programação</a>
+              </div>
+            }
+          </div>
+          <div class="add-content-library-head">
+            <div><strong>Conteúdos publicados</strong></div>
+          </div>
+          <div class="add-content-filters" role="search">
+            <label class="search-field search-field--icon">
+              <app-icon name="search" [size]="17"/>
+              <input class="input" type="search" aria-label="Buscar conteúdo por título" placeholder="Buscar por título" [ngModel]="search()" (ngModelChange)="search.set($event)">
+            </label>
+            <select class="input" aria-label="Filtrar por formato" [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event)">
+              <option value="ALL">Todos os formatos</option><option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option><option value="MESSAGE">Mensagem</option>
+            </select>
+          </div>
+          <div class="add-content-meta">
+            <span class="add-content-count" aria-live="polite">
+              <strong>{{ pickerPublications().length }}</strong>
+              @if (pickerPublications().length === 1) { resultado } @else { resultados }
+            </span>
+            <span class="add-content-hint">Selecione um ou mais itens</span>
+          </div>
+          <div class="add-content-list" role="list" aria-label="Conteúdos disponíveis">
+            @for (publication of pickerPublications(); track publication.id) {
+              @let alreadyAdded = alreadyScheduled().has(publication.id);
+              @let selected = isContentSelected(publication.id);
+              <app-publication-selection-item
+                [publication]="publication"
+                [checked]="selected || alreadyAdded"
+                [disabled]="alreadyAdded || busy()"
+                [selected]="selected"
+                [alreadyAdded]="alreadyAdded"
+                badge="Publicado"
+                [description]="publicationDescription(publication)"
+                [status]="publicationStatus(alreadyAdded, selected)"
+                (selectionChanged)="toggleContent(publication.id, $event)"/>
+            } @empty {
+              <div class="add-content-empty empty-state">
+                <app-icon name="search" [size]="18"/>
+                <strong>@if (search()) { Nenhum resultado para esta busca } @else { Nenhum conteúdo encontrado }</strong>
+                <span>
+                  @if (search()) {
+                    Tente outro título ou ajuste os filtros.
+                  } @else {
+                    Ajuste os filtros para ver outros conteúdos da biblioteca.
+                  }
+                </span>
+              </div>
+            }
+          </div>
+          @if (validationError() || failureMessage()) {
+            <p class="error add-content-error" role="alert">{{ validationError() || failureMessage() }}</p>
+          }
+          <div class="add-content-footer">
+            <div class="add-content-selection">
+              <strong>
+                {{ selectedNewContentCount() }}
+                @if (selectedNewContentCount() === 1) { novo conteúdo selecionado } @else { novos conteúdos selecionados }
+              </strong>
+              <button type="button" class="link-button" [disabled]="selectedNewContentCount() === 0 || busy()" (click)="clearContentSelection()">Limpar seleção</button>
+              @if (selectedContentSummary()) { <small>{{ selectedContentSummary() }}</small> }
+              @if (busy()) {
+                <small class="add-content-progress" role="status" aria-live="polite">Agendando {{ progress().completed }} de {{ progress().total }} períodos diários…</small>
+              }
+            </div>
+            <div class="actions">
+              <button class="btn" type="button" [disabled]="busy()" (click)="requestClose()">Cancelar</button>
+              <button class="btn primary" type="button" [disabled]="!canReview()" (click)="openReview()">
+                @if (busy()) {
+                  Agendando…
+                } @else if (failureMessage()) {
+                  Tentar novamente
+                } @else {
+                  Agendar {{ selectedNewContentCount() }}
+                  @if (selectedNewContentCount() === 1) { conteúdo } @else { conteúdos }
+                }
+              </button>
+            </div>
+          </div>
+          @if (isPast()) { <p class="error add-content-error">Não é possível adicionar conteúdo a uma data passada.</p> }
+        }
+      </div>
+    </app-modal>

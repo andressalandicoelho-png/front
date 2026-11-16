@@ -16,7 +16,7 @@ import { SecureMediaComponent } from './secure-media.component';
       }
     } @else {
       <div class="content-preview-media">
-        <app-secure-media [mediaId]="mediaId()" [type]="type() === 'VIDEO' ? 'VIDEO' : 'IMAGE'" [autoplay]="autoplay()"/>
+        <app-secure-media [mediaId]="mediaId()" [type]="mediaType()" [autoplay]="autoplay()"/>
       </div>
     }
   `,
@@ -33,4 +33,9 @@ export class ContentPreviewComponent {
   mediaId = input<number | null>(null);
   linkUrl = input<string | null>(null);
   autoplay = input(false);
+
+  mediaType(): PublicationType {
+    if (this.type() === 'VIDEO') return 'VIDEO';
+    return 'IMAGE';
+  }
 }

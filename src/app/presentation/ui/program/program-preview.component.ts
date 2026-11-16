@@ -1,9 +1,9 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { IconComponent } from './icon.component';
-import { ModalComponent } from './modal.component';
-import { SecureMediaComponent } from './secure-media.component';
-import { MessageBandComponent } from './message-band.component';
+import { IconComponent } from '../shared/icon.component';
+import { ModalComponent } from '../shared/modal.component';
+import { SecureMediaComponent } from '../shared/secure-media.component';
+import { MessageBandComponent } from '../shared/message-band.component';
 
 export interface ProgramPreviewItem {
   title: string;
@@ -36,7 +36,7 @@ export interface ProgramPreviewItem {
                   }
                   @if (item.linkUrl) { <a class="program-preview-link" [href]="item.linkUrl" target="_blank" rel="noopener noreferrer">Abrir link em outra aba</a> }
                 } @else {
-                  <app-secure-media [mediaId]="item.mediaId" [type]="item.type === 'VIDEO' ? 'VIDEO' : 'IMAGE'" [autoplay]="playing()"/>
+                  <app-secure-media [mediaId]="item.mediaId" [type]="mediaType(item.type)" [autoplay]="playing()"/>
                 }
                 <span class="program-preview-screen-caption">{{ item.title }}</span>
               } @else {
@@ -54,20 +54,36 @@ export interface ProgramPreviewItem {
               </button>
               <span aria-live="polite">{{ currentIndex() + 1 }} de {{ rotatingItems().length }}</span>
               <button class="btn small" type="button" [disabled]="rotatingItems().length < 2" (click)="togglePlayback()">
-                {{ playing() ? 'Desligar avanço automático' : 'Ativar avanço automático' }}
+                @if (playing()) {
+                  Desligar avanço automático
+                } @else {
+                  Ativar avanço automático
+                }
               </button>
               <button class="btn small" type="button" aria-label="Próximo conteúdo" [disabled]="rotatingItems().length < 2" (click)="next()">
                 Próximo <app-icon name="right" [size]="16"/>
               </button>
             </div>
             <div class="program-preview-details">
-              <span><strong>{{ item.title }}</strong><small>{{ item.type === 'IMAGE' ? 'Imagem' : item.type === 'VIDEO' ? 'Vídeo' : 'Link' }} · {{ item.seconds }} s por exibição</small></span>
+              <span>
+                <strong>{{ item.title }}</strong>
+                <small>
+                  @if (item.type === 'IMAGE') {
+                    Imagem
+                  } @else if (item.type === 'VIDEO') {
+                    Vídeo
+                  } @else {
+                    Link
+                  }
+                  · {{ item.seconds }} s por exibição
+                </small>
+              </span>
               @if (item.schedule) { <small>{{ item.schedule }}</small> }
             </div>
           }
           <div class="program-preview-sequence" role="list" aria-label="Ordem da sequência">
             @for (item of rotatingItems(); track $index; let index = $index) {
-              <button class="program-preview-item" type="button" role="listitem" [class.active]="index === currentIndex()" [attr.aria-current]="index === currentIndex() ? 'true' : null" (click)="currentIndex.set(index)">
+              <button class="program-preview-item" type="button" role="listitem" [class.active]="index === currentIndex()" [attr.aria-current]="index === currentIndex()" (click)="currentIndex.set(index)">
                 <span>{{ (index + 1).toString().padStart(2, '0') }}</span>
                 <strong>{{ item.title }}</strong>
                 <small>{{ item.seconds }} s</small>
@@ -98,9 +114,8 @@ export class ProgramPreviewComponent {
     if (!linkUrl) return null;
     try {
       const url = new URL(linkUrl);
-      return url.protocol === 'https:' || url.protocol === 'http:'
-        ? this.sanitizer.bypassSecurityTrustResourceUrl(url.toString())
-        : null;
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+      return this.sanitizer.bypassSecurityTrustResourceUrl(url.toString());
     } catch {
       return null;
     }
@@ -131,5 +146,10 @@ export class ProgramPreviewComponent {
 
   togglePlayback(): void {
     this.playing.update(value => !value);
+  }
+
+  mediaType(type: string): 'VIDEO' | 'IMAGE' {
+    if (type === 'VIDEO') return 'VIDEO';
+    return 'IMAGE';
   }
 }

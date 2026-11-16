@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { Publication } from '@domain/publication/publication.entity';
-import { SecureMediaComponent } from './secure-media.component';
+import { SecureMediaComponent } from '../shared/secure-media.component';
 
 @Component({
   selector: 'app-publication-selection-item',

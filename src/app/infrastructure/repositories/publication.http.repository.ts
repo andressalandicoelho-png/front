@@ -7,9 +7,24 @@ import {
 import { PublicationRepository } from '@domain/publication/publication.repository';
 import { api, cleanParams } from '../http/api';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/** Ajuste aqui se o backend usar outros nomes de campo. */
-const toPublication = (r: any): Publication => ({
+interface PublicationApiResponse {
+  id: number;
+  title: string;
+  content?: string | null;
+  type: Publication['type'];
+  status?: string | null;
+  displaySeconds?: number | null;
+  originalDurationSeconds?: number | null;
+  linkUrl?: string | null;
+  mediaId?: number | null;
+  mediaFileId?: number | null;
+  media?: { id?: number | null } | null;
+  createdByName?: string;
+  programNames?: string[] | null;
+  createdAt?: string;
+}
+
+const toPublication = (r: PublicationApiResponse): Publication => ({
   id: r.id,
   title: r.title,
   content: r.content ?? null,
@@ -30,12 +45,12 @@ export class HttpPublicationRepository extends PublicationRepository {
 
   list(filter: PublicationFilter = {}): Observable<Publication[]> {
     return this.http
-      .get<any[]>(api('/publications'), { params: cleanParams({ status: filter.status, type: filter.type }) })
+      .get<PublicationApiResponse[]>(api('/publications'), { params: cleanParams({ status: filter.status, type: filter.type }) })
       .pipe(map(l => l.map(toPublication)));
   }
 
   get(id: number): Observable<Publication> {
-    return this.http.get<any>(api(`/publications/${id}`)).pipe(map(toPublication));
+    return this.http.get<PublicationApiResponse>(api(`/publications/${id}`)).pipe(map(toPublication));
   }
 
   /** multipart/form-data, conforme o contrato da API. */
@@ -48,19 +63,19 @@ export class HttpPublicationRepository extends PublicationRepository {
     if (input.type === 'VIDEO' && input.originalDurationSeconds) form.append('originalDurationSeconds', String(input.originalDurationSeconds));
     if (input.type === 'LINK' && input.linkUrl) form.append('linkUrl', input.linkUrl);
     if ((input.type === 'IMAGE' || input.type === 'VIDEO') && input.file) form.append('file', input.file);
-    return this.http.post<any>(api('/publications'), form).pipe(map(toPublication));
+    return this.http.post<PublicationApiResponse>(api('/publications'), form).pipe(map(toPublication));
   }
 
   update(id: number, changes: PublicationChanges): Observable<Publication> {
-    return this.http.patch<any>(api(`/publications/${id}`), changes).pipe(map(toPublication));
+    return this.http.patch<PublicationApiResponse>(api(`/publications/${id}`), changes).pipe(map(toPublication));
   }
 
   publish(id: number): Observable<Publication> {
-    return this.http.post<any>(api(`/publications/${id}/publish`), {}).pipe(map(toPublication));
+    return this.http.post<PublicationApiResponse>(api(`/publications/${id}/publish`), {}).pipe(map(toPublication));
   }
 
   unpublish(id: number): Observable<Publication> {
-    return this.http.post<any>(api(`/publications/${id}/unpublish`), {}).pipe(map(toPublication));
+    return this.http.post<PublicationApiResponse>(api(`/publications/${id}/unpublish`), {}).pipe(map(toPublication));
   }
 
   delete(id: number): Observable<void> { return this.http.delete<void>(api(`/publications/${id}`)); }

@@ -29,7 +29,9 @@ interface DatePickerDay {
         [attr.aria-haspopup]="'dialog'"
         [attr.aria-label]="ariaLabel || null"
         (click)="toggleCalendar()">
-        <span [class.date-picker-placeholder]="!value">{{ value ? displayValue(value) : 'dd/mm/aaaa' }}</span>
+        <span [class.date-picker-placeholder]="!value">
+          @if (value) { {{ displayValue(value) }} } @else { dd/mm/aaaa }
+        </span>
         <app-icon name="calendar" [size]="16"/>
       </button>
       @if (open) {
@@ -152,11 +154,13 @@ export class DatePickerComponent implements ControlValueAccessor, Validator {
   registerOnValidatorChange(fn: () => void): void { this.validatorChange = fn; }
 
   validate(control: AbstractControl): ValidationErrors | null {
-    const value = typeof control.value === 'string' ? control.value : '';
+    let value = '';
+    if (typeof control.value === 'string') value = control.value;
     if (this.required && !value) return { required: true };
     if (!value) return null;
     if (!this.parseDate(value)) return { dateFormat: true };
-    return this.min && value < this.min ? { minDate: { min: this.min, actual: value } } : null;
+    if (this.min && value < this.min) return { minDate: { min: this.min, actual: value } };
+    return null;
   }
 
   toggleCalendar(): void {
@@ -199,7 +203,8 @@ export class DatePickerComponent implements ControlValueAccessor, Validator {
 
   displayValue(value: string): string {
     const date = this.parseDate(value);
-    return date ? `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}` : value;
+    if (!date) return value;
+    return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
   }
 
   todayIso(): string { return this.toIso(new Date()); }
@@ -261,9 +266,10 @@ export class DatePickerComponent implements ControlValueAccessor, Validator {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
     if (!match) return null;
     const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-    return date.getFullYear() === Number(match[1]) && date.getMonth() === Number(match[2]) - 1 && date.getDate() === Number(match[3])
-      ? date
-      : null;
+    if (date.getFullYear() !== Number(match[1]) ||
+      date.getMonth() !== Number(match[2]) - 1 ||
+      date.getDate() !== Number(match[3])) return null;
+    return date;
   }
 
   private toIso(date: Date): string {

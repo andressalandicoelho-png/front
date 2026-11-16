@@ -23,7 +23,8 @@ export function duration(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
-  return s ? `${m}min ${s}s` : `${m}min`;
+  if (s) return `${m}min ${s}s`;
+  return `${m}min`;
 }
 
 export function addDays(iso: string, days: number): string {
@@ -36,5 +37,7 @@ export const typeLabel: Record<string, string> = { IMAGE: 'Imagem', VIDEO: 'Víd
 
 export function greeting(): string {
   const h = new Date().getHours();
-  return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  if (h < 12) return 'Bom dia';
+  if (h < 18) return 'Boa tarde';
+  return 'Boa noite';
 }

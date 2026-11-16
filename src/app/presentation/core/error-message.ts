@@ -10,5 +10,6 @@ export function errorMessage(error: unknown): string {
     if (error.status === 403) return 'Você não tem permissão para isso.';
     if (error.status === 404) return 'Item não encontrado.';
   }
-  return error instanceof Error ? error.message : 'Algo deu errado. Tente de novo.';
+  if (error instanceof Error) return error.message;
+  return 'Algo deu errado. Tente de novo.';
 }

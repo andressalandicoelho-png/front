@@ -19,11 +19,11 @@
 *::-webkit-scrollbar-button:horizontal:decrement,
 *::-webkit-scrollbar-button:horizontal:increment,
 app-modal.publication-modal .modal::-webkit-scrollbar-button {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
+  display: none;
+  width: 0;
+  height: 0;
+  border: 0;
+  background: transparent;
 }
 *::-webkit-scrollbar-corner { background: transparent; }
 

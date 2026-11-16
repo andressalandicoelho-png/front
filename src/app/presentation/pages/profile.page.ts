@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ChangeOwnPasswordUseCase } from '@application/auth/auth.usecases';
 import { errorMessage } from '@presentation/core/error-message';
 import { AuthState } from '@presentation/core/auth.state';
-import { IconComponent } from '@presentation/ui/icon.component';
+import { IconComponent } from '@presentation/ui/shared/icon.component';
 
 @Component({
   selector: 'app-profile',

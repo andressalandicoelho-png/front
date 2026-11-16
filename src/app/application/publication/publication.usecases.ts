@@ -16,7 +16,8 @@ export class CreatePublicationUseCase {
   private repo = inject(PublicationRepository);
   execute(input: NewPublication): Observable<Publication> {
     const error = validateNewPublication(input);
-    return error ? throwError(() => new Error(error)) : this.repo.create(input);
+    if (error) return throwError(() => new Error(error));
+    return this.repo.create(input);
   }
 }
 

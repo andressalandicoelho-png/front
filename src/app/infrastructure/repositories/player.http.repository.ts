@@ -32,15 +32,25 @@ export class HttpPlayerRepository extends PlayerRepository {
         program: res.program,
         timezone: res.timezone,
         pollSeconds: res.pollSeconds,
-        items: res.items.map(item => ({
-          key: String(item.entryId),
-          title: item.title,
-          content: item.content ?? null,
-          type: item.type,
-          mediaUrl: (item.type !== 'IMAGE' && item.type !== 'VIDEO') || !item.url ? null : new URL(item.url, api('/')).toString(),
-          linkUrl: item.type === 'LINK' ? item.url : null,
-          seconds: item.seconds,
-        })),
+        items: res.items.map(item => {
+          let mediaUrl: string | null = null;
+          if ((item.type === 'IMAGE' || item.type === 'VIDEO') && item.url) {
+            mediaUrl = new URL(item.url, api('/')).toString();
+          }
+
+          let linkUrl: string | null = null;
+          if (item.type === 'LINK') linkUrl = item.url;
+
+          return {
+            key: String(item.entryId),
+            title: item.title,
+            content: item.content ?? null,
+            type: item.type,
+            mediaUrl,
+            linkUrl,
+            seconds: item.seconds,
+          };
+        }),
       })),
     );
   }

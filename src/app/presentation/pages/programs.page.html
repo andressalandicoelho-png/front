@@ -1,0 +1,95 @@
+    @if (error()) { <div class="notice error-notice" role="alert">{{ error() }}</div> }
+
+    <section class="program-workspace" aria-label="Gerenciar programações">
+      <app-program-browser [programs]="programs()" [selectedId]="selected()?.id ?? null"
+        (selected)="select($event)" (createRequested)="openCreate()"/>
+
+      @if (selected(); as program) {
+        <section class="program-inspector" aria-labelledby="program-inspector-title">
+          <header class="program-inspector-head">
+            <div class="program-inspector-title">
+              <h2 id="program-inspector-title">{{ program.name }}</h2>
+              <span class="status" [class.live]="program.active">
+                @if (program.active) { Ativa } @else { Pausada }
+              </span>
+            </div>
+            <div class="program-inspector-actions">
+              <button class="btn small program-delete-button" type="button" (click)="requestDelete(program)"><app-icon name="trash" [size]="15"/> Excluir</button>
+              <button class="btn primary small" type="button" (click)="openAddEntries()"><app-icon name="plus" [size]="15"/> Adicionar conteúdo</button>
+            </div>
+          </header>
+
+          <app-program-sequence
+            [programId]="program.id"
+            [entries]="program.entries"
+            [expiredPublicationIds]="expiredPublicationIds()"
+            [nextScheduleLabelFor]="nextScheduleLabelFor"
+            [allEntriesExpired]="allEntriesExpired(program)"
+            (addRequested)="openAddEntries()"
+            (previewRequested)="previewEntry.set($event)"
+            (removeRequested)="requestRemoveEntry(program, $event)"/>
+        </section>
+        <app-program-connection-panel
+          [program]="program"
+          [playerToken]="playerToken()"
+          [hasPlayerToken]="!!auth.user()?.hasPlayerToken"
+          [copied]="copiedProgramId() === program.id"
+          [generatingToken]="generatingToken()"
+          [scheduleLoading]="programScheduleLoading()"
+          [scheduleError]="programScheduleError()"
+          [playerUrl]="playerUrl"
+          (copyRequested)="copyPlayerUrl($event)"
+          (generateRequested)="generatePlayerToken()"
+          (previewRequested)="previewOpen.set(true)"
+          (toggleRequested)="toggle($event)"
+          (retryRequested)="loadProgramSchedule($event)"/>
+      } @else {
+        <section class="program-inspector program-inspector-empty empty-state" aria-live="polite">
+          <span class="empty-icon">
+            @if (programs().length) {
+              <app-icon name="layers" [size]="24"/>
+            } @else {
+              <app-icon name="tv" [size]="24"/>
+            }
+          </span>
+          <h2>
+            @if (programs().length) { Selecione uma programação } @else { Nenhuma programação }
+          </h2>
+        </section>
+      }
+    </section>
+
+    @if (selected(); as program) {
+      <app-program-preview
+        [title]="'Prévia · ' + program.name"
+      [items]="previewItems()"
+        [open]="previewOpen()"
+        (closed)="previewOpen.set(false)"/>
+    }
+
+    <app-program-add-entries-dialog
+      [open]="modal()"
+      [program]="selected()"
+      [today]="today"
+      (closed)="modal.set(false)"
+      (programUpdated)="updateSelectedProgram($event)"
+      (refreshRequested)="load()"
+      (errorChanged)="error.set($event)"/>
+
+    <app-program-dialogs
+      [previewEntry]="previewEntry()"
+      [pendingEntryRemoval]="pendingEntryRemoval()"
+      [entryRemovalError]="entryRemovalError()"
+      [deletingEntry]="deletingEntry()"
+      [pendingDeletion]="pendingDeletion()"
+      [deleteError]="deleteError()"
+      [deleting]="deleting()"
+      [pendingTokenRenewal]="pendingTokenRenewal()"
+      [generatingToken]="generatingToken()"
+      (previewEntryClosed)="previewEntry.set(null)"
+      (entryRemovalCancelled)="closeEntryRemoval()"
+      (entryRemovalConfirmed)="confirmEntryRemoval()"
+      (deletionCancelled)="closeDeleteConfirmation()"
+      (deletionConfirmed)="confirmDelete($event)"
+      (tokenRenewalCancelled)="pendingTokenRenewal.set(false)"
+      (tokenRenewalConfirmed)="confirmTokenRenewal()"/>

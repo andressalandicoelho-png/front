@@ -17,6 +17,7 @@ app-modal.confirm-action--stacked .backdrop { z-index: 1103; }
   display: flex;
   width: min(780px, calc(100vw - 40px));
   max-width: 780px;
+  height: min(86dvh, 760px);
   max-height: min(86dvh, 760px);
   flex-direction: column;
   overflow: hidden;
@@ -26,7 +27,7 @@ app-modal.confirm-action--stacked .backdrop { z-index: 1103; }
   box-shadow: 0 18px 55px rgba(13, 25, 52, .22);
 }
 .modal:has(.day-posts-dialog) .modal-head { display: none; }
-.modal:has(.day-posts-dialog) .modal-body { display: flex; min-height: 0; flex-direction: column; overflow: hidden; padding: 0; }
+.modal:has(.day-posts-dialog) .modal-body { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow: hidden; padding: 0; }
 .day-posts-dialog { position: relative; display: flex; min-height: 0; flex: 1; flex-direction: column; overflow: hidden; }
 .day-posts-heading { display: flex; min-height: 46px; flex: none; align-items: center; gap: 8px; padding: 7px 12px; border-bottom: 1px solid var(--border-subtle); }
 .day-posts-heading-icon { display: grid; width: 26px; height: 26px; flex: none; place-items: center; border: 1px solid #e2eafa; border-radius: var(--radius-control); color: #3868d3; background: #f5f8ff; }
@@ -83,7 +84,6 @@ app-modal.confirm-action--stacked .backdrop { z-index: 1103; }
 .day-post-actions { display: flex; align-items: center; gap: 3px; }
 .day-post-actions .icon-btn { width: 23px; height: 23px; color: #8692a4; }
 .day-post-actions .icon-btn:hover { color: #315fc5; background: #f1f5fd; }
-.day-post-remove:hover { color: var(--red) !important; background: #fff0ef !important; }
 .day-posts-footer { display: flex; min-height: 43px; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 17px; border-top: 1px solid var(--border-soft); background: #fafbfd; }
 .day-posts-footer-meta { display: flex; min-width: 0; align-items: center; gap: 7px; color: #8390a3; font-size: 8px; white-space: nowrap; }
 .day-posts-sync { display: inline-flex; align-items: center; gap: 4px; color: #23845f; }
