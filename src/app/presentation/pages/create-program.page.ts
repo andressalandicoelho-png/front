@@ -6,22 +6,24 @@ import { ListPublicationsUseCase } from '@application/publication/publication.us
 import { CreateScheduleEntryUseCase } from '@application/schedule/schedule.usecases';
 import { Program } from '@domain/program/program.entity';
 import { displayDurationSeconds, Publication } from '@domain/publication/publication.entity';
-import { currentBusinessDate, datesBetweenInclusive, toMinutes } from '@domain/schedule/schedule.rules';
+import { currentBusinessDate, datesBetweenInclusive } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@presentation/core/error-message';
 import { formatDate } from '@presentation/core/format';
+import { createDefaultPublicationSchedule, isPublicationScheduleValid, updatePublicationSchedule } from '@presentation/core/publication-schedule';
 import { ToastService } from '@presentation/core/toast.service';
-import { publicationTypeName } from '@presentation/formatters/publication-type-name';
 import { PublicationScheduleForm } from '@presentation/models/publication-schedule-form';
-import { DatePickerComponent } from '@presentation/ui/date-picker.component';
+import { ContentPreviewComponent } from '@presentation/ui/content-preview.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
 import { ProgramPreviewComponent, ProgramPreviewItem } from '@presentation/ui/program-preview.component';
-import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
+import { PublicationPickerComponent } from '@presentation/ui/publication-picker.component';
+import { PublicationScheduleFieldsComponent } from '@presentation/ui/publication-schedule-fields.component';
+import { ProgramPublicationRowComponent } from '@presentation/ui/program-publication-row.component';
 import { concatMap, from } from 'rxjs';
 
 @Component({
   selector: 'app-create-program',
-  imports: [FormsModule, RouterLink, DatePickerComponent, IconComponent, ModalComponent, ProgramPreviewComponent, SecureMediaComponent],
+  imports: [FormsModule, RouterLink, ContentPreviewComponent, IconComponent, ModalComponent, ProgramPreviewComponent, PublicationPickerComponent, PublicationScheduleFieldsComponent, ProgramPublicationRowComponent],
   template: `
     @if (error()) { <div class="notice error-notice" role="alert">{{ error() }}</div> }
     @if (createdProgram(); as created) {
@@ -42,6 +44,7 @@ import { concatMap, from } from 'rxjs';
         <section class="card program-create-card">
           <div class="program-create-card-head">
             <h2>Dados da programação</h2>
+            <p class="program-create-description">Os campos com * são obrigatórios.</p>
           </div>
           <label class="field program-name-field" for="program-name">
             <span>Nome da programação <span aria-hidden="true">*</span></span>
@@ -56,76 +59,28 @@ import { concatMap, from } from 'rxjs';
               required
               [disabled]="!!createdProgram()">
           </label>
+          <small class="program-timezone-note">Horário de Brasília · GMT-3</small>
         </section>
 
         <section class="card program-create-card">
           <div class="program-create-card-head program-selected-head">
             <div>
-              <h2>Conteúdos selecionados <span class="chip">{{ selectedPublications().length }}</span></h2>
+              <h2>Conteúdos selecionados · {{ selectedPublications().length }} {{ selectedPublications().length === 1 ? 'post' : 'posts' }}</h2>
             </div>
-          </div>
-
-          <div class="program-sequence-guidance">
-            <p>A TV segue esta ordem nos períodos agendados. Defina as datas e horários; o fim deve ser posterior ao início.</p>
+            <button class="program-add-content" type="button" [disabled]="!!createdProgram()" (click)="openPublicationPicker()">Adicionar <span aria-hidden="true">+</span></button>
           </div>
 
           <div class="program-selected-list">
             @for (publication of selectedPublications(); track publication.id; let index = $index) {
-              <article class="program-selected-item">
-                <span class="program-drag-handle" aria-hidden="true"><app-icon name="grip" [size]="14"/></span>
-                <span class="program-position">{{ (index + 1).toString().padStart(2, '0') }}</span>
-                <span class="program-create-thumb media-thumb">
-                  <app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/>
-                </span>
-                <span class="program-selected-copy">
-                  <strong>{{ publication.title }}</strong>
-                  <small>{{ publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + duration(publication) + ' s' }}</small>
-                </span>
-                <span class="program-schedule-fields">
-                  @if (scheduleComplete(publication.id)) {
-                    <span class="program-scheduled-label"><app-icon name="check" [size]="14"/> Agendado</span>
-                  } @else {
-                    <label>Data
-                      <app-date-picker [name]="'scheduleDate' + publication.id" [min]="today" required
-                        [disabled]="!!createdProgram() && saving()"
-                        [ngModel]="scheduleFor(publication.id).date"
-                        (ngModelChange)="updateSchedule(publication.id, 'date', $event)"/>
-                    </label>
-                    <label>Até (inclusive)
-                      <app-date-picker [name]="'scheduleEndDate' + publication.id" [min]="scheduleFor(publication.id).date || today" required
-                        [disabled]="!!createdProgram() && saving()"
-                        [ngModel]="scheduleFor(publication.id).endDate"
-                        (ngModelChange)="updateSchedule(publication.id, 'endDate', $event)"/>
-                    </label>
-                    <label>Início
-                      <input class="input" type="time" [name]="'scheduleStart' + publication.id" required
-                        [disabled]="!!createdProgram() && saving()"
-                        [ngModel]="scheduleFor(publication.id).startTime"
-                        (ngModelChange)="updateSchedule(publication.id, 'startTime', $event)">
-                    </label>
-                    <label>Fim
-                      <input class="input" type="time" [name]="'scheduleEnd' + publication.id" required
-                        [disabled]="!!createdProgram() && saving()"
-                        [ngModel]="scheduleFor(publication.id).endTime"
-                        (ngModelChange)="updateSchedule(publication.id, 'endTime', $event)">
-                    </label>
-                    @if (scheduledCount(publication.id)) {
-                      <small class="program-scheduled-progress">{{ scheduledCount(publication.id) }} de {{ datesFor(publication.id).length }} dias já agendados</small>
-                    }
-                  }
-                </span>
-                <span class="program-order-actions">
-                  <button class="icon-btn" type="button" aria-label="Mover conteúdo para cima" [disabled]="index === 0 || !!createdProgram()" (click)="movePublication(index, -1)">
-                    <app-icon name="up" [size]="17"/>
-                  </button>
-                  <button class="icon-btn" type="button" aria-label="Mover conteúdo para baixo" [disabled]="index === selectedPublications().length - 1 || !!createdProgram()" (click)="movePublication(index, 1)">
-                    <app-icon name="down" [size]="17"/>
-                  </button>
-                  <button class="icon-btn danger" type="button" [attr.aria-label]="'Remover ' + publication.title" [disabled]="!!createdProgram()" (click)="togglePublication(publication.id)">
-                    <app-icon name="trash" [size]="17"/>
-                  </button>
-                </span>
-              </article>
+              <app-program-publication-row
+                [position]="index + 1"
+                [title]="publication.title"
+                [type]="publication.type"
+                [mediaId]="publication.mediaId"
+                [detailLabel]="scheduleSummary(publication)"
+                [removeDisabled]="!!createdProgram()"
+                (previewRequested)="previewPublication.set(publication)"
+                (removeRequested)="togglePublication(publication.id)"/>
             } @empty {
               <div class="program-create-empty empty-state">
                 <span class="empty-icon"><app-icon name="layers" [size]="24"/></span>
@@ -134,45 +89,7 @@ import { concatMap, from } from 'rxjs';
               </div>
             }
           </div>
-
-        </section>
-
-        <section class="card program-create-card program-library">
-          <div class="program-create-card-head program-library-head">
-            <div>
-              <h2>Adicionar conteúdos</h2>
-            </div>
-            <input class="input program-library-search" type="search" aria-label="Buscar conteúdo publicado" placeholder="Buscar conteúdo" [(ngModel)]="query" name="query">
-          </div>
-
-          @if (loading()) {
-            <p class="program-library-message muted">Carregando conteúdos publicados…</p>
-          } @else if (filteredPublications().length) {
-            <div class="program-available-list">
-              @for (publication of filteredPublications(); track publication.id) {
-                <label class="program-available-item" [class.is-selected]="isSelected(publication.id)">
-                  <input type="checkbox" [checked]="isSelected(publication.id)" [disabled]="!!createdProgram()" (change)="togglePublication(publication.id)">
-                  <span class="program-create-thumb media-thumb">
-                    <app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/>
-                  </span>
-                  <span class="program-selected-copy">
-                    <strong>{{ publication.title }}</strong>
-                    <small>{{ publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + duration(publication) + ' s' }}</small>
-                  </span>
-                  @if (isSelected(publication.id)) { <span class="program-added-label">Adicionado · {{ selectedIndex(publication.id) }}</span> }
-                </label>
-              }
-            </div>
-          } @else {
-            <div class="program-library-message">
-              @if (!readyPublications().length) {
-                <p class="muted">Nenhum conteúdo publicado.</p>
-                <a class="link" routerLink="/publicacoes">Ir para Conteúdos</a>
-              } @else {
-                <p class="muted">Nenhum conteúdo corresponde à busca.</p>
-              }
-            </div>
-          }
+          <p class="program-selected-footnote">Os períodos são definidos ao adicionar conteúdos.</p>
         </section>
       </div>
 
@@ -180,8 +97,8 @@ import { concatMap, from } from 'rxjs';
         <section class="card program-summary">
           <div class="program-summary-head"><h2>Resumo</h2><span class="chip">{{ createdProgram() ? 'Criada' : 'Nova programação' }}</span></div>
           <div class="program-summary-body">
-            <small>{{ name.trim() || 'Nome da programação' }}</small>
-            <strong>{{ selectedPublications().length }} {{ selectedPublications().length === 1 ? 'conteúdo' : 'conteúdos' }} · {{ totalDuration() }} s</strong>
+          <small>{{ summaryPeriod() }}</small>
+          <strong>{{ selectedPublications().length }} {{ selectedPublications().length === 1 ? 'post' : 'posts' }} · {{ totalDurationLabel() }}</strong>
             <small>{{ scheduledEntryCount() }} agendamentos concluídos</small>
             @if (selectedPublications().length) {
               <button class="btn small" type="button" (click)="previewOpen.set(true)">
@@ -190,13 +107,57 @@ import { concatMap, from } from 'rxjs';
             }
           </div>
         </section>
+        <section class="program-create-tip" role="note">
+          <app-icon name="info" [size]="16"/>
+          <p>Os conteúdos se repetem na ordem escolhida, dentro do período definido e dos horários de cada post. Clique no período para editar.</p>
+        </section>
       </aside>
+
+      @if (libraryOpen()) {
+        <app-modal class="calendar-modal add-content-modal" title="Adicionar conteúdos"
+          subtitle="Selecione as mídias da biblioteca e configure os horários de exibição."
+          (closed)="closePublicationPicker()">
+          <form class="add-content-dialog" (ngSubmit)="confirmPublicationSelection()">
+            <div class="add-content-context">
+              <div class="add-content-period-heading">
+                <strong>Período e horários de exibição</strong>
+                <small>Aplicados a todos os conteúdos selecionados. Você pode ajustar cada conteúdo depois.</small>
+              </div>
+              <app-publication-schedule-fields [schedule]="pickerSchedule()" [minDate]="today"
+                namePrefix="pickerSchedule"
+                (scheduleChanged)="updatePickerSchedule($event.field, $event.value)"/>
+              @if (!pickerScheduleValid()) {
+                <small class="error" role="alert">Informe um período válido, com o horário final após o inicial.</small>
+              }
+            </div>
+            <app-publication-picker
+              [publications]="readyPublications()"
+              [selectedIds]="pickerPublicationIds()"
+              [loading]="loading()"
+              [loadError]="publicationLoadError()"
+              [confirmDisabled]="!pickerPublicationIds().length || !pickerScheduleValid()"
+              [confirmLabel]="'Adicionar ' + pickerPublicationIds().length + (pickerPublicationIds().length === 1 ? ' conteúdo' : ' conteúdos')"
+              (selectionChanged)="togglePickerPublication($event.publicationId, $event.checked)"
+              (clearSelectionRequested)="pickerPublicationIds.set([])"
+              (retryRequested)="loadPublications()"
+              (cancelled)="closePublicationPicker()"/>
+          </form>
+        </app-modal>
+      }
 
       <app-program-preview
         title="Prévia da programação"
         [items]="previewItems()"
         [open]="previewOpen()"
         (closed)="previewOpen.set(false)"/>
+
+      @if (previewPublication(); as publication) {
+        <app-modal [title]="publication.title" (closed)="previewPublication.set(null)">
+          <app-content-preview [type]="publication.type" [content]="publication.content"
+            [mediaId]="publication.mediaId" [linkUrl]="publication.linkUrl"
+            [autoplay]="publication.type === 'VIDEO'"/>
+        </app-modal>
+      }
 
       @if (reviewOpen()) {
         <app-modal title="Revise antes de criar" (closed)="reviewOpen.set(false)">
@@ -229,10 +190,13 @@ import { concatMap, from } from 'rxjs';
       }
 
       <footer class="program-create-footer">
-        <a class="btn" routerLink="/programacao">Cancelar</a>
-        <button class="btn primary" type="submit" [disabled]="saving()">
-          {{ saving() ? 'Salvando…' : createdProgram() ? 'Concluir agendamentos' : 'Revisar programação' }}
-        </button>
+        <span class="program-create-copyright">© {{ currentYear }} Office Total</span>
+        <div class="program-create-actions">
+          <a class="btn" routerLink="/programacao">Cancelar</a>
+          <button class="btn primary" type="submit" [disabled]="saving()">
+            {{ saving() ? 'Salvando…' : createdProgram() ? 'Concluir agendamentos' : 'Criar programação' }}
+          </button>
+        </div>
       </footer>
     </form>
   `,
@@ -246,9 +210,13 @@ export class CreateProgramPage implements OnInit {
   private readonly toast = inject(ToastService);
 
   name = '';
+  readonly currentYear = new Date().getFullYear();
   today = currentBusinessDate();
-  query = '';
-  loading = signal(true);
+  libraryOpen = signal(false);
+  pickerPublicationIds = signal<number[]>([]);
+  pickerSchedule = signal<PublicationScheduleForm>(createDefaultPublicationSchedule(this.today));
+  loading = signal(false);
+  publicationLoadError = signal('');
   saving = signal(false);
   error = signal('');
   createdProgram = signal<Program | null>(null);
@@ -258,6 +226,7 @@ export class CreateProgramPage implements OnInit {
   scheduledScheduleKeys = signal<string[]>([]);
   entriesAdded = signal(false);
   previewOpen = signal(false);
+  previewPublication = signal<Publication | null>(null);
   reviewOpen = signal(false);
   scheduleProgress = signal({ completed: 0, total: 0 });
 
@@ -267,10 +236,6 @@ export class CreateProgramPage implements OnInit {
       const publication = publicationsById.get(id);
       return publication ? [publication] : [];
     });
-  });
-  filteredPublications = computed(() => {
-    const query = this.query.trim().toLocaleLowerCase();
-    return this.readyPublications().filter(publication => !query || publication.title.toLocaleLowerCase().includes(query));
   });
   totalDuration = computed(() => this.selectedPublications().reduce(
     (sum, publication) => sum + (publication.type === 'MESSAGE' ? 0 : this.duration(publication)), 0,
@@ -292,14 +257,17 @@ export class CreateProgramPage implements OnInit {
   }));
   schedulesValid = computed(() => this.selectedPublications().every(publication => {
     if (this.scheduleComplete(publication.id)) return true;
-    const schedule = this.scheduleFor(publication.id);
-    const dates = datesBetweenInclusive(schedule.date, schedule.endDate);
-    return !!dates.length && schedule.date >= this.today &&
-      !!schedule.startTime && !!schedule.endTime &&
-      toMinutes(schedule.endTime) > toMinutes(schedule.startTime);
+    return isPublicationScheduleValid(this.scheduleFor(publication.id), this.today);
   }));
 
   ngOnInit(): void {
+    this.loadPublications();
+  }
+
+  loadPublications(): void {
+    if (this.loading()) return;
+    this.loading.set(true);
+    this.publicationLoadError.set('');
     this.listPublications.execute({ status: 'READY' }).subscribe({
       next: publications => {
         this.readyPublications.set(publications.filter(publication => publication.status === 'READY'));
@@ -307,13 +275,56 @@ export class CreateProgramPage implements OnInit {
       },
       error: error => {
         this.loading.set(false);
-        this.error.set(errorMessage(error));
+        this.publicationLoadError.set(errorMessage(error));
       },
     });
   }
 
   readonly formatDate = formatDate;
-  readonly typeName = publicationTypeName;
+  scheduleSummary(publication: Publication): string {
+    const schedule = this.scheduleFor(publication.id);
+    const period = schedule.date && schedule.endDate
+      ? this.formatScheduleRange(schedule.date, schedule.endDate)
+      : 'Período a definir';
+    const time = schedule.startTime && schedule.endTime
+      ? `${schedule.startTime}–${schedule.endTime}`
+      : 'Horário a definir';
+    return `${period} · ${time}`;
+  }
+
+  summaryPeriod(): string {
+    const schedules = this.selectedPublications()
+      .map(publication => this.scheduleFor(publication.id))
+      .filter(schedule => schedule.date && schedule.endDate);
+    if (!schedules.length) return 'Período não definido';
+    const start = schedules.map(schedule => schedule.date).sort()[0];
+    const end = schedules.map(schedule => schedule.endDate).sort().at(-1);
+    if (!start || !end) return 'Período não definido';
+    return this.formatScheduleRange(start, end);
+  }
+
+  totalDurationLabel(): string {
+    const seconds = this.totalDuration();
+    if (seconds < 60) return `${seconds} s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainder = seconds % 60;
+    return remainder ? `${minutes} min ${remainder} s` : `${minutes} min`;
+  }
+
+  private formatScheduleRange(start: string, end: string): string {
+    const startDate = this.localDate(start);
+    const endDate = this.localDate(end);
+    if (startDate.getFullYear() === endDate.getFullYear() && startDate.getMonth() === endDate.getMonth()) {
+      const month = startDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+      return `${startDate.getDate()} a ${endDate.getDate()} ${month} ${startDate.getFullYear()}`;
+    }
+    return `${this.formatDate(start)} a ${this.formatDate(end)}`;
+  }
+
+  private localDate(iso: string): Date {
+    const [year, month, day] = iso.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
 
   duration(publication: Publication): number {
     return displayDurationSeconds(publication.type, publication.displaySeconds, publication.originalDurationSeconds);
@@ -347,37 +358,59 @@ export class CreateProgramPage implements OnInit {
     return this.selectedPublications().reduce((count, publication) => count + this.scheduledCount(publication.id), 0);
   }
 
-  updateSchedule(publicationId: number, field: keyof PublicationScheduleForm, value: string): void {
-    this.schedules.update(schedules => ({
-      ...schedules,
-      [publicationId]: { ...this.scheduleFor(publicationId), [field]: value },
-    }));
+  openPublicationPicker(): void {
+    this.pickerPublicationIds.set([...this.selectedPublicationIds()]);
+    const firstSelectedId = this.selectedPublicationIds()[0];
+    const currentSchedule = firstSelectedId === undefined ? null : this.scheduleFor(firstSelectedId);
+    this.pickerSchedule.set(currentSchedule?.date
+      ? { ...currentSchedule }
+      : createDefaultPublicationSchedule(this.today));
+    this.libraryOpen.set(true);
   }
 
-  selectedIndex(publicationId: number): number {
-    return this.selectedPublicationIds().indexOf(publicationId) + 1;
+  closePublicationPicker(): void {
+    this.libraryOpen.set(false);
+  }
+
+  confirmPublicationSelection(): void {
+    if (!this.pickerScheduleValid()) return;
+    const selectedIds = this.pickerPublicationIds();
+    const removedIds = this.selectedPublicationIds().filter(id => !selectedIds.includes(id));
+    this.selectedPublicationIds.set([...selectedIds]);
+    this.schedules.update(schedules => {
+      const updated = { ...schedules };
+      for (const id of removedIds) delete updated[id];
+      for (const id of selectedIds) updated[id] = { ...this.pickerSchedule() };
+      return updated;
+    });
+    this.libraryOpen.set(false);
+  }
+
+  togglePickerPublication(publicationId: number, checked: boolean): void {
+    this.pickerPublicationIds.update(ids => checked
+      ? ids.includes(publicationId) ? ids : [...ids, publicationId]
+      : ids.filter(id => id !== publicationId));
+  }
+
+  updatePickerSchedule(field: keyof PublicationScheduleForm, value: string): void {
+    this.pickerSchedule.update(schedule => updatePublicationSchedule(schedule, field, value));
+  }
+
+  pickerScheduleValid(): boolean {
+    return isPublicationScheduleValid(this.pickerSchedule(), this.today);
   }
 
   togglePublication(publicationId: number): void {
-    this.selectedPublicationIds.update(ids => ids.includes(publicationId)
+    const wasSelected = this.isSelected(publicationId);
+    this.selectedPublicationIds.update(ids => wasSelected
       ? ids.filter(id => id !== publicationId)
       : [...ids, publicationId]);
-    if (!this.isSelected(publicationId)) {
+    if (wasSelected) {
       this.schedules.update(schedules => {
         const { [publicationId]: _removed, ...remaining } = schedules;
         return remaining;
       });
     }
-  }
-
-  movePublication(index: number, direction: -1 | 1): void {
-    this.selectedPublicationIds.update(ids => {
-      const target = index + direction;
-      if (target < 0 || target >= ids.length) return ids;
-      const reordered = [...ids];
-      [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
-      return reordered;
-    });
   }
 
   save(): void {

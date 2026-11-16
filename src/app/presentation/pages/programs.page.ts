@@ -13,26 +13,26 @@ import { GeneratePlayerTokenUseCase } from '@application/user/user.usecases';
 import { Program } from '@domain/program/program.entity';
 import { displayDurationSeconds, Publication } from '@domain/publication/publication.entity';
 import { ScheduleEntry } from '@domain/schedule/schedule.entity';
-import { currentBusinessDate, currentBusinessTime, datesBetweenInclusive, toMinutes } from '@domain/schedule/schedule.rules';
+import { currentBusinessDate, currentBusinessTime, datesBetweenInclusive } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@presentation/core/error-message';
 import { formatDate } from '@presentation/core/format';
+import { createDefaultPublicationSchedule, isPublicationScheduleValid, updatePublicationSchedule } from '@presentation/core/publication-schedule';
 import { AuthState } from '@presentation/core/auth.state';
 import { ToastService } from '@presentation/core/toast.service';
-import { publicationTypeName } from '@presentation/formatters/publication-type-name';
 import { PublicationScheduleForm } from '@presentation/models/publication-schedule-form';
-import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { ConfirmActionComponent } from '@presentation/ui/confirm-action.component';
 import { ContentPreviewComponent } from '@presentation/ui/content-preview.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
 import { CalendarReviewTableComponent } from '@presentation/ui/calendar-review-table.component';
 import { ProgramPreviewComponent, ProgramPreviewItem } from '@presentation/ui/program-preview.component';
-import { PublicationSelectionItemComponent } from '@presentation/ui/publication-selection-item.component';
-import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
+import { PublicationPickerComponent } from '@presentation/ui/publication-picker.component';
+import { PublicationScheduleFieldsComponent } from '@presentation/ui/publication-schedule-fields.component';
+import { ProgramPublicationRowComponent } from '@presentation/ui/program-publication-row.component';
 
 @Component({
   selector: 'app-programs',
-  imports: [FormsModule, DatePickerComponent, ConfirmActionComponent, ContentPreviewComponent, IconComponent, ModalComponent, CalendarReviewTableComponent, ProgramPreviewComponent, PublicationSelectionItemComponent, SecureMediaComponent],
+  imports: [FormsModule, ConfirmActionComponent, ContentPreviewComponent, IconComponent, ModalComponent, CalendarReviewTableComponent, ProgramPreviewComponent, PublicationPickerComponent, PublicationScheduleFieldsComponent, ProgramPublicationRowComponent],
   template: `
     @if (error()) { <div class="notice error-notice" role="alert">{{ error() }}</div> }
 
@@ -92,32 +92,18 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
                 [ngModel]="sequenceSearch()" (ngModelChange)="sequenceSearch.set($event)">
             </label>
             <div class="program-sequence-table-head" aria-hidden="true">
-              <span>Ordem</span><span>Conteúdo</span><span>Tipo</span><span>Excluir</span>
+              <span>Ordem</span><span>Conteúdo</span><span>Tipo</span><span>Visualizar</span><span>Excluir</span>
             </div>
             <div class="program-sequence-list">
               @for (item of filteredSequenceEntries(); track item.entry.id) {
-                <article class="program-sequence-item">
-                  <span class="program-sequence-position">{{ item.position.toString().padStart(2, '0') }}</span>
-                  <span class="program-sequence-thumb media-thumb"><app-secure-media [mediaId]="item.entry.mediaFileId" [type]="item.entry.publicationType === 'MESSAGE' ? 'MESSAGE' : item.entry.publicationType === 'VIDEO' ? 'VIDEO' : item.entry.publicationType === 'LINK' ? 'LINK' : 'IMAGE'"/></span>
-                  <span class="program-sequence-copy">
-                    <span class="program-sequence-title-row">
-                      <strong>{{ item.entry.publicationTitle }}</strong>
-                      <button type="button" class="icon-btn program-sequence-view" [attr.aria-label]="'Visualizar ' + item.entry.publicationTitle" title="Visualizar" (click)="previewEntry.set(item.entry)">
-                        <app-icon name="eye" [size]="17"/>
-                      </button>
-                    </span>
-                    @if (item.entry.publicationType === 'MESSAGE') {
-                      <small class="program-sequence-duration">Fixa durante o horário agendado</small>
-                    }
-                    @if (nextScheduleFor(item.entry.publicationId); as schedule) {
-                      <small class="program-sequence-schedule">Próxima exibição: {{ formatDate(schedule.date) }} · {{ schedule.startTime }}–{{ schedule.endTime }}</small>
-                    }
-                  </span>
-                  <span class="program-sequence-type">{{ typeName(item.entry.publicationType) }}</span>
-                  <button type="button" class="icon-btn danger" [attr.aria-label]="'Remover ' + item.entry.publicationTitle + ' da sequência'" title="Excluir" (click)="requestRemoveEntry(program, item.entry)">
-                    <app-icon name="trash" [size]="17"/>
-                  </button>
-                </article>
+                <app-program-publication-row
+                  [position]="item.position"
+                  [title]="item.entry.publicationTitle"
+                  [type]="item.entry.publicationType"
+                  [mediaId]="item.entry.mediaFileId"
+                  [detailLabel]="nextScheduleLabelFor(item.entry.publicationId)"
+                  (previewRequested)="previewEntry.set(item.entry)"
+                  (removeRequested)="requestRemoveEntry(program, item.entry)"/>
               } @empty {
                 @if (sequenceSearch().trim()) {
                   <div class="program-sequence-empty">
@@ -247,26 +233,9 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
               </section>
             } @else {
               <div class="add-content-context">
-                <div class="add-content-period-fields">
-                  <label class="calendar-schedule-time">Data de início
-                    <app-date-picker name="programScheduleStartDate" [min]="today" required
-                      [disabled]="saving()" [ngModel]="sharedSchedule().date"
-                      (ngModelChange)="updateSharedSchedule('date', $event)"/>
-                  </label>
-                  <label class="calendar-schedule-time">Repetir até a data
-                    <app-date-picker name="programScheduleEndDate" [min]="sharedSchedule().date || today" required
-                      [disabled]="saving()" [ngModel]="sharedSchedule().endDate"
-                      (ngModelChange)="updateSharedSchedule('endDate', $event)"/>
-                  </label>
-                  <label class="calendar-schedule-time">De
-                    <input class="input" type="time" name="programScheduleStartTime" required [disabled]="saving()"
-                      [ngModel]="sharedSchedule().startTime" (ngModelChange)="updateSharedSchedule('startTime', $event)">
-                  </label>
-                  <label class="calendar-schedule-time">Até
-                    <input class="input" type="time" name="programScheduleEndTime" required [disabled]="saving()"
-                      [ngModel]="sharedSchedule().endTime" (ngModelChange)="updateSharedSchedule('endTime', $event)">
-                  </label>
-                </div>
+                <app-publication-schedule-fields [schedule]="sharedSchedule()" [minDate]="today"
+                  [disabled]="saving()" namePrefix="programSchedule"
+                  (scheduleChanged)="updateSharedSchedule($event.field, $event.value)"/>
                 <div class="add-content-program-summary">
                   <app-icon name="layers" [size]="15"/>
                   <strong>Programação</strong>
@@ -274,75 +243,31 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
                   <small>Destino selecionado</small>
                 </div>
               </div>
-              <div class="add-content-library-head">
-                <div><strong>Conteúdos publicados</strong></div>
-              </div>
-              <div class="add-content-filters" role="search">
-                <label class="search-field search-field--icon">
-                  <app-icon name="search" [size]="17"/>
-                  <input class="input" type="search" name="publicationSearch" aria-label="Buscar conteúdo por título" placeholder="Buscar por título"
-                    [ngModel]="publicationSearch()" (ngModelChange)="publicationSearch.set($event)">
-                </label>
-                <select class="input" name="publicationTypeFilter" aria-label="Filtrar por formato"
-                  [ngModel]="publicationTypeFilter()" (ngModelChange)="publicationTypeFilter.set($event)">
-                  <option value="ALL">Todos os formatos</option><option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="LINK">Link</option><option value="MESSAGE">Mensagem</option>
-                </select>
-              </div>
-              <div class="add-content-meta">
-                <span class="add-content-count" aria-live="polite">
-                  <strong>{{ filteredAvailablePublications().length }}</strong> {{ filteredAvailablePublications().length === 1 ? 'resultado' : 'resultados' }}
-                </span>
-                <span class="add-content-hint">Selecione um ou mais itens</span>
-              </div>
-              @if (publicationsLoading()) {
-                <div class="add-content-empty empty-state" role="status"><strong>Carregando conteúdos publicados…</strong></div>
-              } @else if (publicationsLoadError()) {
-                <div class="add-content-empty empty-state" role="alert">
-                  <strong>Não foi possível carregar os conteúdos.</strong>
-                  <span>{{ publicationsLoadError() }}</span>
-                  <button class="link-button" type="button" (click)="loadPublications()">Tentar novamente</button>
-                </div>
-              } @else {
-                <div class="add-content-list" role="list" aria-label="Conteúdos disponíveis">
-                  @for (publication of filteredAvailablePublications(); track publication.id) {
-                    <app-publication-selection-item
-                      [publication]="publication"
-                      [checked]="selectedPublicationIds().includes(publication.id)"
-                      [disabled]="saving() || entriesAdded()"
-                      [selected]="selectedPublicationIds().includes(publication.id)"
-                      [alreadyAdded]="entriesAdded()"
-                      [badge]="entriesAdded() ? 'Na programação' : 'Publicado'"
-                      [description]="publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + (publication.displaySeconds ?? publication.originalDurationSeconds ?? 30) + ' s'"
-                      [status]="entriesAdded() ? 'Na programação' : selectedPublicationIds().includes(publication.id) ? 'Selecionado' : 'Disponível'"
-                      (selectionChanged)="togglePublication(publication.id, $event)"/>
-                  } @empty {
-                    <div class="add-content-empty empty-state">
-                      <app-icon name="search" [size]="18"/>
-                      <strong>{{ availablePublications().length ? 'Nenhum resultado para esta busca' : 'Nenhum conteúdo publicado disponível' }}</strong>
-                      <span>{{ availablePublications().length ? 'Tente outro título ou ajuste os filtros.' : 'Publique conteúdos na biblioteca antes de adicioná-los à programação.' }}</span>
-                      @if (hasPublicationFilters()) { <button class="link-button" type="button" (click)="clearPublicationFilters()">Limpar filtros</button> }
-                    </div>
-                  }
-                </div>
-              }
-              @if (error()) { <p class="error add-content-error" role="alert">{{ error() }}</p> }
-              <div class="add-content-footer">
-                <div class="add-content-selection">
-                  <strong>{{ selectedPublicationIds().length }} {{ selectedPublicationIds().length === 1 ? 'conteúdo selecionado' : 'conteúdos selecionados' }}</strong>
-                  <button type="button" class="link-button" [disabled]="!selectedPublicationIds().length || saving() || entriesAdded()" (click)="clearPublicationSelection()">Limpar seleção</button>
-                  <small>{{ selectedPublicationSummary() || 'Selecione conteúdos.' }}</small>
+              <app-publication-picker
+                [publications]="availablePublications()"
+                [selectedIds]="selectedPublicationIds()"
+                [loading]="publicationsLoading()"
+                [loadError]="publicationsLoadError()"
+                [selectionDisabled]="saving() || entriesAdded()"
+                [alreadyAdded]="entriesAdded()"
+                [cancelDisabled]="modalCloseDisabled()"
+                [confirmDisabled]="saving() || !selectedPublicationIds().length || !schedulesValid()"
+                [confirmLabel]="saving() ? 'Agendando…' : entriesAdded() ? 'Revisar e retomar agendamentos' : 'Revisar e agendar ' + selectedPublicationIds().length + (selectedPublicationIds().length === 1 ? ' conteúdo' : ' conteúdos')"
+                (selectionChanged)="togglePublication($event.publicationId, $event.checked)"
+                (clearSelectionRequested)="clearPublicationSelection()"
+                (retryRequested)="loadPublications()"
+                (cancelled)="closeModal()">
+                <div picker-selection-details>
                   <small class="add-content-schedule-note">{{ selected()?.name }} · {{ sharedSchedule().startTime }}–{{ sharedSchedule().endTime }}</small>
                   @if (saving() && scheduleProgress().total) {
-                    <small class="add-content-progress" role="status" aria-live="polite">Agendando {{ scheduleProgress().completed }} de {{ scheduleProgress().total }} períodos diários…</small>
+                    <div class="program-progress" role="status" aria-live="polite">
+                      <span>Agendando {{ scheduleProgress().completed }} de {{ scheduleProgress().total }} períodos diários…</span>
+                      <span class="program-progress-track"><i [style.width.%]="scheduleProgressPercent()"></i></span>
+                    </div>
                   }
+                  @if (error()) { <small class="error add-content-error" role="alert">{{ error() }}</small> }
                 </div>
-                <div class="actions">
-                  <button class="btn" type="button" [disabled]="saving()" (click)="closeModal()">Cancelar</button>
-                  <button class="btn primary" type="submit" [disabled]="saving() || !selectedPublicationIds().length || !schedulesValid()">
-                    {{ entriesAdded() ? 'Revisar e retomar agendamentos' : 'Revisar e agendar ' + selectedPublicationIds().length + (selectedPublicationIds().length === 1 ? ' conteúdo' : ' conteúdos') }}
-                  </button>
-                </div>
-              </div>
+              </app-publication-picker>
             }
           </form>
       </app-modal>
@@ -402,7 +327,6 @@ export class ProgramsPage implements OnInit, OnDestroy {
   private readonly generatePlayerTokenUseCase = inject(GeneratePlayerTokenUseCase);
   private readonly toastService = inject(ToastService);
   readonly formatDate = formatDate;
-  readonly typeName = publicationTypeName;
 
   programs = signal<Program[]>([]);
   publications = signal<Publication[]>([]);
@@ -413,9 +337,7 @@ export class ProgramsPage implements OnInit, OnDestroy {
   statusFilter = signal<'ALL' | 'ACTIVE' | 'PAUSED'>('ALL');
   modal = signal(false);
   selectedPublicationIds = signal<number[]>([]);
-  publicationSearch = signal('');
   sequenceSearch = signal('');
-  publicationTypeFilter = signal<'ALL' | Publication['type']>('ALL');
   sharedSchedule = signal<PublicationScheduleForm>({ date: '', endDate: '', startTime: '', endTime: '' });
   scheduledEntries = signal<Array<Pick<ScheduleEntry, 'publicationId' | 'date'>>>([]);
   entriesAdded = signal(false);
@@ -460,7 +382,6 @@ export class ProgramsPage implements OnInit, OnDestroy {
       scheduleSummary: `${this.scheduledCount(id)} de ${this.datesFor().length} dias agendados`,
     };
   }));
-  selectedPublicationSummary = computed(() => this.selectedPublicationIds().map(id => this.publicationTitle(id)).join(' · '));
   filteredPrograms = computed(() => {
     const query = this.search().trim().toLocaleLowerCase();
     const status = this.statusFilter();
@@ -487,14 +408,6 @@ export class ProgramsPage implements OnInit, OnDestroy {
       publication.status === 'READY' && (!assigned.has(publication.id) || retryingSelection.has(publication.id)),
     );
   });
-  filteredAvailablePublications = computed(() => {
-    const query = this.publicationSearch().trim().toLocaleLowerCase();
-    const type = this.publicationTypeFilter();
-    return this.availablePublications().filter(publication =>
-      (!query || publication.title.toLocaleLowerCase().includes(query)) &&
-      (type === 'ALL' || publication.type === type),
-    );
-  });
   playerToken = computed(() => this.auth.user()?.playerToken ?? null);
   canTestProgram = computed(() => {
     const program = this.selected();
@@ -503,8 +416,7 @@ export class ProgramsPage implements OnInit, OnDestroy {
   });
   schedulesValid = computed(() => {
     const schedule = this.sharedSchedule();
-    const valid = datesBetweenInclusive(schedule.date, schedule.endDate).length > 0 && schedule.date >= this.today &&
-      !!schedule.startTime && !!schedule.endTime && toMinutes(schedule.endTime) > toMinutes(schedule.startTime);
+    const valid = isPublicationScheduleValid(schedule, this.today);
     return this.selectedPublicationIds().every(id => {
       if (this.scheduleComplete(id)) return true;
       return valid;
@@ -583,6 +495,12 @@ export class ProgramsPage implements OnInit, OnDestroy {
   nextScheduleFor(publicationId: number): ScheduleEntry | undefined {
     return this.upcomingSchedules().find(entry => entry.publicationId === publicationId);
   }
+  nextScheduleLabelFor(publicationId: number): string {
+    const schedule = this.nextScheduleFor(publicationId);
+    return schedule
+      ? `Próxima exibição: ${this.formatDate(schedule.date)} · ${schedule.startTime}–${schedule.endTime}`
+      : '';
+  }
   private previewItem(entry: Program['entries'][number]): ProgramPreviewItem {
     const schedule = this.nextScheduleFor(entry.publicationId);
     return {
@@ -604,23 +522,12 @@ export class ProgramsPage implements OnInit, OnDestroy {
   openAddEntries(): void {
     this.loadPublications();
     this.selectedPublicationIds.set([]);
-    this.publicationSearch.set('');
-    this.publicationTypeFilter.set('ALL');
-    this.sharedSchedule.set(this.defaultPublicationSchedule());
+    this.sharedSchedule.set(createDefaultPublicationSchedule(this.today));
     this.scheduledEntries.set([]);
     this.entriesAdded.set(false);
     this.reviewingEntries.set(false);
     this.error.set('');
     this.modal.set(true);
-  }
-
-  hasPublicationFilters(): boolean {
-    return !!this.publicationSearch().trim() || this.publicationTypeFilter() !== 'ALL';
-  }
-
-  clearPublicationFilters(): void {
-    this.publicationSearch.set('');
-    this.publicationTypeFilter.set('ALL');
   }
 
   clearPublicationSelection(): void {
@@ -629,9 +536,13 @@ export class ProgramsPage implements OnInit, OnDestroy {
   }
 
   closeModal(): void {
-    if (this.saving() || (this.entriesAdded() &&
-      !this.selectedPublicationIds().every(id => this.scheduleComplete(id)))) return;
+    if (this.modalCloseDisabled()) return;
     this.modal.set(false);
+  }
+
+  modalCloseDisabled(): boolean {
+    return this.saving() || (this.entriesAdded() &&
+      !this.selectedPublicationIds().every(id => this.scheduleComplete(id)));
   }
 
   toggle(program: Program): void {
@@ -644,22 +555,6 @@ export class ProgramsPage implements OnInit, OnDestroy {
   togglePublication(id: number, checked: boolean): void {
     if (this.entriesAdded()) return;
     this.selectedPublicationIds.update(ids => checked ? [...ids, id] : ids.filter(value => value !== id));
-  }
-
-  private defaultPublicationSchedule(): PublicationScheduleForm {
-    let startMinute = toMinutes(currentBusinessTime());
-    let endMinute = startMinute + 60;
-    if (endMinute > 1439) {
-      startMinute = 1380;
-      endMinute = 1439;
-    }
-    const formatTime = (minute: number) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
-    return {
-      date: this.today,
-      endDate: this.today,
-      startTime: formatTime(startMinute),
-      endTime: formatTime(endMinute),
-    };
   }
 
   datesFor(): string[] {
@@ -681,12 +576,7 @@ export class ProgramsPage implements OnInit, OnDestroy {
   }
 
   updateSharedSchedule(field: keyof PublicationScheduleForm, value: string): void {
-    this.sharedSchedule.update(schedule => {
-      const updated = { ...schedule, [field]: value };
-      if (field === 'date' && updated.endDate < value) updated.endDate = value;
-      if (field === 'endDate' && value < updated.date) updated.date = value;
-      return updated;
-    });
+    this.sharedSchedule.update(schedule => updatePublicationSchedule(schedule, field, value));
   }
 
   saveEntries(): void {

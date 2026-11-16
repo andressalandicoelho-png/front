@@ -39,13 +39,16 @@
 .player-stage { position: absolute; inset: 0; min-height: 0; overflow: hidden; }
 .player-stage--idle {
   isolation: isolate;
-  background: radial-gradient(ellipse 46% 64% at 53% 52%, rgba(255, 193, 148, .28), transparent 82%), #e4eef5;
+  background:
+    radial-gradient(ellipse 38% 58% at 48% 42%, rgba(255, 195, 139, .88), rgba(247, 185, 133, .48) 44%, transparent 82%),
+    radial-gradient(ellipse 42% 62% at 88% 80%, rgba(183, 142, 194, .58), transparent 82%),
+    linear-gradient(120deg, #2c568e, #4779ad 52%, #315c98);
 }
 .player-stage--idle::before {
   position: absolute;
   z-index: 0;
   inset: -10%;
-  background: radial-gradient(ellipse 42% 64% at 48% 52%, rgba(137, 190, 255, .42) 0%, rgba(165, 207, 255, .24) 45%, transparent 82%);
+  background: radial-gradient(ellipse 42% 64% at 48% 52%, rgba(137, 190, 255, .5) 0%, rgba(165, 207, 255, .3) 45%, transparent 82%);
   content: "";
   filter: blur(72px) saturate(62%);
   animation: player-idle-blue-drift 24s ease-in-out infinite alternate;
@@ -54,13 +57,12 @@
   position: absolute;
   z-index: 0;
   inset: 0;
-  background: radial-gradient(ellipse 30% 46% at 26% 38%, rgba(255, 177, 193, .36), transparent 78%);
+  background: radial-gradient(ellipse 38% 54% at 24% 40%, rgba(255, 177, 193, .4), transparent 78%);
   content: "";
   filter: blur(88px) saturate(48%);
   animation: player-idle-cloud-drift 26s ease-in-out infinite alternate, player-idle-pastel-cycle 38s linear infinite;
 }
-.player-stage--idle > .player-idle-shade { position: absolute; z-index: 1; inset: 0; background: rgba(18, 26, 43, .68); backdrop-filter: blur(5px); pointer-events: none; }
-.player-stage--idle > .player-idle { position: relative; z-index: 2; isolation: isolate; }
+.player-stage--idle > .player-idle { position: absolute; z-index: 2; inset: 0; display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; isolation: isolate; }
 .player-stage--idle > .player-idle::before,
 .player-stage--idle > .player-idle::after {
   position: absolute;
@@ -105,13 +107,13 @@
 .player-image-leave { z-index: 1; will-change: opacity, transform; animation: player-image-out 1400ms cubic-bezier(.45, 0, .55, 1) both; }
 @keyframes player-image-in { from { opacity: 0; transform: scale(1.025); } to { opacity: 1; transform: scale(1); } }
 @keyframes player-image-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.012); } }
-.player-idle { height: 100%; display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; opacity: .8; }
-.player-idle-clock { display: block; width: clamp(260px, 30vw, 360px); height: clamp(150px, 20vh, 190px); flex: none; }
-.player-idle-clock .message-band.clock-only { display: flex; width: 100%; height: 100%; grid-template-columns: 1fr; gap: 0; padding: clamp(14px, 2.4vw, 26px); border: 1px solid rgba(226, 235, 255, .24); border-radius: var(--radius); background: linear-gradient(120deg, rgba(7, 20, 48, .72), rgba(8, 24, 55, .62)); box-shadow: 0 16px 48px rgba(0, 0, 0, .24); backdrop-filter: blur(28px) saturate(145%); }
-.player-idle-clock .message-band.clock-only .message-band-clock { grid-template-rows: 2fr 1fr; border-right: 0; }
-.player-idle-clock .message-band.clock-only .message-band-time { font-size: clamp(48px, 6vw, 76px); font-weight: 300; }
-.player-idle-clock .message-band.clock-only .message-band-date { justify-content: center; gap: 8px; padding-top: 0; border-top: 0; }
-.player-idle-clock .message-band.clock-only .message-band-date--full { flex-direction: column; }
+.player-idle { height: 100%; display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; }
+.player-idle-clock { display: block; width: clamp(260px, 30vw, 360px); height: clamp(170px, 24vh, 220px); flex: none; }
+.player-idle-clock .message-band.clock-only { display: flex; width: 100%; height: 100%; grid-template-columns: 1fr; gap: 0; padding: clamp(14px, 2.4vw, 26px); border: 1px solid rgba(226, 235, 255, .3); border-radius: var(--radius); background: linear-gradient(120deg, rgba(45, 50, 67, .88), rgba(54, 60, 75, .82)); box-shadow: 0 16px 48px rgba(0, 0, 0, .24); backdrop-filter: blur(28px) saturate(145%); }
+.player-idle-clock .message-band.clock-only .message-band-clock { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; border-right: 0; }
+.player-idle-clock .message-band.clock-only .message-band-time { flex: none; min-height: 0; font-size: clamp(48px, 6vw, 76px); font-weight: 300; line-height: 1; }
+.player-idle-clock .message-band.clock-only .message-band-date { flex: none; min-height: 0; justify-content: center; gap: 8px; padding-top: 0; border-top: 0; line-height: 1.35; }
+.player-idle-clock .message-band.clock-only .message-band-date--full { align-items: center; flex-direction: column; text-align: center; }
 .player-idle-clock .message-band.clock-only .message-band-date > strong,
 .player-idle-clock .message-band.clock-only .message-band-date > span { font-size: clamp(14px, 1.4vw, 18px); }
 .player-idle-clock .message-band.clock-only .message-band-full-date { color: #c1ccdf; font-size: clamp(14px, 1.4vw, 17px); font-weight: 650; line-height: 1.35; text-align: center; text-transform: none; }

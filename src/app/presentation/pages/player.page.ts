@@ -45,7 +45,6 @@ const IDLE_RETRY_MS = 5_000;
           @if (messages().length) {
             <div class="player-idle"><p>Mensagem fixa em exibição</p></div>
           } @else {
-            <div class="player-idle-shade" aria-hidden="true"></div>
             <div class="player-idle">
               <app-message-band class="player-idle-clock" [clockOnly]="true" [fullDate]="true"/>
               @if (!connected()) { <p>Não foi possível conectar ao player.</p> }

@@ -14,7 +14,6 @@ const CLOCK_FORMAT = new Intl.DateTimeFormat('pt-BR', {
 });
 const FULL_DATE_FORMAT = new Intl.DateTimeFormat('pt-BR', {
   timeZone: BUSINESS_TIME_ZONE,
-  weekday: 'long',
   day: 'numeric',
   month: 'long',
   year: 'numeric',
