@@ -122,12 +122,12 @@ body {
 .notice { padding: 12px 16px; margin-bottom: 14px; border-radius: var(--radius-control); }
 .error-notice { color: #a92c25; background: #fff0ef; }
 .success { color: var(--success); }
-.danger-button { color: #fff; background: #bb2d23; border-color: #bb2d23; }
+.confirm-content .danger-button { color: #991b1b; background: #fee2e2; border-color: #fecaca; }
 .confirm-content { display: flex; flex-direction: column; gap: 12px; padding: 8px 0; }
 .confirm-content h2 { margin: 0; font-size: 20px; font-weight: 500; }
 .confirm-content .actions { margin-top: 12px; }
 .confirm-icon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 50%; color: #c52e24; background: #fff0ef; }
-.danger-button:hover { background: #a7261e; color: #fff; }
+.confirm-content .danger-button:hover { color: #fff; background: #991b1b; border-color: #991b1b; }
 
 .cal {
   display: flex;

@@ -28,7 +28,7 @@
   }
 }
 .main { padding-top: 38px; }
-.main > * { max-width: 960px; animation: page-enter .42s ease both; }
+.main > * { max-width: 960px; }
 .card, .tile, .login-card, .modal {
   background: var(--surface);
   border-color: var(--border);
@@ -128,11 +128,6 @@
 .login-card { max-width: 390px; padding: 40px; border-radius: var(--radius); }
 .login-logo { margin-bottom: 8px; }
 .login-logo h1 { font-size: 30px; }
-
-@keyframes page-enter {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
 
 @media (max-width: 800px) {
   .side {
