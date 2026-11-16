@@ -39,7 +39,7 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
     <section class="program-workspace" aria-label="Gerenciar programações">
       <aside class="program-browser" aria-label="Lista de programações">
         <div class="program-browser-heading">
-          <div><h2>Suas programações</h2></div>
+          <div><h2>Programações</h2></div>
           <button class="btn primary small" type="button" (click)="openCreate()" aria-label="Criar nova programação">
             <app-icon name="plus" [size]="15"/> Nova
           </button>

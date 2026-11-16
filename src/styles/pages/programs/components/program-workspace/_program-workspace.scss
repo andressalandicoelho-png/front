@@ -2,8 +2,8 @@
 .program-workspace {
   display: grid;
   min-height: 0;
-  grid-template-columns: minmax(180px, .85fr) minmax(0, 4fr) minmax(220px, 1.1fr);
-  gap: 12px;
+  grid-template-columns: minmax(230px, 1.15fr) minmax(0, 3.8fr) minmax(220px, 1.1fr);
+  gap: 8px;
   background: transparent;
 }
 .program-browser {
@@ -151,7 +151,7 @@
     min-height: 0;
     flex-direction: column;
     overflow: hidden;
-    padding: 18px 28px;
+    padding: 12px 14px;
   }
   .main > app-programs {
     display: flex;

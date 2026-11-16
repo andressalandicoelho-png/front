@@ -398,7 +398,9 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
 
     const pageSize = window.innerWidth <= 650
       ? 6
-      : Math.min(6, this.visibleRowsForViewport(columns) * columns);
+      : window.innerHeight <= 800
+        ? 3
+        : Math.min(6, this.visibleRowsForViewport(columns) * columns);
     if (pageSize !== oldPageSize) {
       this.pageSize.set(pageSize);
       this.page.set(Math.min(Math.floor(firstItemIndex / pageSize), this.pageCount() - 1));
