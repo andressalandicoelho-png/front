@@ -1,10 +1,12 @@
+import { PublicationType } from '@domain/publication/publication.entity';
+
 export interface ProgramEntry {
   id: number;
   position: number;
   publicationId: number;
   publicationTitle: string;
   publicationContent: string | null;
-  publicationType: string;
+  publicationType: PublicationType;
   publicationStatus: string;
   displaySeconds: number | null;
   originalDurationSeconds: number | null;

@@ -27,14 +27,14 @@ const IDLE_RETRY_MS = 5_000;
       @if (fullscreenError()) {
         <p class="player-fullscreen-error" role="alert">{{ fullscreenError() }}</p>
       }
-      @if (programName()) {
+      @if (programName() && (current() || messages().length)) {
         <div class="player-status">
           <strong>{{ programName() }}</strong>
           <span [class.disconnected]="!connected() || !programActive()">{{ !connected() ? 'Conexão interrompida · tentando reconectar' : programActive() ? 'Player conectado' : 'Programação pausada' }}</span>
           @if (lastUpdated()) { <small>Atualizado {{ lastUpdated() | date:'HH:mm:ss' }}</small> }
         </div>
       }
-      <main class="player-stage">
+      <main class="player-stage" [class.player-stage--idle]="!current()">
         @for (item of currentItems(); track item.key) {
           @switch (item.type) {
             @case ('IMAGE') { <img [src]="item.mediaUrl!" [alt]="item.title" animate.enter="player-image-enter" animate.leave="player-image-leave"> }
@@ -45,16 +45,15 @@ const IDLE_RETRY_MS = 5_000;
           @if (messages().length) {
             <div class="player-idle"><p>Mensagem fixa em exibição</p></div>
           } @else {
+            <div class="player-idle-shade" aria-hidden="true"></div>
             <div class="player-idle">
-              <span class="brand-mark big">TV</span>
-              <p>{{ !connected() ? 'Não foi possível conectar ao player' : !programActive() ? 'Esta programação está pausada' : 'Sem conteúdo programado neste horário' }}</p>
-              @if (programName()) { <small>{{ programName() }}</small> }
-              <button type="button" class="player-retry" (click)="refresh()">Tentar novamente</button>
+              <app-message-band class="player-idle-clock" [clockOnly]="true" [fullDate]="true"/>
+              @if (!connected()) { <p>Não foi possível conectar ao player.</p> }
             </div>
           }
         }
       </main>
-      <app-message-band [messages]="messages()" [clockOnly]="!messages().length"/>
+      @if (messages().length) { <app-message-band [messages]="messages()"/> }
     </div>`,
 })
 export class PlayerPage implements OnInit, OnDestroy {

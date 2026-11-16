@@ -27,7 +27,6 @@
 .main app-programs .program-open { display: inline-flex; align-items: center; gap: 5px; }
 .main app-programs .program-delete-button { color: #b42318; border-color: #f0c7c4; }
 .main app-programs .program-delete-button:hover { color: #a11b12; border-color: #e7aaa5; background: #fff5f4; }
-.main app-programs .program-delete-confirm > .muted { line-height: 1.6; }
 
 @media (max-width: 800px) {
   .main app-programs .program-list-head { align-items: stretch; flex-direction: column; }

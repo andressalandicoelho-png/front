@@ -15,6 +15,7 @@ import { ToastService } from '@presentation/core/toast.service';
 import { typeLabel } from '@presentation/core/format';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
+import { ConfirmActionComponent } from '@presentation/ui/confirm-action.component';
 import { PaginationComponent } from '@presentation/ui/pagination.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
 import { generateVideoPreview } from '@presentation/ui/video-thumbnail';
@@ -31,7 +32,7 @@ interface ZipImagePreview {
 
 @Component({
   selector: 'app-publications',
-  imports: [FormsModule, IconComponent, ModalComponent, PaginationComponent, SecureMediaComponent],
+  imports: [FormsModule, IconComponent, ModalComponent, ConfirmActionComponent, PaginationComponent, SecureMediaComponent],
   template: `
     <section class="card content-filters">
       <div class="content-filter-row">
@@ -274,11 +275,13 @@ interface ZipImagePreview {
       </app-modal>
     }
     @if (pendingDelete(); as publication) {
-      <app-modal title="Confirmar exclusão de conteúdo" (closed)="pendingDelete.set(null)">
-        <div class="confirm-content"><span class="confirm-icon danger"><app-icon name="trash" [size]="22"/></span><h2>Excluir “{{ publication.title }}”?</h2><p class="muted">Exclusão permanente; não será possível agendá-lo novamente.</p>
-          <div class="actions"><button class="btn" type="button" (click)="pendingDelete.set(null)">Cancelar</button><button class="btn danger-button" type="button" (click)="confirmRemove(publication)">Excluir conteúdo</button></div>
-        </div>
-      </app-modal>
+      <app-confirm-action
+        title="Confirmar exclusão de conteúdo"
+        [heading]="'Excluir “' + publication.title + '”?'"
+        message="Exclusão permanente; não será possível agendá-lo novamente."
+        confirmLabel="Excluir conteúdo"
+        (cancelled)="pendingDelete.set(null)"
+        (confirmed)="confirmRemove(publication)"/>
     }
   `,
 })

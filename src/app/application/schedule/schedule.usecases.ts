@@ -13,6 +13,12 @@ export class ListScheduleUseCase {
 }
 
 @Injectable({ providedIn: 'root' })
+export class ListExpiredProgramPublicationsUseCase {
+  private repo = inject(ScheduleRepository);
+  execute(programId: number) { return this.repo.expiredPublicationIds(programId); }
+}
+
+@Injectable({ providedIn: 'root' })
 export class CreateScheduleEntryUseCase {
   private repo = inject(ScheduleRepository);
   execute(input: NewScheduleEntry): Observable<ScheduleEntry> {

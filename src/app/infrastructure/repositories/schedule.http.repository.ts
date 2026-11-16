@@ -29,6 +29,10 @@ export class HttpScheduleRepository extends ScheduleRepository {
       .pipe(map(l => l.map(toEntry)));
   }
 
+  expiredPublicationIds(programId: number): Observable<number[]> {
+    return this.http.get<number[]>(api(`/schedule/program/${programId}/expired-publications`));
+  }
+
   create(input: NewScheduleEntry): Observable<ScheduleEntry> {
     return this.http.post<any>(api('/schedule'), input).pipe(map(toEntry));
   }

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { GetPublicationReportUseCase } from '@application/report/report.usecases';
 import { PublicationParticipation } from '@domain/report/report.entity';
 import { errorMessage } from '@presentation/core/error-message';
+import { formatDate } from '@presentation/core/format';
 import { DatePickerComponent } from '@presentation/ui/date-picker.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { PaginationComponent } from '@presentation/ui/pagination.component';
@@ -71,6 +72,7 @@ const dateInput = (date: Date): string =>
   `,
 })
 export class ReportsPage implements OnInit {
+  readonly formatDate = formatDate;
   private reportUC = inject(GetPublicationReportUseCase);
   rows = signal<PublicationParticipation[]>([]);
   from = dateInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -234,8 +236,4 @@ export class ReportsPage implements OnInit {
     }
   }
 
-  private formatDate(value: string): string {
-    const [year, month, day] = value.split('-');
-    return `${day}/${month}/${year}`;
-  }
 }

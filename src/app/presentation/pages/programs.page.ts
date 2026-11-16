@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ListPublicationsUseCase } from '@application/publication/publication.usecases';
@@ -8,27 +8,31 @@ import {
 import {
   ScheduleProgramEntriesError, ScheduleProgramEntriesUseCase,
 } from '@application/program/schedule-program-entries.usecase';
-import { ListScheduleUseCase } from '@application/schedule/schedule.usecases';
+import { ListExpiredProgramPublicationsUseCase, ListScheduleUseCase } from '@application/schedule/schedule.usecases';
 import { GeneratePlayerTokenUseCase } from '@application/user/user.usecases';
 import { Program } from '@domain/program/program.entity';
-import { Publication } from '@domain/publication/publication.entity';
+import { displayDurationSeconds, Publication } from '@domain/publication/publication.entity';
 import { ScheduleEntry } from '@domain/schedule/schedule.entity';
 import { currentBusinessDate, currentBusinessTime, datesBetweenInclusive, toMinutes } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@presentation/core/error-message';
+import { formatDate } from '@presentation/core/format';
 import { AuthState } from '@presentation/core/auth.state';
 import { ToastService } from '@presentation/core/toast.service';
 import { publicationTypeName } from '@presentation/formatters/publication-type-name';
 import { PublicationScheduleForm } from '@presentation/models/publication-schedule-form';
 import { DatePickerComponent } from '@presentation/ui/date-picker.component';
+import { ConfirmActionComponent } from '@presentation/ui/confirm-action.component';
+import { ContentPreviewComponent } from '@presentation/ui/content-preview.component';
 import { IconComponent } from '@presentation/ui/icon.component';
 import { ModalComponent } from '@presentation/ui/modal.component';
 import { CalendarReviewTableComponent } from '@presentation/ui/calendar-review-table.component';
 import { ProgramPreviewComponent, ProgramPreviewItem } from '@presentation/ui/program-preview.component';
+import { PublicationSelectionItemComponent } from '@presentation/ui/publication-selection-item.component';
 import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
 
 @Component({
   selector: 'app-programs',
-  imports: [FormsModule, DatePickerComponent, IconComponent, ModalComponent, CalendarReviewTableComponent, ProgramPreviewComponent, SecureMediaComponent],
+  imports: [FormsModule, DatePickerComponent, ConfirmActionComponent, ContentPreviewComponent, IconComponent, ModalComponent, CalendarReviewTableComponent, ProgramPreviewComponent, PublicationSelectionItemComponent, SecureMediaComponent],
   template: `
     @if (error()) { <div class="notice error-notice" role="alert">{{ error() }}</div> }
 
@@ -76,101 +80,108 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
               <span class="status" [class.live]="program.active">{{ program.active ? 'Ativa' : 'Pausada' }}</span>
             </div>
             <div class="program-inspector-actions">
-              <button class="btn small" type="button" [disabled]="!program.entries.length" (click)="previewOpen.set(true)">
-                <app-icon name="play" [size]="15"/> Prévia
-              </button>
-              <button class="btn small" type="button" (click)="toggle(program)">{{ program.active ? 'Pausar' : 'Ativar' }}</button>
-              <button class="btn small" type="button" (click)="openEdit(program)">Editar nome</button>
               <button class="btn small program-delete-button" type="button" (click)="requestDelete(program)"><app-icon name="trash" [size]="15"/> Excluir</button>
               <button class="btn primary small" type="button" (click)="openAddEntries()"><app-icon name="plus" [size]="15"/> Adicionar conteúdo</button>
             </div>
           </header>
 
-          <section class="program-connection" aria-labelledby="program-connection-title">
-            <div class="program-section-heading">
-              <div><h3 id="program-connection-title">Conectar à TV</h3></div>
-              @if (!program.active) {
-                <span class="program-connection-state">Programação pausada</span>
-              } @else if (!program.entries.length) {
-                <span class="program-connection-state">Adicione conteúdo</span>
-              } @else if (programScheduleLoading()) {
-                <span class="program-connection-state" role="status">Verificando agenda</span>
-              } @else if (programScheduleError()) {
-                <span class="program-connection-state" role="alert">Agenda indisponível</span>
-              }
+          <section class="program-sequence" aria-label="Sequência de conteúdo">
+            <label class="search-field program-sequence-search">
+              <app-icon name="search" [size]="16"/>
+              <input class="input" type="search" placeholder="Buscar conteúdo nesta programação" aria-label="Buscar conteúdo agendado"
+                [ngModel]="sequenceSearch()" (ngModelChange)="sequenceSearch.set($event)">
+            </label>
+            <div class="program-sequence-table-head" aria-hidden="true">
+              <span>Ordem</span><span>Conteúdo</span><span>Tipo</span><span>Excluir</span>
             </div>
-            @if (programScheduleLoading()) {
-              <p class="program-connection-note" role="status">Consultando os horários dos próximos 30 dias…</p>
-            } @else if (programScheduleError()) {
-              <p class="program-connection-note" role="alert">{{ programScheduleError() }} <button class="link-button" type="button" (click)="loadProgramSchedule(program.id)">Tentar novamente</button></p>
-            }
-            @if (playerToken(); as token) {
-              <div class="program-tv-actions">
-                <input class="input" [class.copied]="copiedProgramId() === program.id" aria-label="Link da programação para TV" readonly [value]="playerUrl(token, program.id)">
-                <button class="btn small" type="button" (click)="copyPlayerUrl(program.id)"><app-icon name="copy" [size]="15"/> Copiar</button>
-                @if (canTestProgram()) {
-                  <a class="btn small" [href]="playerUrl(token, program.id)" target="_blank" rel="noopener">Testar</a>
+            <div class="program-sequence-list">
+              @for (item of filteredSequenceEntries(); track item.entry.id) {
+                <article class="program-sequence-item">
+                  <span class="program-sequence-position">{{ item.position.toString().padStart(2, '0') }}</span>
+                  <span class="program-sequence-thumb media-thumb"><app-secure-media [mediaId]="item.entry.mediaFileId" [type]="item.entry.publicationType === 'MESSAGE' ? 'MESSAGE' : item.entry.publicationType === 'VIDEO' ? 'VIDEO' : item.entry.publicationType === 'LINK' ? 'LINK' : 'IMAGE'"/></span>
+                  <span class="program-sequence-copy">
+                    <span class="program-sequence-title-row">
+                      <strong>{{ item.entry.publicationTitle }}</strong>
+                      <button type="button" class="icon-btn program-sequence-view" [attr.aria-label]="'Visualizar ' + item.entry.publicationTitle" title="Visualizar" (click)="previewEntry.set(item.entry)">
+                        <app-icon name="eye" [size]="17"/>
+                      </button>
+                    </span>
+                    @if (item.entry.publicationType === 'MESSAGE') {
+                      <small class="program-sequence-duration">Fixa durante o horário agendado</small>
+                    }
+                    @if (nextScheduleFor(item.entry.publicationId); as schedule) {
+                      <small class="program-sequence-schedule">Próxima exibição: {{ formatDate(schedule.date) }} · {{ schedule.startTime }}–{{ schedule.endTime }}</small>
+                    }
+                  </span>
+                  <span class="program-sequence-type">{{ typeName(item.entry.publicationType) }}</span>
+                  <button type="button" class="icon-btn danger" [attr.aria-label]="'Remover ' + item.entry.publicationTitle + ' da sequência'" title="Excluir" (click)="requestRemoveEntry(program, item.entry)">
+                    <app-icon name="trash" [size]="17"/>
+                  </button>
+                </article>
+              } @empty {
+                @if (sequenceSearch().trim()) {
+                  <div class="program-sequence-empty">
+                    <span class="empty-icon"><app-icon name="search" [size]="22"/></span>
+                    <div><strong>Nenhum conteúdo encontrado</strong><p>Tente outro termo de busca.</p></div>
+                    <button class="link-button" type="button" (click)="sequenceSearch.set('')">Limpar busca</button>
+                  </div>
+                } @else if (allEntriesExpired(program)) {
+                  <div class="program-sequence-empty">
+                    <span class="empty-icon"><app-icon name="layers" [size]="22"/></span>
+                    <div><strong>Conteúdos já exibidos</strong><p>Não há novas exibições agendadas.</p></div>
+                  </div>
                 } @else {
-                  <button class="btn small" type="button" disabled>Testar</button>
+                  <div class="program-sequence-empty">
+                    <span class="empty-icon"><app-icon name="layers" [size]="22"/></span>
+                    <div><strong>Sequência vazia</strong><p>Adicione conteúdos publicados para definir o que esta TV deve reproduzir.</p></div>
+                    <button class="btn primary small" type="button" (click)="openAddEntries()"><app-icon name="plus" [size]="15"/> Adicionar conteúdo</button>
+                  </div>
                 }
-                <button class="btn small" type="button" [disabled]="generatingToken()" (click)="generatePlayerToken()">
-                  <app-icon name="link" [size]="15"/> {{ generatingToken() ? 'Gerando…' : 'Gerar link' }}
-                </button>
-              </div>
-            } @else {
-              <div class="program-tv-actions">
-                <button class="btn small" type="button" disabled>Testar</button>
-                <button class="btn small" type="button" [disabled]="generatingToken()" (click)="generatePlayerToken()">
-                  {{ generatingToken() ? 'Gerando link…' : auth.user()?.hasPlayerToken ? 'Renovar link da TV' : 'Gerar link da TV' }}
-                </button>
-              </div>
-              @if (auth.user()?.hasPlayerToken) {
-                <p class="program-token-warning">Renovar o link invalida os endereços de TV já compartilhados.</p>
               }
-            }
-          </section>
-
-          <section class="program-sequence" aria-labelledby="program-sequence-title">
-            <div class="program-section-heading program-sequence-heading">
-              <h3 id="program-sequence-title">Sequência de conteúdo</h3>
-              <label class="search-field program-sequence-search">
-                <app-icon name="search" [size]="16"/>
-                <input class="input" type="search" placeholder="Buscar conteúdo" aria-label="Buscar conteúdo agendado"
-                  [ngModel]="sequenceSearch()" (ngModelChange)="sequenceSearch.set($event)">
-              </label>
             </div>
-            @for (item of filteredSequenceEntries(); track item.entry.id) {
-              <article class="program-sequence-item">
-                <span class="program-sequence-position">{{ item.position.toString().padStart(2, '0') }}</span>
-                <span class="program-sequence-thumb media-thumb"><app-secure-media [mediaId]="item.entry.mediaFileId" [type]="item.entry.publicationType === 'MESSAGE' ? 'MESSAGE' : item.entry.publicationType === 'VIDEO' ? 'VIDEO' : item.entry.publicationType === 'LINK' ? 'LINK' : 'IMAGE'"/></span>
-                <span class="program-sequence-copy">
-                  @if (item.entry.publicationType === 'MESSAGE') {
-                    <small>Mensagem · Fixa durante o horário agendado</small>
-                  } @else {
-                    <small>{{ item.entry.publicationTitle }}</small>
-                  }
-                </span>
-                <button type="button" class="icon-btn danger" [attr.aria-label]="'Remover ' + item.entry.publicationTitle + ' da sequência'" title="Remover da sequência" (click)="removeEntry(program, item.entry.id)">
-                  <app-icon name="trash" [size]="17"/>
-                </button>
-              </article>
-            } @empty {
-              @if (program.entries.length) {
-                <div class="program-sequence-empty">
-                  <span class="empty-icon"><app-icon name="search" [size]="22"/></span>
-                  <div><strong>Nenhum conteúdo encontrado</strong><p>Tente outro termo de busca.</p></div>
-                  <button class="link-button" type="button" (click)="sequenceSearch.set('')">Limpar busca</button>
-                </div>
-              } @else {
-                <div class="program-sequence-empty">
-                  <span class="empty-icon"><app-icon name="layers" [size]="22"/></span>
-                  <div><strong>Sequência vazia</strong><p>Adicione conteúdos publicados para definir o que esta TV deve reproduzir.</p></div>
-                  <button class="btn primary small" type="button" (click)="openAddEntries()"><app-icon name="plus" [size]="15"/> Adicionar conteúdo</button>
-                </div>
-              }
-            }
           </section>
         </section>
+        <aside class="program-connection-panel" aria-labelledby="program-connection-title">
+          <header class="program-connection-heading">
+            <span class="program-connection-icon"><app-icon name="tv" [size]="17"/></span>
+            <h3 id="program-connection-title">Conectar à TV</h3>
+          </header>
+          @if (!program.active) {
+            <span class="program-connection-state">Programação pausada</span>
+          } @else if (!program.entries.length) {
+            <span class="program-connection-state">Adicione conteúdo</span>
+          } @else if (programScheduleLoading()) {
+            <span class="program-connection-state" role="status">Verificando agenda</span>
+          } @else if (programScheduleError()) {
+            <span class="program-connection-state" role="alert">Agenda indisponível</span>
+          }
+          @if (programScheduleLoading()) {
+            <p class="program-connection-note" role="status">Consultando os horários dos próximos 30 dias…</p>
+          } @else if (programScheduleError()) {
+            <p class="program-connection-note" role="alert">{{ programScheduleError() }} <button class="link-button" type="button" (click)="loadProgramSchedule(program.id)">Tentar novamente</button></p>
+          }
+          @if (playerToken(); as token) {
+            <label class="program-connection-label" for="program-player-link">Link da programação</label>
+            <input id="program-player-link" class="input program-player-link" [class.copied]="copiedProgramId() === program.id" aria-label="Link da programação para TV" readonly [value]="playerUrl(token, program.id)">
+            <button class="btn primary block" type="button" (click)="copyPlayerUrl(program.id)"><app-icon name="copy" [size]="15"/> Copiar link</button>
+          } @else {
+            <button class="btn primary block" type="button" [disabled]="generatingToken()" (click)="generatePlayerToken()">
+              {{ generatingToken() ? 'Gerando link…' : auth.user()?.hasPlayerToken ? 'Renovar link da TV' : 'Gerar link da TV' }}
+            </button>
+          }
+          <button class="btn block" type="button" [disabled]="!program.entries.length" (click)="previewOpen.set(true)"><app-icon name="tv" [size]="15"/> Ver prévia</button>
+          @if (auth.user()?.hasPlayerToken && !playerToken()) {
+            <p class="program-token-warning">Renovar o link invalida os endereços de TV já compartilhados.</p>
+          }
+          @if (playerToken()) {
+            <div class="program-connection-divider"></div>
+            <strong class="program-connection-secondary-title">Precisa de outro link?</strong>
+            <button class="btn block" type="button" [disabled]="generatingToken()" (click)="generatePlayerToken()">
+              <app-icon name="link" [size]="15"/> {{ generatingToken() ? 'Gerando…' : 'Gerar link' }}
+            </button>
+          }
+          <button class="btn block program-connection-toggle" type="button" (click)="toggle(program)">{{ program.active ? 'Pausar' : 'Ativar' }}</button>
+        </aside>
       } @else {
         <section class="program-inspector program-inspector-empty empty-state" aria-live="polite">
           <span class="empty-icon"><app-icon [name]="programs().length ? 'layers' : 'tv'" [size]="24"/></span>
@@ -187,17 +198,15 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
         (closed)="previewOpen.set(false)"/>
     }
 
+    @if (previewEntry(); as entry) {
+      <app-modal [title]="entry.publicationTitle" (closed)="previewEntry.set(null)">
+        <app-content-preview [type]="entry.publicationType" [content]="entry.publicationContent"
+          [mediaId]="entry.mediaFileId" [linkUrl]="entry.linkUrl" [autoplay]="entry.publicationType === 'VIDEO'"/>
+      </app-modal>
+    }
+
     @if (modal()) {
-      @if (modalMode() === 'edit') {
-        <app-modal title="Editar programação" (closed)="closeModal()">
-          <form class="stack" (ngSubmit)="saveProgram()">
-            <label class="field">Nome da programação<input class="input" name="name" [(ngModel)]="name" maxlength="120" required></label>
-            @if (error()) { <p class="error">{{ error() }}</p> }
-            <button class="btn primary block" type="submit" [disabled]="saving() || name.trim().length < 2">Salvar alterações</button>
-          </form>
-        </app-modal>
-      } @else {
-        <app-modal class="calendar-modal add-content-modal" title="Adicionar conteúdos"
+      <app-modal class="calendar-modal add-content-modal" title="Adicionar conteúdos"
           subtitle="Selecione as mídias da biblioteca e configure os horários de exibição."
           (closed)="closeModal()">
           <form class="add-content-dialog" (ngSubmit)="saveEntries()">
@@ -296,19 +305,16 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
               } @else {
                 <div class="add-content-list" role="list" aria-label="Conteúdos disponíveis">
                   @for (publication of filteredAvailablePublications(); track publication.id) {
-                    <label class="add-content-item" role="listitem" [class.selected]="selectedPublicationIds().includes(publication.id)" [class.already-added]="entriesAdded()">
-                      <input type="checkbox" [checked]="selectedPublicationIds().includes(publication.id)" [disabled]="saving() || entriesAdded()" (change)="togglePublication(publication.id, $event)">
-                      <span class="add-content-thumb media-thumb"><app-secure-media [mediaId]="publication.mediaId" [type]="publication.type"/></span>
-                      <span class="add-content-info">
-                        <span class="add-content-title-row"><strong>{{ publication.title }}</strong><small class="add-content-published">{{ entriesAdded() ? 'Na programação' : 'Publicado' }}</small></span>
-                        <small>{{ publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + (publication.displaySeconds ?? publication.originalDurationSeconds ?? 30) + ' s' }}</small>
-                      </span>
-                      <span class="add-content-status">
-                        @if (entriesAdded()) { Na programação }
-                        @else if (selectedPublicationIds().includes(publication.id)) { Selecionado }
-                        @else { Disponível }
-                      </span>
-                    </label>
+                    <app-publication-selection-item
+                      [publication]="publication"
+                      [checked]="selectedPublicationIds().includes(publication.id)"
+                      [disabled]="saving() || entriesAdded()"
+                      [selected]="selectedPublicationIds().includes(publication.id)"
+                      [alreadyAdded]="entriesAdded()"
+                      [badge]="entriesAdded() ? 'Na programação' : 'Publicado'"
+                      [description]="publication.type === 'MESSAGE' ? 'Fixa durante o horário agendado' : typeName(publication.type) + ' · ' + (publication.displaySeconds ?? publication.originalDurationSeconds ?? 30) + ' s'"
+                      [status]="entriesAdded() ? 'Na programação' : selectedPublicationIds().includes(publication.id) ? 'Selecionado' : 'Disponível'"
+                      (selectionChanged)="togglePublication(publication.id, $event)"/>
                   } @empty {
                     <div class="add-content-empty empty-state">
                       <app-icon name="search" [size]="18"/>
@@ -339,25 +345,31 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
               </div>
             }
           </form>
-        </app-modal>
-      }
+      </app-modal>
+    }
+
+    @if (pendingEntryRemoval(); as pending) {
+      <app-confirm-action
+        title="Excluir conteúdo da programação?"
+        [heading]="'Excluir “' + pending.entry.publicationTitle + '”?'"
+        message="O conteúdo será removido da sequência desta programação. A publicação e os agendamentos no calendário serão mantidos."
+        confirmLabel="Excluir conteúdo"
+        [busy]="deletingEntry()"
+        [error]="entryRemovalError()"
+        (cancelled)="closeEntryRemoval()"
+        (confirmed)="confirmEntryRemoval()"/>
     }
 
     @if (pendingDeletion(); as program) {
-      <app-modal title="Excluir programação?" (closed)="closeDeleteConfirmation()">
-        <div class="confirm-content program-delete-confirm">
-          <span class="confirm-icon danger"><app-icon name="trash" [size]="22"/></span>
-          <h2>Excluir “{{ program.name }}”?</h2>
-          <p class="muted">A sequência e os agendamentos sairão do calendário. O histórico e as publicações serão mantidos.</p>
-          @if (deleteError()) { <p class="error" role="alert">{{ deleteError() }}</p> }
-          <div class="actions">
-            <button class="btn" type="button" [disabled]="deleting()" (click)="closeDeleteConfirmation()">Cancelar</button>
-            <button class="btn danger-button" type="button" [disabled]="deleting()" (click)="confirmDelete(program)">
-              {{ deleting() ? 'Excluindo…' : 'Excluir programação' }}
-            </button>
-          </div>
-        </div>
-      </app-modal>
+      <app-confirm-action
+        title="Excluir programação?"
+        [heading]="'Excluir “' + program.name + '”?'"
+        message="A sequência e os agendamentos sairão do calendário. O histórico e as publicações serão mantidos."
+        confirmLabel="Excluir programação"
+        [busy]="deleting()"
+        [error]="deleteError()"
+        (cancelled)="closeDeleteConfirmation()"
+        (confirmed)="confirmDelete(program)"/>
     }
 
     @if (pendingTokenRenewal()) {
@@ -374,7 +386,7 @@ import { SecureMediaComponent } from '@presentation/ui/secure-media.component';
     }
   `,
 })
-export class ProgramsPage implements OnInit {
+export class ProgramsPage implements OnInit, OnDestroy {
   readonly auth = inject(AuthState);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -383,11 +395,13 @@ export class ProgramsPage implements OnInit {
   private readonly deleteProgramUseCase = inject(DeleteProgramUseCase);
   private readonly addProgramEntriesUseCase = inject(AddProgramEntriesUseCase);
   private readonly scheduleProgramEntriesUseCase = inject(ScheduleProgramEntriesUseCase);
+  private readonly listExpiredProgramPublicationsUseCase = inject(ListExpiredProgramPublicationsUseCase);
   private readonly listScheduleUseCase = inject(ListScheduleUseCase);
   private readonly removeProgramEntryUseCase = inject(RemoveProgramEntryUseCase);
   private readonly listPublicationsUseCase = inject(ListPublicationsUseCase);
   private readonly generatePlayerTokenUseCase = inject(GeneratePlayerTokenUseCase);
   private readonly toastService = inject(ToastService);
+  readonly formatDate = formatDate;
   readonly typeName = publicationTypeName;
 
   programs = signal<Program[]>([]);
@@ -398,7 +412,6 @@ export class ProgramsPage implements OnInit {
   search = signal('');
   statusFilter = signal<'ALL' | 'ACTIVE' | 'PAUSED'>('ALL');
   modal = signal(false);
-  modalMode = signal<'edit' | 'add'>('edit');
   selectedPublicationIds = signal<number[]>([]);
   publicationSearch = signal('');
   sequenceSearch = signal('');
@@ -408,23 +421,29 @@ export class ProgramsPage implements OnInit {
   entriesAdded = signal(false);
   reviewingEntries = signal(false);
   previewOpen = signal(false);
+  previewEntry = signal<Program['entries'][number] | null>(null);
   scheduleProgress = signal({ completed: 0, total: 0 });
   today = currentBusinessDate();
   currentBusinessTime = signal(currentBusinessTime());
-  name = '';
   saving = signal(false);
   generatingToken = signal(false);
   copiedProgramId = signal<number | null>(null);
   error = signal('');
+  pendingEntryRemoval = signal<{ program: Program; entry: Program['entries'][number] } | null>(null);
+  entryRemovalError = signal('');
+  deletingEntry = signal(false);
   pendingDeletion = signal<Program | null>(null);
   pendingTokenRenewal = signal(false);
   deleteError = signal('');
   deleting = signal(false);
   private copiedLinkTimer: ReturnType<typeof setTimeout> | null = null;
   programSchedules = signal<ScheduleEntry[]>([]);
+  expiredPublicationIds = signal<number[] | null>(null);
   programScheduleLoading = signal(false);
   programScheduleError = signal('');
   private publicationsLoaded = false;
+  private expiredPublicationRequest = 0;
+  private scheduleStatusTimer: ReturnType<typeof setInterval> | null = null;
   previewItems = computed<ProgramPreviewItem[]>(() => (this.selected()?.entries ?? []).map(entry => this.previewItem(entry)));
   upcomingSchedules = computed(() => this.programSchedules()
     .filter(entry => entry.date > this.today || (entry.date === this.today && entry.endTime > this.currentBusinessTime()))
@@ -452,12 +471,14 @@ export class ProgramsPage implements OnInit {
   });
   filteredSequenceEntries = computed(() => {
     const query = this.sequenceSearch().trim().toLocaleLowerCase();
+    const expiredPublicationIds = new Set(this.expiredPublicationIds() ?? []);
     return (this.selected()?.entries ?? [])
-      .map((entry, index) => ({ entry, position: index + 1 }))
-      .filter(({ entry }) => !query ||
+      .filter(entry => !expiredPublicationIds.has(entry.publicationId))
+      .filter(entry => !query ||
         `${entry.publicationTitle} ${entry.publicationType} ${entry.publicationContent ?? ''}`
           .toLocaleLowerCase()
-          .includes(query));
+          .includes(query))
+      .map((entry, index) => ({ entry, position: index + 1 }));
   });
   availablePublications = computed(() => {
     const assigned = new Set(this.selected()?.entries.map(entry => entry.publicationId) ?? []);
@@ -493,6 +514,16 @@ export class ProgramsPage implements OnInit {
   ngOnInit(): void {
     this.loadPublications();
     this.load();
+    this.scheduleStatusTimer = setInterval(() => {
+      this.today = currentBusinessDate();
+      this.currentBusinessTime.set(currentBusinessTime());
+      const selected = this.selected();
+      if (selected) this.loadExpiredPublicationIds(selected.id);
+    }, 60_000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.scheduleStatusTimer) clearInterval(this.scheduleStatusTimer);
   }
 
   loadPublications(): void {
@@ -524,7 +555,10 @@ export class ProgramsPage implements OnInit {
           ?? (selected ? ownedPrograms.find(program => program.id === selected.id) : undefined);
         this.selected.set(target ?? null);
         if (target) this.loadProgramSchedule(target.id);
-        else this.programSchedules.set([]);
+        else {
+          this.programSchedules.set([]);
+          this.expiredPublicationIds.set(null);
+        }
       },
       error: error => this.error.set(errorMessage(error)),
     });
@@ -544,11 +578,13 @@ export class ProgramsPage implements OnInit {
     }
   }
   duration(entry: Program['entries'][number]): number {
-    if (entry.publicationType === 'VIDEO') return Math.min(entry.displaySeconds ?? entry.originalDurationSeconds ?? 10, entry.originalDurationSeconds ?? 10);
-    return entry.displaySeconds ?? 10;
+    return displayDurationSeconds(entry.publicationType, entry.displaySeconds, entry.originalDurationSeconds);
+  }
+  nextScheduleFor(publicationId: number): ScheduleEntry | undefined {
+    return this.upcomingSchedules().find(entry => entry.publicationId === publicationId);
   }
   private previewItem(entry: Program['entries'][number]): ProgramPreviewItem {
-    const schedule = this.upcomingSchedules().find(item => item.publicationId === entry.publicationId);
+    const schedule = this.nextScheduleFor(entry.publicationId);
     return {
       title: entry.publicationTitle,
       type: entry.publicationType,
@@ -565,16 +601,8 @@ export class ProgramsPage implements OnInit {
     this.router.navigate(['/programacao/nova']);
   }
 
-  openEdit(program: Program): void {
-    this.modalMode.set('edit');
-    this.name = program.name;
-    this.error.set('');
-    this.modal.set(true);
-  }
-
   openAddEntries(): void {
     this.loadPublications();
-    this.modalMode.set('add');
     this.selectedPublicationIds.set([]);
     this.publicationSearch.set('');
     this.publicationTypeFilter.set('ALL');
@@ -601,25 +629,9 @@ export class ProgramsPage implements OnInit {
   }
 
   closeModal(): void {
-    if (this.saving() || (this.modalMode() === 'add' && this.entriesAdded() &&
+    if (this.saving() || (this.entriesAdded() &&
       !this.selectedPublicationIds().every(id => this.scheduleComplete(id)))) return;
     this.modal.set(false);
-  }
-
-  saveProgram(): void {
-    const current = this.selected();
-    if (!current) return;
-    this.saving.set(true);
-    this.updateProgramUseCase.execute(current.id, { name: this.name.trim() }).subscribe({
-      next: program => {
-        this.saving.set(false);
-        this.modal.set(false);
-        this.selected.set(program);
-        this.toastService.show('Programação atualizada');
-        this.load();
-      },
-      error: error => { this.saving.set(false); this.error.set(errorMessage(error)); },
-    });
   }
 
   toggle(program: Program): void {
@@ -629,9 +641,8 @@ export class ProgramsPage implements OnInit {
     });
   }
 
-  togglePublication(id: number, event: Event): void {
+  togglePublication(id: number, checked: boolean): void {
     if (this.entriesAdded()) return;
-    const checked = (event.target as HTMLInputElement).checked;
     this.selectedPublicationIds.update(ids => checked ? [...ids, id] : ids.filter(value => value !== id));
   }
 
@@ -757,11 +768,6 @@ export class ProgramsPage implements OnInit {
     return total ? Math.round(completed / total * 100) : 0;
   }
 
-  formatDate(value: string): string {
-    const [year, month, day] = value.split('-').map(Number);
-    return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
-  }
-
   publicationTitle(id: number): string {
     return this.publications().find(publication => publication.id === id)?.title ?? `Conteúdo ${id}`;
   }
@@ -770,10 +776,34 @@ export class ProgramsPage implements OnInit {
     return this.publications().find(publication => publication.id === id);
   }
 
-  removeEntry(program: Program, entryId: number): void {
-    this.removeProgramEntryUseCase.execute(program.id, entryId).subscribe({
-      next: updated => { this.selected.set(updated); this.load(); this.toastService.show('Conteúdo removido da programação'); },
-      error: error => this.error.set(errorMessage(error)),
+  requestRemoveEntry(program: Program, entry: Program['entries'][number]): void {
+    this.entryRemovalError.set('');
+    this.pendingEntryRemoval.set({ program, entry });
+  }
+
+  closeEntryRemoval(): void {
+    if (this.deletingEntry()) return;
+    this.pendingEntryRemoval.set(null);
+    this.entryRemovalError.set('');
+  }
+
+  confirmEntryRemoval(): void {
+    const pending = this.pendingEntryRemoval();
+    if (!pending) return;
+    this.deletingEntry.set(true);
+    this.entryRemovalError.set('');
+    this.removeProgramEntryUseCase.execute(pending.program.id, pending.entry.id).subscribe({
+      next: updated => {
+        this.deletingEntry.set(false);
+        this.pendingEntryRemoval.set(null);
+        this.selected.set(updated);
+        this.load();
+        this.toastService.show('Conteúdo removido da programação');
+      },
+      error: error => {
+        this.deletingEntry.set(false);
+        this.entryRemovalError.set(errorMessage(error));
+      },
     });
   }
 
@@ -839,6 +869,8 @@ export class ProgramsPage implements OnInit {
     const end = endDate.toISOString().slice(0, 10);
     this.programScheduleLoading.set(true);
     this.programScheduleError.set('');
+    this.expiredPublicationIds.set(null);
+    this.loadExpiredPublicationIds(programId);
     this.listScheduleUseCase.execute({ from: start, to: end }).subscribe({
       next: entries => {
         this.programSchedules.set(entries.filter(entry => entry.programId === programId));
@@ -850,6 +882,28 @@ export class ProgramsPage implements OnInit {
         this.programScheduleLoading.set(false);
       },
     });
+  }
+
+  private loadExpiredPublicationIds(programId: number): void {
+    const request = ++this.expiredPublicationRequest;
+    this.listExpiredProgramPublicationsUseCase.execute(programId).subscribe({
+      next: ids => {
+        if (request === this.expiredPublicationRequest && this.selected()?.id === programId) {
+          this.expiredPublicationIds.set(ids);
+        }
+      },
+      error: () => {
+        if (request === this.expiredPublicationRequest && this.selected()?.id === programId && this.expiredPublicationIds() === null) {
+          this.expiredPublicationIds.set([]);
+        }
+      },
+    });
+  }
+
+  allEntriesExpired(program: Program): boolean {
+    const expired = this.expiredPublicationIds();
+    return !!expired?.length && program.entries.length > 0 &&
+      program.entries.every(entry => expired.includes(entry.publicationId));
   }
 
   copyPlayerUrl(programId: number): void {

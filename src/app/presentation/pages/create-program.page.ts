@@ -5,9 +5,10 @@ import { AddProgramEntriesUseCase, CreateProgramUseCase } from '@application/pro
 import { ListPublicationsUseCase } from '@application/publication/publication.usecases';
 import { CreateScheduleEntryUseCase } from '@application/schedule/schedule.usecases';
 import { Program } from '@domain/program/program.entity';
-import { Publication } from '@domain/publication/publication.entity';
+import { displayDurationSeconds, Publication } from '@domain/publication/publication.entity';
 import { currentBusinessDate, datesBetweenInclusive, toMinutes } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@presentation/core/error-message';
+import { formatDate } from '@presentation/core/format';
 import { ToastService } from '@presentation/core/toast.service';
 import { publicationTypeName } from '@presentation/formatters/publication-type-name';
 import { PublicationScheduleForm } from '@presentation/models/publication-schedule-form';
@@ -311,14 +312,11 @@ export class CreateProgramPage implements OnInit {
     });
   }
 
+  readonly formatDate = formatDate;
   readonly typeName = publicationTypeName;
 
   duration(publication: Publication): number {
-    if (publication.type === 'MESSAGE') return 0;
-    const naturalDuration = publication.originalDurationSeconds ?? publication.displaySeconds ?? 10;
-    return publication.type === 'VIDEO'
-      ? Math.min(publication.displaySeconds ?? naturalDuration, naturalDuration)
-      : publication.displaySeconds ?? 10;
+    return displayDurationSeconds(publication.type, publication.displaySeconds, publication.originalDurationSeconds);
   }
 
   isSelected(publicationId: number): boolean {
@@ -504,11 +502,6 @@ export class CreateProgramPage implements OnInit {
   scheduleProgressPercent(): number {
     const { completed, total } = this.scheduleProgress();
     return total ? Math.round(completed / total * 100) : 0;
-  }
-
-  private formatDate(value: string): string {
-    const [year, month, day] = value.split('-').map(Number);
-    return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
   }
 
   private scheduleKey(publicationId: number, date: string): string {

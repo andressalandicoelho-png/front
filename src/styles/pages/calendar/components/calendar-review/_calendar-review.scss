@@ -73,7 +73,5 @@
 .day-posts-add, .day-posts-close { min-height: 40px; gap: 7px; padding: 7px 14px; border-radius: var(--radius-control); font-size: 13px; }
 .day-post-preview { width: min(640px, calc(100vw - 40px)); gap: 18px; padding: 20px; }
 .day-post-preview header { font-size: 17px; }
-.day-post-preview-media { min-height: 240px; border-radius: 4px; }
-.day-post-preview-message, .day-post-preview-link { font-size: 15px; }
 .day-post-preview > small { font-size: 13px; }
 

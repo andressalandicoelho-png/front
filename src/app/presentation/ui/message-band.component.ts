@@ -12,6 +12,13 @@ const CLOCK_FORMAT = new Intl.DateTimeFormat('pt-BR', {
   minute: '2-digit',
   hourCycle: 'h23',
 });
+const FULL_DATE_FORMAT = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: BUSINESS_TIME_ZONE,
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+});
 
 export interface MessageBandItem {
   key?: string;
@@ -27,9 +34,13 @@ export interface MessageBandItem {
       [attr.aria-label]="clockOnly() ? 'Data e hora atuais' : 'Mensagens do player'">
       <div class="message-band-clock" aria-label="Data e hora atuais em Brasília">
         <time class="message-band-time">{{ time() }}</time>
-        <div class="message-band-date">
-          <strong>{{ day() }}</strong>
-          <span>{{ month() }}</span>
+        <div class="message-band-date" [class.message-band-date--full]="fullDate()">
+          @if (fullDate()) {
+            <span class="message-band-full-date">{{ fullDateLabel() }}</span>
+          } @else {
+            <strong>{{ day() }}</strong>
+            <span>{{ month() }}</span>
+          }
         </div>
       </div>
       <div class="message-band-copy" aria-live="polite">
@@ -57,6 +68,7 @@ export class MessageBandComponent implements AfterViewInit, OnInit, OnDestroy {
   messages = input<MessageBandItem[]>([]);
   compact = input(false);
   clockOnly = input(false);
+  fullDate = input(false);
 
   scrollMessage = signal(false);
   marqueeDuration = signal('24s');
@@ -64,6 +76,7 @@ export class MessageBandComponent implements AfterViewInit, OnInit, OnDestroy {
   day = signal('');
   month = signal('');
   time = signal('');
+  fullDateLabel = signal('');
   currentMessage = computed(() => this.messages()[this.currentIndex()] ?? null);
   visibleMessages = computed(() => {
     const message = this.currentMessage();
@@ -161,10 +174,13 @@ export class MessageBandComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private updateClock(): void {
-    const parts = CLOCK_FORMAT.formatToParts(new Date());
+    const now = new Date();
+    const parts = CLOCK_FORMAT.formatToParts(now);
     const value = (type: string) => parts.find(part => part.type === type)?.value ?? '';
     this.day.set(value('day'));
     this.month.set(value('month').replace('.', '').toLocaleUpperCase('pt-BR'));
     this.time.set(`${value('hour')}:${value('minute')}`);
+    const date = FULL_DATE_FORMAT.format(now);
+    this.fullDateLabel.set(date.charAt(0).toLocaleUpperCase('pt-BR') + date.slice(1));
   }
 }

@@ -34,6 +34,19 @@ export const DEFAULT_DISPLAY_SECONDS = 30;
 export const MAX_UPLOAD_BYTES = 300 * 1024 * 1024;
 export const MAX_MESSAGE_CONTENT_LENGTH = 900;
 
+export function displayDurationSeconds(
+  type: PublicationType,
+  displaySeconds: number | null,
+  originalDurationSeconds: number | null,
+): number {
+  if (type === 'MESSAGE') return 0;
+  if (type === 'VIDEO') {
+    const naturalDuration = originalDurationSeconds ?? displaySeconds ?? 10;
+    return Math.min(displaySeconds ?? naturalDuration, naturalDuration);
+  }
+  return displaySeconds ?? 10;
+}
+
 /** Regras de negócio para criar uma publicação. Retorna a mensagem de erro, ou null se válida. */
 export function validateNewPublication(p: NewPublication): string | null {
   if (!p.title.trim()) return 'Informe um título.';

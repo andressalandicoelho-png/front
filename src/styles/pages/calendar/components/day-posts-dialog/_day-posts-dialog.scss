@@ -3,8 +3,8 @@ app-modal:has(.day-posts-dialog) {
   inset: 0;
   z-index: 1100;
 }
-app-modal.calendar-removal-confirmation { position: fixed; inset: 0; z-index: 1102; }
-app-modal.calendar-removal-confirmation .backdrop { z-index: 1103; }
+app-modal.confirm-action--stacked { position: fixed; inset: 0; z-index: 1102; }
+app-modal.confirm-action--stacked .backdrop { z-index: 1103; }
 .backdrop:has(.day-posts-dialog) {
   position: fixed;
   inset: 0;
@@ -102,9 +102,6 @@ app-modal.calendar-removal-confirmation .backdrop { z-index: 1103; }
 .day-post-preview-backdrop { position: fixed; inset: 0; z-index: 1110; display: grid; place-items: center; padding: 20px; background: rgba(18, 27, 45, .45); }
 .day-post-preview { display: flex; width: min(520px, calc(100vw - 40px)); max-height: 80dvh; flex-direction: column; gap: 12px; overflow: auto; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; box-shadow: 0 8px 24px rgba(13, 25, 52, .14); }
 .day-post-preview header { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #303849; font-size: 12px; }
-.day-post-preview-media { width: 100%; min-height: 160px; max-height: 55dvh; overflow: hidden; border: 1px solid var(--border-soft); border-radius: var(--radius-control); background: #f3f5f8; }
-.day-post-preview-message { margin: 0; padding: 14px; border-radius: var(--radius-control); color: #fff; background: #263f85; white-space: pre-wrap; }
-.day-post-preview-link { overflow-wrap: anywhere; color: #285dcc; font-size: 11px; }
 .day-post-preview > small { color: #78859a; font-size: 9px; }
 
 @media (max-width: 800px) {
