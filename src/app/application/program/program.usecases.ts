@@ -32,6 +32,12 @@ export class RemoveProgramEntryUseCase {
 }
 
 @Injectable({ providedIn: 'root' })
+export class GenerateProgramPlayerTokenUseCase {
+  private repository = inject(ProgramRepository);
+  execute(id: number) { return this.repository.generatePlayerToken(id); }
+}
+
+@Injectable({ providedIn: 'root' })
 export class DeleteProgramUseCase {
   private repository = inject(ProgramRepository);
   execute(id: number) { return this.repository.delete(id); }

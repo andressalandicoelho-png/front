@@ -18,6 +18,7 @@ export interface Program {
   id: number;
   name: string;
   active: boolean;
+  hasPlayerToken: boolean;
   createdById: number;
   entries: ProgramEntry[];
 }

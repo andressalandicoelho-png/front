@@ -39,6 +39,17 @@ export class AuthState {
     }
   }
 
+  getProgramPlayerToken(programId: number): string | null {
+    const user = this.user();
+    if (!user) return null;
+    return localStorage.getItem(`office-total.program-player-token.${user.id}.${programId}`);
+  }
+
+  setProgramPlayerToken(programId: number, token: string): void {
+    const user = this.user();
+    if (user) localStorage.setItem(`office-total.program-player-token.${user.id}.${programId}`, token);
+  }
+
   private setUser(user: User): void {
     const playerToken = localStorage.getItem(`office-total.player-token.${user.id}`);
     this.user.set({ ...user, playerToken });

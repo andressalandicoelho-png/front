@@ -26,31 +26,28 @@ import { IconComponent } from '../shared/icon.component';
         <p class="program-connection-note" role="alert">{{ scheduleError() }} <button class="link-button" type="button" (click)="retryRequested.emit(program().id)">Tentar novamente</button></p>
       }
       @if (playerToken(); as token) {
-        <label class="program-connection-label" for="program-player-link">Link da programação</label>
+        <label class="program-connection-label" for="program-player-link">Link desta programação</label>
         <input id="program-player-link" class="input program-player-link" [class.copied]="copied()" aria-label="Link da programação para TV" readonly [value]="playerUrl()(token, program().id)">
-        <button class="btn primary block" type="button" (click)="copyRequested.emit(program().id)"><app-icon name="copy" [size]="15"/> Copiar link</button>
+        <button class="btn primary block" type="button" [disabled]="generatingToken()" (click)="copyRequested.emit(program().id)"><app-icon name="copy" [size]="15"/> Copiar link</button>
+        <button class="btn block" type="button" [disabled]="generatingToken()" (click)="generateRequested.emit(program().id)">
+          <app-icon name="link" [size]="15"/>
+          @if (generatingToken()) { Gerando novo link… } @else { Gerar novamente }
+        </button>
+        <small class="program-connection-link-note">Este link abre somente {{ program().name }}. Gerar novamente substitui o link anterior desta programação.</small>
       } @else {
-        <button class="btn primary block" type="button" [disabled]="generatingToken()" (click)="generateRequested.emit()">
+        <button class="btn primary block" type="button" [disabled]="generatingToken()" (click)="generateRequested.emit(program().id)">
           @if (generatingToken()) {
             Gerando link…
           } @else if (hasPlayerToken()) {
-            Renovar link da TV
+            Renovar link desta programação
           } @else {
-            Gerar link da TV
+            Gerar link desta programação
           }
         </button>
       }
       <button class="btn block" type="button" [disabled]="!program().entries.length" (click)="previewRequested.emit()"><app-icon name="tv" [size]="15"/> Ver prévia</button>
       @if (hasPlayerToken() && !playerToken()) {
-        <p class="program-token-warning">Renovar o link invalida os endereços de TV já compartilhados.</p>
-      }
-      @if (playerToken()) {
-        <div class="program-connection-divider"></div>
-        <strong class="program-connection-secondary-title">Precisa de outro link?</strong>
-        <button class="btn block" type="button" [disabled]="generatingToken()" (click)="generateRequested.emit()">
-          <app-icon name="link" [size]="15"/>
-          @if (generatingToken()) { Gerando… } @else { Gerar link }
-        </button>
+        <p class="program-token-warning">Gerar outro link invalida somente o link anterior desta programação.</p>
       }
       <button class="btn block program-connection-toggle" type="button" (click)="toggleRequested.emit(program())">
         @if (program().active) { Pausar } @else { Ativar }
@@ -68,7 +65,7 @@ export class ProgramConnectionPanelComponent {
   readonly scheduleError = input('');
   readonly playerUrl = input.required<(token: string, programId: number) => string>();
   readonly copyRequested = output<number>();
-  readonly generateRequested = output<void>();
+  readonly generateRequested = output<number>();
   readonly previewRequested = output<void>();
   readonly toggleRequested = output<Program>();
   readonly retryRequested = output<number>();

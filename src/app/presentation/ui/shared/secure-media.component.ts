@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, effect, inject, input, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, effect, inject, input, output, signal } from '@angular/core';
 import { MediaRepository } from '@domain/media/media.repository';
 import { PublicationType } from '@domain/publication/publication.entity';
 import { from, Subscription } from 'rxjs';
@@ -13,24 +13,24 @@ import { generateVideoThumbnail } from '../publication/video-thumbnail';
     @if (type() === 'VIDEO') {
       @if (autoplay()) {
         @if (url(); as src) {
-          <video [src]="src" muted preload="metadata" playsinline autoplay></video>
+          <video [src]="src" [style.object-fit]="fit()" muted preload="metadata" playsinline autoplay (loadeddata)="mediaLoaded.emit()"></video>
         } @else {
           @if (thumbnail(); as poster) {
-            <img [src]="poster" alt="Miniatura do vídeo">
+            <img [src]="poster" [style.object-fit]="fit()" alt="Miniatura do vídeo" (load)="mediaLoaded.emit()">
           } @else {
             <div class="media-ph" [attr.title]="thumbnailError() || 'Miniatura do vídeo indisponível'"><app-icon name="video" [size]="28"/></div>
           }
         }
       } @else {
         @if (thumbnail(); as poster) {
-          <img [src]="poster" alt="Miniatura do vídeo">
+          <img [src]="poster" [style.object-fit]="fit()" alt="Miniatura do vídeo" (load)="mediaLoaded.emit()">
         } @else {
           <div class="media-ph" [attr.title]="thumbnailError() || 'Miniatura do vídeo indisponível'"><app-icon name="video" [size]="28"/></div>
         }
       }
     } @else {
       @if (url(); as src) {
-        <img [src]="src" alt="">
+        <img [src]="src" [style.object-fit]="fit()" alt="" (load)="mediaLoaded.emit()">
       } @else if (type() === 'MESSAGE') {
         <div class="media-ph message-ph"><strong>MSG</strong></div>
       } @else {
@@ -51,6 +51,8 @@ export class SecureMediaComponent implements AfterViewInit, OnDestroy {
   mediaId = input<number | null>(null);
   type = input<PublicationType>('IMAGE');
   autoplay = input(false);
+  fit = input<'cover' | 'contain'>('cover');
+  mediaLoaded = output<void>();
   url = signal<string | null>(null);
   thumbnail = signal<string | null>(null);
   thumbnailError = signal<string | null>(null);

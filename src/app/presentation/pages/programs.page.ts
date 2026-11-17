@@ -1,10 +1,9 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
-  DeleteProgramUseCase, ListProgramsUseCase, RemoveProgramEntryUseCase, UpdateProgramUseCase,
+  DeleteProgramUseCase, GenerateProgramPlayerTokenUseCase, ListProgramsUseCase, RemoveProgramEntryUseCase, UpdateProgramUseCase,
 } from '@application/program/program.usecases';
 import { ListExpiredProgramPublicationsUseCase, ListScheduleUseCase } from '@application/schedule/schedule.usecases';
-import { GeneratePlayerTokenUseCase } from '@application/user/user.usecases';
 import { Program } from '@domain/program/program.entity';
 import { currentBusinessDate, currentBusinessTime } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@presentation/core/error-message';
@@ -39,7 +38,7 @@ export class ProgramsPage implements OnInit, OnDestroy {
   private readonly listExpiredProgramPublicationsUseCase = inject(ListExpiredProgramPublicationsUseCase);
   private readonly listScheduleUseCase = inject(ListScheduleUseCase);
   private readonly removeProgramEntryUseCase = inject(RemoveProgramEntryUseCase);
-  private readonly generatePlayerTokenUseCase = inject(GeneratePlayerTokenUseCase);
+  private readonly generatePlayerTokenUseCase = inject(GenerateProgramPlayerTokenUseCase);
   private readonly toastService = inject(ToastService);
   readonly formatDate = formatDate;
   private readonly scheduleState = new ProgramScheduleState(
@@ -60,7 +59,6 @@ export class ProgramsPage implements OnInit, OnDestroy {
   entryRemovalError = signal('');
   deletingEntry = signal(false);
   pendingDeletion = signal<Program | null>(null);
-  pendingTokenRenewal = signal(false);
   deleteError = signal('');
   deleting = signal(false);
   private readonly copiedLinkTimer: { value: ReturnType<typeof setTimeout> | null } = { value: null };
@@ -73,7 +71,7 @@ export class ProgramsPage implements OnInit, OnDestroy {
     programPreviewItem(entry, nextProgramSchedule(this.upcomingSchedules(), entry.publicationId), this.formatDate)));
   upcomingSchedules = computed(() =>
     upcomingProgramSchedules(this.programSchedules(), this.today, this.currentBusinessTime()));
-  playerToken = computed(() => this.auth.user()?.playerToken ?? null);
+  playerToken = signal<string | null>(null);
   ngOnInit(): void {
     this.load();
     this.scheduleStatusTimer = setInterval(() => {
@@ -101,8 +99,12 @@ export class ProgramsPage implements OnInit, OnDestroy {
           target = ownedPrograms.find(program => program.id === selected.id);
         }
         this.selected.set(target ?? null);
-        if (target) this.loadProgramSchedule(target.id);
+        if (target) {
+          this.playerToken.set(this.auth.getProgramPlayerToken(target.id));
+          this.loadProgramSchedule(target.id);
+        }
         else {
+          this.playerToken.set(null);
           this.scheduleState.clear();
         }
       },
@@ -112,6 +114,7 @@ export class ProgramsPage implements OnInit, OnDestroy {
 
   select(program: Program): void {
     this.selected.set(program);
+    this.playerToken.set(this.auth.getProgramPlayerToken(program.id));
     this.loadProgramSchedule(program.id);
     if (this.route.snapshot.queryParamMap.has('programId')) {
       this.router.navigate([], {
@@ -216,26 +219,20 @@ export class ProgramsPage implements OnInit, OnDestroy {
     });
   }
 
-  generatePlayerToken(): void {
-    if (this.auth.user()?.hasPlayerToken) {
-      this.pendingTokenRenewal.set(true);
-      return;
-    }
-    this.issuePlayerToken();
-  }
-
-  confirmTokenRenewal(): void {
-    this.pendingTokenRenewal.set(false);
-    this.issuePlayerToken();
-  }
-
-  private issuePlayerToken(): void {
+  generatePlayerToken(programId: number): void {
+    const program = this.selected();
+    if (!program || program.id !== programId) return;
+    const renewing = program.hasPlayerToken;
     this.generatingToken.set(true);
-    this.generatePlayerTokenUseCase.execute().subscribe({
+    this.generatePlayerTokenUseCase.execute(programId).subscribe({
       next: token => {
         this.generatingToken.set(false);
-        this.auth.setPlayerToken(token);
-        this.toastService.show('Link renovado. Atualize o endereço em todas as TVs que usam suas programações.');
+        this.auth.setProgramPlayerToken(programId, token);
+        this.playerToken.set(token);
+        this.selected.update(current => current?.id === programId ? { ...current, hasPlayerToken: true } : current);
+        this.programs.update(programs => programs.map(item => item.id === programId ? { ...item, hasPlayerToken: true } : item));
+        if (renewing) this.toastService.show('Link desta programação renovado. As outras programações não foram alteradas.');
+        else this.toastService.show('Link gerado somente para esta programação.');
       },
       error: error => { this.generatingToken.set(false); this.error.set(errorMessage(error)); },
     });
@@ -247,7 +244,7 @@ export class ProgramsPage implements OnInit, OnDestroy {
   }
 
   copyPlayerUrl(programId: number): void {
-    const token = this.playerToken();
+    const token = this.auth.getProgramPlayerToken(programId);
     if (!token) return;
     copyProgramPlayerUrl(token, programId, this.copiedProgramId, this.copiedLinkTimer,
       message => this.toastService.show(message), message => this.error.set(message));

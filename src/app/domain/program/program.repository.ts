@@ -7,5 +7,6 @@ export abstract class ProgramRepository {
   abstract update(id: number, changes: { name?: string; active?: boolean }): Observable<Program>;
   abstract addPublications(id: number, publicationIds: number[]): Observable<Program>;
   abstract removeEntry(id: number, entryId: number): Observable<Program>;
+  abstract generatePlayerToken(id: number): Observable<string>;
   abstract delete(id: number): Observable<void>;
 }

@@ -32,14 +32,14 @@
         <app-program-connection-panel
           [program]="program"
           [playerToken]="playerToken()"
-          [hasPlayerToken]="!!auth.user()?.hasPlayerToken"
+          [hasPlayerToken]="program.hasPlayerToken"
           [copied]="copiedProgramId() === program.id"
           [generatingToken]="generatingToken()"
           [scheduleLoading]="programScheduleLoading()"
           [scheduleError]="programScheduleError()"
           [playerUrl]="playerUrl"
           (copyRequested)="copyPlayerUrl($event)"
-          (generateRequested)="generatePlayerToken()"
+          (generateRequested)="generatePlayerToken($event)"
           (previewRequested)="previewOpen.set(true)"
           (toggleRequested)="toggle($event)"
           (retryRequested)="loadProgramSchedule($event)"/>
@@ -84,12 +84,9 @@
       [pendingDeletion]="pendingDeletion()"
       [deleteError]="deleteError()"
       [deleting]="deleting()"
-      [pendingTokenRenewal]="pendingTokenRenewal()"
-      [generatingToken]="generatingToken()"
       (previewEntryClosed)="previewEntry.set(null)"
       (entryRemovalCancelled)="closeEntryRemoval()"
       (entryRemovalConfirmed)="confirmEntryRemoval()"
       (deletionCancelled)="closeDeleteConfirmation()"
       (deletionConfirmed)="confirmDelete($event)"
-      (tokenRenewalCancelled)="pendingTokenRenewal.set(false)"
-      (tokenRenewalConfirmed)="confirmTokenRenewal()"/>
+      />

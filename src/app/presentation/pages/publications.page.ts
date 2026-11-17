@@ -113,7 +113,6 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   statusFilters: { label: string; value: ContentStatusFilter }[] = [
     { label: 'Todos', value: 'ALL' },
     { label: 'Rascunho', value: 'DRAFT' },
-    { label: 'Agendado', value: 'SCHEDULED' },
     { label: 'No ar', value: 'LIVE' },
     { label: 'Expirado', value: 'EXPIRED' },
   ];
@@ -192,26 +191,11 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
     const oldPageSize = this.pageSize();
     const firstItemIndex = this.page() * oldPageSize;
     this.gridColumns.set(columns);
-
-    let pageSize = 6;
-    if (window.innerWidth > 650) {
-      if (window.innerHeight <= 800) pageSize = 3;
-      else pageSize = Math.min(6, this.visibleRowsForViewport(columns) * columns);
-    }
+    const pageSize = hostWidth <= 650 ? 3 : 6;
     if (pageSize !== oldPageSize) {
       this.pageSize.set(pageSize);
-      this.page.set(Math.min(Math.floor(firstItemIndex / pageSize), this.pageCount() - 1));
+      this.page.set(Math.max(0, Math.min(Math.floor(firstItemIndex / pageSize), this.pageCount() - 1)));
     }
-  }
-  private visibleRowsForViewport(columns: number): number {
-    const maxRows = Math.ceil(6 / columns);
-    let availableHeight = window.innerHeight - 300;
-    if (window.innerWidth > 1100) {
-      availableHeight = this.host.nativeElement.querySelector('.photo-grid')?.clientHeight ?? window.innerHeight - 300;
-    }
-    const minCardHeight = 208;
-    const rowGap = 12;
-    return Math.max(1, Math.min(maxRows, Math.floor((availableHeight + rowGap) / (minCardHeight + rowGap))));
   }
   load(): void {
     this.listUC.execute().subscribe({

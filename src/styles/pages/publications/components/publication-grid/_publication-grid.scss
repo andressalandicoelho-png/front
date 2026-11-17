@@ -1,7 +1,8 @@
 /* ---------- grade de publicações ---------- */
 .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
 .main > .photo-grid { max-width: 935px; }
-.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; transition: opacity .18s ease; }
+.tile.media-pending { visibility: hidden; opacity: 0; }
 .tile-media { position: relative; aspect-ratio: 1; background: var(--border-soft); }
 .tile-message-preview { box-sizing: border-box; display: flex; width: 100%; height: 100%; flex-direction: column; justify-content: center; gap: 8px; overflow: hidden; padding: 18px; color: #fff; background: #263f85; }
 .tile-message-preview strong { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }

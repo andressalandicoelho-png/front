@@ -10,7 +10,7 @@ import { SecureMediaComponent } from '../shared/secure-media.component';
   template: `
     <section class="photo-grid" [style.grid-template-columns]="'repeat(' + columns() + ', minmax(0, 1fr))'" [style.--publication-grid-rows]="rowCount()">
       @for (p of publications(); track p.id) {
-        <article class="tile">
+        <article class="tile" [class.media-pending]="requiresLoadedMedia(p) && !loadedMediaIds().has(p.id)">
           <div class="tile-toolbar">
             <span class="tile-format"><app-icon [name]="formatIcon(p.type)" [size]="14"/>{{ label(p.type) }}</span>
             <button type="button" class="tile-menu-trigger" aria-label="Mais opções do conteúdo" aria-haspopup="menu" [attr.aria-expanded]="openActionsId() === p.id" (click)="toggleActions(p.id, $event)">
@@ -31,7 +31,7 @@ import { SecureMediaComponent } from '../shared/secure-media.component';
             @if (p.type === 'MESSAGE') {
               <div class="tile-message-preview"><strong>{{ p.title }}</strong><p>{{ p.content }}</p></div>
             } @else {
-              <app-secure-media [mediaId]="p.mediaId" [type]="p.type"/>
+              <app-secure-media [mediaId]="p.mediaId" [type]="p.type" (mediaLoaded)="markMediaLoaded(p.id)"/>
             }
           </div>
           <div class="tile-info">
@@ -70,6 +70,15 @@ export class PublicationGridComponent {
   createRequested = output<void>();
 
   openActionsId = signal<number | null>(null);
+  loadedMediaIds = signal<Set<number>>(new Set());
+
+  requiresLoadedMedia(publication: Publication): boolean {
+    return publication.mediaId != null && ['IMAGE', 'VIDEO'].includes(publication.type);
+  }
+
+  markMediaLoaded(id: number): void {
+    this.loadedMediaIds.update(ids => new Set(ids).add(id));
+  }
 
   @HostListener('document:click')
   closeActions(): void { this.openActionsId.set(null); }

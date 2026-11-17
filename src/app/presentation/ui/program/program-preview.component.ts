@@ -36,7 +36,7 @@ export interface ProgramPreviewItem {
                   }
                   @if (item.linkUrl) { <a class="program-preview-link" [href]="item.linkUrl" target="_blank" rel="noopener noreferrer">Abrir link em outra aba</a> }
                 } @else {
-                  <app-secure-media [mediaId]="item.mediaId" [type]="mediaType(item.type)" [autoplay]="playing()"/>
+                  <app-secure-media [mediaId]="item.mediaId" [type]="mediaType(item.type)" [autoplay]="playing()" [fit]="'contain'"/>
                 }
                 <span class="program-preview-screen-caption">{{ item.title }}</span>
               } @else {

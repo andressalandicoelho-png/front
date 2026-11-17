@@ -1,6 +1,6 @@
 /* ---------- player de TV ---------- */
 .player { position: fixed; inset: 0; display: flex; flex-direction: column; background: #000; color: #fff; overflow: hidden;
-  img, video, iframe { width: 100%; height: 100%; border: 0; object-fit: cover; background: #000; display: block; } }
+  img, video, iframe { width: 100%; height: 100%; border: 0; object-fit: contain; background: #000; display: block; } }
 .player-fullscreen {
   position: absolute;
   z-index: 4;
@@ -51,7 +51,7 @@
   background: radial-gradient(ellipse 42% 64% at 48% 52%, rgba(137, 190, 255, .5) 0%, rgba(165, 207, 255, .3) 45%, transparent 82%);
   content: "";
   filter: blur(72px) saturate(62%);
-  animation: player-idle-blue-drift 24s ease-in-out infinite alternate;
+  animation: player-idle-blue-drift 12s ease-in-out infinite alternate;
 }
 .player-stage--idle::after {
   position: absolute;
@@ -60,7 +60,7 @@
   background: radial-gradient(ellipse 38% 54% at 24% 40%, rgba(255, 177, 193, .4), transparent 78%);
   content: "";
   filter: blur(88px) saturate(48%);
-  animation: player-idle-cloud-drift 26s ease-in-out infinite alternate, player-idle-pastel-cycle 38s linear infinite;
+  animation: player-idle-cloud-drift 13s ease-in-out infinite alternate, player-idle-pastel-cycle 19s linear infinite;
 }
 .player-stage--idle > .player-idle { position: absolute; z-index: 2; inset: 0; display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; isolation: isolate; }
 .player-stage--idle > .player-idle::before,
@@ -71,7 +71,7 @@
   content: "";
   pointer-events: none;
   filter: blur(84px) saturate(48%);
-  animation: player-idle-cloud-drift 30s ease-in-out infinite alternate, player-idle-pastel-cycle 42s linear infinite;
+  animation: player-idle-cloud-drift 15s ease-in-out infinite alternate, player-idle-pastel-cycle 21s linear infinite;
 }
 .player-stage--idle > .player-idle::before {
   background: radial-gradient(ellipse 32% 48% at 76% 32%, rgba(255, 190, 138, .5), transparent 78%);
@@ -79,7 +79,7 @@
 }
 .player-stage--idle > .player-idle::after {
   background: radial-gradient(ellipse 34% 50% at 68% 78%, rgba(164, 226, 205, .34), transparent 80%);
-  animation: player-idle-cloud-drift-alt 34s ease-in-out infinite alternate, player-idle-pastel-cycle 42s linear infinite;
+  animation: player-idle-cloud-drift-alt 17s ease-in-out infinite alternate, player-idle-pastel-cycle 21s linear infinite;
   animation-delay: -16s, -30s;
 }
 @keyframes player-idle-blue-drift {
@@ -109,7 +109,7 @@
 @keyframes player-image-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.012); } }
 .player-idle { height: 100%; display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; }
 .player-idle-clock { display: block; width: clamp(260px, 30vw, 360px); height: clamp(170px, 24vh, 220px); flex: none; }
-.player-idle-clock .message-band.clock-only { display: flex; width: 100%; height: 100%; grid-template-columns: 1fr; gap: 0; padding: clamp(14px, 2.4vw, 26px); border: 1px solid rgba(226, 235, 255, .3); border-radius: var(--radius); background: linear-gradient(120deg, rgba(45, 50, 67, .88), rgba(54, 60, 75, .82)); box-shadow: 0 16px 48px rgba(0, 0, 0, .24); backdrop-filter: blur(28px) saturate(145%); }
+.player-idle-clock .message-band.clock-only { display: grid; width: 100%; height: 100%; grid-template-columns: 1fr; gap: 0; padding: clamp(14px, 2.4vw, 26px); border: 1px solid rgba(226, 235, 255, .3); border-radius: var(--radius); background: linear-gradient(120deg, rgba(45, 50, 67, .88), rgba(54, 60, 75, .82)); box-shadow: 0 16px 48px rgba(0, 0, 0, .24); backdrop-filter: blur(28px) saturate(145%); }
 .player-idle-clock .message-band.clock-only .message-band-clock { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; border-right: 0; }
 .player-idle-clock .message-band.clock-only .message-band-time { flex: none; min-height: 0; font-size: clamp(48px, 6vw, 76px); font-weight: 300; line-height: 1; }
 .player-idle-clock .message-band.clock-only .message-band-date { flex: none; min-height: 0; justify-content: center; gap: 8px; padding-top: 0; border-top: 0; line-height: 1.35; }
