@@ -91,9 +91,8 @@ export class CreateProgramPage implements OnInit {
   }
 
   readonly formatDate = formatDate;
-  scheduleSummary(publication: Publication): string {
-    return programScheduleSummary(publication.id, this.schedules(), this.formatDate);
-  }
+  scheduleSummary = (publication: Publication): string =>
+    programScheduleSummary(publication.id, this.schedules(), this.formatDate);
 
   summaryPeriod(): string {
     return programSummaryPeriod(this.selectedPublications(), this.schedules(), this.formatDate);

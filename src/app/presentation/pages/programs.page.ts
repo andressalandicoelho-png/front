@@ -122,9 +122,8 @@ export class ProgramsPage implements OnInit, OnDestroy {
       });
     }
   }
-  nextScheduleLabelFor(publicationId: number): string {
-    return nextProgramScheduleLabel(nextProgramSchedule(this.upcomingSchedules(), publicationId), this.formatDate);
-  }
+  nextScheduleLabelFor = (publicationId: number): string =>
+    nextProgramScheduleLabel(nextProgramSchedule(this.upcomingSchedules(), publicationId), this.formatDate);
   allEntriesExpired(program: Program): boolean { return this.scheduleState.allEntriesExpired(program); }
   playerUrl(token: string, programId: number): string { return `${location.origin}/player/${token}/program/${programId}`; }
 
