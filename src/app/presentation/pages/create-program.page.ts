@@ -9,6 +9,7 @@ import { Publication } from '@domain/publication/publication.entity';
 import { currentBusinessDate } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@presentation/core/error-message';
 import { formatDate } from '@presentation/core/format';
+import { completedScheduleMessage } from '@presentation/core/schedule-error-message';
 import { createDefaultPublicationSchedule, isPublicationScheduleValid, updatePublicationSchedule } from '@presentation/core/publication-schedule';
 import { ToastService } from '@presentation/core/toast.service';
 import { PublicationScheduleForm } from '@presentation/models/publication-schedule-form';
@@ -216,12 +217,7 @@ export class CreateProgramPage implements OnInit {
         }
         const title = this.selectedPublications().find(publication => publication.id === error.task.publicationId)?.title
           ?? `Conteúdo ${error.task.publicationId}`;
-        let partial = '';
-        if (error.completed) {
-          let completedLabel = 'agendamentos concluídos';
-          if (error.completed === 1) completedLabel = 'agendamento concluído';
-          partial = ` ${error.completed} ${completedLabel}.`;
-        }
+        const partial = completedScheduleMessage(error.completed);
         this.error.set(`${errorMessage(error.originalError)} Falha ao agendar “${title}” em ${this.formatDate(error.task.date)}.${partial} Ajuste o período e tente novamente.`);
       },
       complete: () => this.finish(program),

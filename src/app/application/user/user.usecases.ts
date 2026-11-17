@@ -25,9 +25,3 @@ export class SetUserActiveUseCase {
   private repo = inject(UserRepository);
   execute(id: number, active: boolean) { return this.repo.setActive(id, active); }
 }
-
-@Injectable({ providedIn: 'root' })
-export class GeneratePlayerTokenUseCase {
-  private repo = inject(UserRepository);
-  execute() { return this.repo.generatePlayerToken(); }
-}

@@ -11,14 +11,7 @@ interface UserApiResponse {
   email: string;
   roles?: Role[] | null;
   active?: boolean | null;
-  playerToken?: string | null;
-  hasPlayerToken?: boolean | null;
 }
-
-type PlayerTokenApiResponse = string | {
-  playerToken?: string | null;
-  token?: string | null;
-};
 
 const toUser = (r: UserApiResponse): User => ({
   id: r.id,
@@ -26,29 +19,13 @@ const toUser = (r: UserApiResponse): User => ({
   email: r.email,
   roles: r.roles ?? [],
   active: r.active ?? true,
-  playerToken: r.playerToken ?? null,
-  hasPlayerToken: r.hasPlayerToken ?? false,
 });
-
-const toPlayerToken = (response: PlayerTokenApiResponse): string => {
-  if (typeof response === 'string') return response;
-
-  const token = response.playerToken ?? response.token;
-  if (token === null || token === undefined) {
-    throw new Error('A resposta da API não contém o token do player.');
-  }
-  return token;
-};
 
 @Injectable()
 export class HttpUserRepository extends UserRepository {
   private http = inject(HttpClient);
 
   me(): Observable<User> { return this.http.get<UserApiResponse>(api('/users/me')).pipe(map(toUser)); }
-
-  generatePlayerToken(): Observable<string> {
-    return this.http.post<PlayerTokenApiResponse>(api('/users/me/player-token'), {}).pipe(map(toPlayerToken));
-  }
 
   list(): Observable<User[]> { return this.http.get<UserApiResponse[]>(api('/users')).pipe(map(l => l.map(toUser))); }
 

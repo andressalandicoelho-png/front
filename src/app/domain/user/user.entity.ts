@@ -6,8 +6,6 @@ export interface User {
   email: string;
   roles: Role[];
   active: boolean;
-  playerToken?: string | null;
-  hasPlayerToken?: boolean;
 }
 
 export interface NewUser {

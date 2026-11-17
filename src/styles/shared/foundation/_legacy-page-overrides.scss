@@ -97,9 +97,8 @@ body {
 .ring { box-shadow: none; }
 .ring-in { background: #fff; border-color: #fff; }
 .story:hover { transform: none; }
-.photo-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.photo-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .main > .photo-grid { max-width: 1500px; }
-.tile { border-radius: var(--radius); }
 .tile-actions { opacity: 1; }
 .tile-bottom {
   display: flex;

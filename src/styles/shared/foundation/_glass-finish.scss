@@ -90,13 +90,6 @@
 .story { transition: transform .2s ease; }
 .story:hover { transform: translateY(-2px); }
 
-.photo-grid { gap: 18px; }
-.tile { border-radius: var(--radius); transition: border-color .15s ease, box-shadow .15s ease; }
-.tile:hover { transform: none; box-shadow: none; }
-.tile-media { background: #edf0f6; }
-.tile-info { padding: 13px 14px; }
-.tile .btn { margin-bottom: 14px; }
-
 .cal { padding-bottom: 16px; }
 .cal-head { padding: 14px 18px; }
 .cal-head strong { font-size: 16px; }

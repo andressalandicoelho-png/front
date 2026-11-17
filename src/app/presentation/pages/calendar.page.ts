@@ -11,6 +11,7 @@ import { monthGrid } from '@domain/schedule/calendar';
 import { NewScheduleEntry, ScheduleEntry } from '@domain/schedule/schedule.entity';
 import { currentBusinessDate, currentBusinessTime, datesBetweenInclusive, toMinutes } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@presentation/core/error-message';
+import { completedScheduleMessage } from '@presentation/core/schedule-error-message';
 import {
   groupScheduleEntries, pendingScheduleEntries, timelineLeft as getTimelineLeft, timelineWidth as getTimelineWidth,
 } from '@presentation/core/calendar-view';
@@ -139,12 +140,7 @@ export class CalendarPage implements OnInit {
         const title = this.publicationTitle(failed.publicationId);
         const dateLabel = this.formatDate(failed.date);
         const programLabel = this.programName(failed.programId);
-        let partial = '';
-        if (created) {
-          let completedLabel = 'agendamentos concluídos';
-          if (created === 1) completedLabel = 'agendamento concluído';
-          partial = ` ${created} ${completedLabel}.`;
-        }
+        const partial = completedScheduleMessage(created);
         this.addContentError.set(`${errorMessage(error.originalError)} Falha ao agendar “${title}” em ${programLabel}, ${dateLabel}.${partial} Os agendamentos concluídos foram mantidos; tente novamente.`);
       },
       complete: () => {
