@@ -1,19 +1,12 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { ProgramPreviewItem } from '@presentation/models/program-preview-item';
 import { IconComponent } from '../shared/icon.component';
 import { ModalComponent } from '../shared/modal.component';
 import { SecureMediaComponent } from '../shared/secure-media.component';
 import { MessageBandComponent } from '../shared/message-band.component';
 
-export interface ProgramPreviewItem {
-  title: string;
-  type: string;
-  content?: string | null;
-  mediaId: number | null;
-  linkUrl?: string | null;
-  seconds: number;
-  schedule?: string;
-}
+export type { ProgramPreviewItem } from '@presentation/models/program-preview-item';
 
 @Component({
   selector: 'app-program-preview',

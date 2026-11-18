@@ -2,7 +2,7 @@ import { displayDurationSeconds } from '@domain/publication/publication.entity';
 import { Program } from '@domain/program/program.entity';
 import { ScheduleEntry } from '@domain/schedule/schedule.entity';
 import { formatDate as formatDateValue } from '@presentation/core/format';
-import { ProgramPreviewItem } from '@presentation/ui/program/program-preview.component';
+import { ProgramPreviewItem } from '@presentation/models/program-preview-item';
 
 type ProgramEntry = Program['entries'][number];
 type DateFormatter = typeof formatDateValue;

@@ -1,24 +1,9 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, computed, effect, inject, input, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, computed, effect, inject, input, signal } from '@angular/core';
+import { MessageClockComponent } from './message-clock.component';
 
 const MESSAGE_ROTATION_MS = 60_000;
 const MESSAGE_ROTATION_BUFFER_MS = 3_000;
 const MESSAGE_MARQUEE_READ_CHARACTERS_PER_MINUTE = 600;
-const BUSINESS_TIME_ZONE = 'America/Sao_Paulo';
-const CLOCK_FORMAT = new Intl.DateTimeFormat('pt-BR', {
-  timeZone: BUSINESS_TIME_ZONE,
-  day: '2-digit',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-});
-const FULL_DATE_FORMAT = new Intl.DateTimeFormat('pt-BR', {
-  timeZone: BUSINESS_TIME_ZONE,
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-});
-
 export interface MessageBandItem {
   key?: string;
   title: string;
@@ -27,21 +12,12 @@ export interface MessageBandItem {
 
 @Component({
   selector: 'app-message-band',
+  imports: [MessageClockComponent],
   host: { '[class.clock-only]': 'clockOnly()' },
   template: `
     <aside class="message-band" [class.compact]="compact()" [class.clock-only]="clockOnly()"
       [attr.aria-label]="ariaLabel()">
-      <div class="message-band-clock" aria-label="Data e hora atuais em Brasília">
-        <time class="message-band-time">{{ time() }}</time>
-        <div class="message-band-date" [class.message-band-date--full]="fullDate()">
-          @if (fullDate()) {
-            <span class="message-band-full-date">{{ fullDateLabel() }}</span>
-          } @else {
-            <strong>{{ day() }}</strong>
-            <span>{{ month() }}</span>
-          }
-        </div>
-      </div>
+      <app-message-clock [fullDate]="fullDate()"/>
       <div class="message-band-copy" aria-live="polite">
         @for (message of visibleMessages(); track message.key ?? currentIndex()) {
           <article class="message-band-text" [attr.data-message-key]="message.key ?? currentIndex()" animate.enter="message-band-item-enter" animate.leave="message-band-item-leave">
@@ -63,7 +39,7 @@ export interface MessageBandItem {
     </aside>
   `,
 })
-export class MessageBandComponent implements AfterViewInit, OnInit, OnDestroy {
+export class MessageBandComponent implements AfterViewInit, OnDestroy {
   messages = input<MessageBandItem[]>([]);
   compact = input(false);
   clockOnly = input(false);
@@ -72,10 +48,6 @@ export class MessageBandComponent implements AfterViewInit, OnInit, OnDestroy {
   scrollMessage = signal(false);
   marqueeDuration = signal('24s');
   currentIndex = signal(0);
-  day = signal('');
-  month = signal('');
-  time = signal('');
-  fullDateLabel = signal('');
   currentMessage = computed(() => this.messages()[this.currentIndex()] ?? null);
   visibleMessages = computed(() => {
     const message = this.currentMessage();
@@ -89,7 +61,6 @@ export class MessageBandComponent implements AfterViewInit, OnInit, OnDestroy {
 
   private messageSignature = '';
   private rotationTimer?: ReturnType<typeof setTimeout>;
-  private clockTimer?: ReturnType<typeof setInterval>;
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private resizeObserver?: ResizeObserver;
   private measurementFrame?: number;
@@ -117,14 +88,8 @@ export class MessageBandComponent implements AfterViewInit, OnInit, OnDestroy {
     this.scheduleMarqueeMeasurement();
   }
 
-  ngOnInit(): void {
-    this.updateClock();
-    this.clockTimer = setInterval(() => this.updateClock(), 1_000);
-  }
-
   ngOnDestroy(): void {
     clearTimeout(this.rotationTimer);
-    clearInterval(this.clockTimer);
     this.resizeObserver?.disconnect();
     if (this.measurementFrame !== undefined) cancelAnimationFrame(this.measurementFrame);
   }
@@ -175,16 +140,5 @@ export class MessageBandComponent implements AfterViewInit, OnInit, OnDestroy {
       this.currentIndex.update(index => (index + 1) % count);
       this.scheduleRotation();
     }, rotationDelay);
-  }
-
-  private updateClock(): void {
-    const now = new Date();
-    const parts = CLOCK_FORMAT.formatToParts(now);
-    const value = (type: string) => parts.find(part => part.type === type)?.value ?? '';
-    this.day.set(value('day'));
-    this.month.set(value('month').replace('.', '').toLocaleUpperCase('pt-BR'));
-    this.time.set(`${value('hour')}:${value('minute')}`);
-    const date = FULL_DATE_FORMAT.format(now);
-    this.fullDateLabel.set(date.charAt(0).toLocaleUpperCase('pt-BR') + date.slice(1));
   }
 }

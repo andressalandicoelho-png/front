@@ -218,7 +218,7 @@ body {
 .report-note { padding-top: 4px; }
 
 .tabs { display: flex; gap: 28px; margin-bottom: 22px; border-bottom: 1px solid var(--border); }
-.tab { padding: 10px 0; color: var(--muted); border-bottom: 2px solid transparent; }
+.tab { padding: 10px 0; border: 0; border-bottom: 2px solid transparent; color: var(--muted); background: transparent; font: inherit; text-align: left; }
 .tab.active { color: var(--blue); border-color: var(--blue); }
 .account-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(230px, .9fr); gap: 22px; align-items: start; }
 .account-password { padding: 20px 24px; }

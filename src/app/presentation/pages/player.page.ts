@@ -27,21 +27,6 @@ const IDLE_RETRY_MS = 5_000;
       @if (fullscreenError()) {
         <p class="player-fullscreen-error" role="alert">{{ fullscreenError() }}</p>
       }
-      @if (programName() && (current() || messages().length)) {
-        <div class="player-status">
-          <strong>{{ programName() }}</strong>
-          <span [class.disconnected]="!connected() || !programActive()">
-            @if (!connected()) {
-              Conexão interrompida · tentando reconectar
-            } @else if (programActive()) {
-              Player conectado
-            } @else {
-              Programação pausada
-            }
-          </span>
-          @if (lastUpdated()) { <small>Atualizado {{ lastUpdated() | date:'HH:mm:ss' }}</small> }
-        </div>
-      }
       <main class="player-stage" [class.player-stage--idle]="!current()">
         @for (item of currentItems(); track item.key) {
           @switch (item.type) {
@@ -54,13 +39,16 @@ const IDLE_RETRY_MS = 5_000;
             <div class="player-idle"><p>Mensagem fixa em exibição</p></div>
           } @else {
             <div class="player-idle">
-              <app-message-band class="player-idle-clock" [clockOnly]="true" [fullDate]="true"/>
               @if (!connected()) { <p>Não foi possível conectar ao player.</p> }
             </div>
           }
         }
       </main>
-      @if (messages().length) { <app-message-band [messages]="messages()"/> }
+      @if (messages().length) {
+        <app-message-band [messages]="messages()"/>
+      } @else {
+        <app-message-band class="player-clock-fixed" [clockOnly]="true"/>
+      }
     </div>`,
 })
 export class PlayerPage implements OnInit, OnDestroy {

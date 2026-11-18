@@ -1,8 +1,15 @@
 import { Component, HostListener, input, output, signal } from '@angular/core';
-import { Publication } from '@domain/publication/publication.entity';
+import { isPublicationPublished, Publication, PublicationContentStatus, publicationContentStatus } from '@domain/publication/publication.entity';
 import { typeLabel } from '@presentation/core/format';
 import { IconComponent } from '../shared/icon.component';
 import { SecureMediaComponent } from '../shared/secure-media.component';
+
+const contentStatusLabels: Record<PublicationContentStatus, string> = {
+  DRAFT: 'Rascunho',
+  LIVE: 'No ar',
+  EXPIRED: 'Expirado',
+  SCHEDULED: 'Agendado',
+};
 
 @Component({
   selector: 'app-publication-grid',
@@ -106,14 +113,10 @@ export class PublicationGridComponent {
     return `${this.label(publication.type)} · ${publication.displaySeconds ?? publication.originalDurationSeconds ?? 10} s`;
   }
   isPublished(publication: Publication): boolean {
-    return ['PUBLISHED', 'READY'].includes(publication.status.toUpperCase());
+    return isPublicationPublished(publication.status);
   }
   contentStatusLabel(publication: Publication): string {
-    const status = publication.status.toUpperCase();
-    if (status === 'DRAFT') return 'Rascunho';
-    if (status === 'EXPIRED') return 'Expirado';
-    if (this.isPublished(publication)) return 'No ar';
-    return 'Agendado';
+    return contentStatusLabels[publicationContentStatus(publication.status)];
   }
   programUsage(publication: Publication): string {
     const names = publication.programNames ?? [];

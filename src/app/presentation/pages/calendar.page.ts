@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ListPublicationsUseCase } from '@application/publication/publication.usecases';
 import { ListProgramsUseCase } from '@application/program/program.usecases';
-import { ScheduleEntriesError, ScheduleEntriesUseCase } from '@application/schedule/schedule-entries.usecase';
+import { ScheduleEntriesUseCase } from '@application/schedule/schedule-entries.usecase';
 import {
   DeleteScheduleEntryUseCase, ListScheduleUseCase, UpdateScheduleEntryUseCase,
 } from '@application/schedule/schedule.usecases';
@@ -9,11 +9,12 @@ import { Publication } from '@domain/publication/publication.entity';
 import { Program } from '@domain/program/program.entity';
 import { monthGrid } from '@domain/schedule/calendar';
 import { NewScheduleEntry, ScheduleEntry } from '@domain/schedule/schedule.entity';
-import { currentBusinessDate, currentBusinessTime, datesBetweenInclusive, toMinutes } from '@domain/schedule/schedule.rules';
+import { currentBusinessDate, currentBusinessTime, datesBetweenInclusive, missingScheduleEntries, toMinutes } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@presentation/core/error-message';
 import { completedScheduleMessage } from '@presentation/core/schedule-error-message';
+import { scheduleEntriesObserver } from '@presentation/core/schedule-entries-observer';
 import {
-  groupScheduleEntries, pendingScheduleEntries, timelineLeft as getTimelineLeft, timelineWidth as getTimelineWidth,
+  groupScheduleEntries, timelineLeft as getTimelineLeft, timelineWidth as getTimelineWidth,
 } from '@presentation/core/calendar-view';
 import { ToastService } from '@presentation/core/toast.service';
 import { formatDate, longDate } from '@presentation/core/format';
@@ -120,22 +121,19 @@ export class CalendarPage implements OnInit {
     this.addingContents.set(true);
     let created = 0;
     this.addProgress.set({ completed: 0, total: tasks.length });
-    this.scheduleEntriesUseCase.execute({ tasks }).subscribe({
-      next: event => {
-        if (event.type === 'started') {
-          this.addProgress.set({ completed: 0, total: event.total });
-          return;
-        }
+    this.scheduleEntriesUseCase.execute({ tasks }).subscribe(scheduleEntriesObserver({
+      started: total => this.addProgress.set({ completed: 0, total }),
+      progress: event => {
         created = event.completed;
         this.addProgress.set({ completed: event.completed, total: event.total });
         this.entries.update(entries => [...entries, event.entry]);
       },
       error: error => {
         this.addingContents.set(false);
-        if (!(error instanceof ScheduleEntriesError)) {
-          this.addContentError.set(errorMessage(error));
-          return;
-        }
+        this.addContentError.set(errorMessage(error));
+      },
+      scheduleError: error => {
+        this.addingContents.set(false);
         const failed = error.task;
         const title = this.publicationTitle(failed.publicationId);
         const dateLabel = this.formatDate(failed.date);
@@ -150,7 +148,7 @@ export class CalendarPage implements OnInit {
         if (created === 1) createdLabel = 'agendamento criado';
         this.toast.show(`${created} ${createdLabel}.`);
       },
-    });
+    }));
   }
   scheduleDay(date: string): void { this.selected.set(null); this.addContent(date); }
   timelineLeft(entry: ScheduleEntry): number { return getTimelineLeft(entry); }
@@ -176,8 +174,16 @@ export class CalendarPage implements OnInit {
 
   edit(e: ScheduleEntry): void {
     this.editing.set(e);
+    this.error.set('');
     this.reviewingEntry.set(false);
     this.form = calendarEntryForm(e);
+  }
+
+  editDayEntry(entry: ScheduleEntry): void {
+    this.selected.set(entry.date);
+    this.viewOnly.set(false);
+    this.calendarNow.set(new Date());
+    this.edit(entry);
   }
 
   save(date: string): void {
@@ -211,27 +217,24 @@ export class CalendarPage implements OnInit {
       this.error.set('Selecione o conteúdo e a programação antes de agendar.');
       return;
     }
-    const pending = pendingScheduleEntries(dates, this.form, this.entries(), publicationId, programId);
+    const pending = missingScheduleEntries(
+      [publicationId], [programId], dates, this.entries(), this.form.startTime, this.form.endTime, this.form.turnSeconds ?? undefined,
+    );
     if (!pending.length) {
       this.error.set('Este conteúdo já está agendado nesse período e horário.');
       return;
     }
     let created = 0;
-    this.scheduleEntriesUseCase.execute({ tasks: pending }).subscribe({
-      next: event => {
-        if (event.type === 'progress') {
-          created = event.completed;
-          this.entries.update(entries => [...entries, event.entry]);
-        }
+    this.scheduleEntriesUseCase.execute({ tasks: pending }).subscribe(scheduleEntriesObserver({
+      progress: event => {
+        created = event.completed;
+        this.entries.update(entries => [...entries, event.entry]);
       },
-      error: err => {
-        if (err instanceof ScheduleEntriesError) {
-          let completedLabel = '';
-          if (err.completed) completedLabel = ` ${err.completed} dia(s) já foram agendados.`;
-          this.error.set(`${errorMessage(err.originalError)}${completedLabel} Ajuste o período e tente novamente.`);
-          return;
-        }
-        this.error.set(errorMessage(err));
+      error: err => this.error.set(errorMessage(err)),
+      scheduleError: err => {
+        let completedLabel = '';
+        if (err.completed) completedLabel = ` ${err.completed} dia(s) já foram agendados.`;
+        this.error.set(`${errorMessage(err.originalError)}${completedLabel} Ajuste o período e tente novamente.`);
       },
       complete: () => {
         let createdLabel = 'agendamentos criados';
@@ -240,7 +243,7 @@ export class CalendarPage implements OnInit {
         this.resetForm();
         this.load();
       },
-    });
+    }));
   }
 
   publicationTitle = (publicationId: number | null): string =>

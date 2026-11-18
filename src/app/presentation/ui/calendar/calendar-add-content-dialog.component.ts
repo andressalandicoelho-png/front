@@ -4,7 +4,9 @@ import { RouterLink } from '@angular/router';
 import { Program } from '@domain/program/program.entity';
 import { NewScheduleEntry, ScheduleEntry } from '@domain/schedule/schedule.entity';
 import { Publication } from '@domain/publication/publication.entity';
-import { datesBetweenInclusive, toMinutes } from '@domain/schedule/schedule.rules';
+import {
+  datesBetweenInclusive, fullyScheduledPublicationIds, missingScheduleEntries, overlappingScheduleEntries, toMinutes,
+} from '@domain/schedule/schedule.rules';
 import { formatDate } from '@presentation/core/format';
 import { publicationTypeName } from '@presentation/formatters/publication-type-name';
 import { CalendarReviewRow, CalendarReviewTableComponent } from './calendar-review-table.component';
@@ -87,10 +89,9 @@ export class CalendarAddContentDialogComponent implements OnChanges {
       (type === 'ALL' || publication.type === type),
     );
   });
-  readonly alreadyScheduled = computed(() => new Set(this.selectedContentIds().filter(publicationId =>
-    this.selectedProgramIds().length > 0 && this.dates().length > 0 &&
-    this.selectedProgramIds().every(programId => this.dates().every(date =>
-      this.hasSchedule(publicationId, programId, date, this.startTime(), this.endTime()))))));
+  readonly alreadyScheduled = computed(() => fullyScheduledPublicationIds(
+    this.selectedContentIds(), this.selectedProgramIds(), this.dates(), this.entries(), this.startTime(), this.endTime(),
+  ));
   readonly selectedNewContentCount = computed(() => this.selectedContentIds()
     .filter(id => !this.alreadyScheduled().has(id)).length);
   readonly selectedContentSummary = computed(() => [...this.publicationsById().values()]
@@ -121,25 +122,21 @@ export class CalendarAddContentDialogComponent implements OnChanges {
     (count, item) => count + this.dates().length * this.selectedProgramIds().length - item.scheduledSlots, 0,
   ));
   readonly knownScheduleConflicts = computed<ScheduleConflict[]>(() =>
-    this.selectedContentIds().flatMap(publicationId => this.selectedProgramIds().flatMap(programId => {
-      const publication = this.publicationsById().get(publicationId);
-      if (!publication) return [];
-      return this.entries().filter(entry =>
-        entry.publicationId === publicationId && entry.programId === programId &&
-        this.dates().includes(entry.date) &&
-        toMinutes(entry.startTime) < toMinutes(this.endTime()) &&
-        toMinutes(entry.endTime) > toMinutes(this.startTime()) &&
-        !(entry.startTime === this.startTime() && entry.endTime === this.endTime()),
-      ).map(entry => ({
-        publicationId,
-        programId,
-        programName: this.programsById().get(programId) ?? 'Sem programação',
+    overlappingScheduleEntries(
+      this.selectedContentIds(), this.selectedProgramIds(), this.dates(), this.entries(), this.startTime(), this.endTime(),
+    ).flatMap(entry => {
+      const publication = this.publicationsById().get(entry.publicationId);
+      if (!publication || entry.programId === null) return [];
+      return [{
+        publicationId: entry.publicationId,
+        programId: entry.programId,
+        programName: this.programsById().get(entry.programId) ?? 'Sem programação',
         title: publication.title,
         date: entry.date,
         startTime: entry.startTime,
         endTime: entry.endTime,
-      }));
-    })),
+      }];
+    }),
   );
   readonly canReview = computed(() => this.selectedNewContentCount() > 0 && !this.isPast() &&
     this.endDate() >= this.date() && toMinutes(this.endTime()) > toMinutes(this.startTime()) && !this.busy());
@@ -216,27 +213,13 @@ export class CalendarAddContentDialogComponent implements OnChanges {
     }
     if (!this.dates().length || toMinutes(this.endTime()) <= toMinutes(this.startTime()) || this.isPast()) return;
 
-    const selected = this.selectedContentIds().filter(id => !this.alreadyScheduled().has(id));
-    const tasks = selected.flatMap(publicationId => this.selectedProgramIds().flatMap(programId =>
-      this.dates()
-        .filter(date => !this.hasSchedule(publicationId, programId, date, this.startTime(), this.endTime()))
-        .map(date => ({
-          publicationId,
-          programId,
-          date,
-          startTime: this.startTime(),
-          endTime: this.endTime(),
-        })),
-    ));
+    const tasks = missingScheduleEntries(
+      this.selectedContentIds(), this.selectedProgramIds(), this.dates(), this.entries(), this.startTime(), this.endTime(),
+    );
     this.scheduleRequested.emit(tasks);
   }
 
   requestClose(): void {
     if (!this.busy()) this.closed.emit();
-  }
-
-  private hasSchedule(publicationId: number, programId: number, date: string, startTime: string, endTime: string): boolean {
-    return this.entries().some(entry => entry.publicationId === publicationId && entry.programId === programId &&
-      entry.date === date && entry.startTime === startTime && entry.endTime === endTime);
   }
 }

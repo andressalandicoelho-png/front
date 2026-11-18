@@ -1,7 +1,7 @@
 import { displayDurationSeconds, Publication } from '@domain/publication/publication.entity';
 import { datesBetweenInclusive } from '@domain/schedule/schedule.rules';
 import { PublicationScheduleForm } from '@presentation/models/publication-schedule-form';
-import { ProgramPreviewItem } from '@presentation/ui/program/program-preview.component';
+import { ProgramPreviewItem } from '@presentation/models/program-preview-item';
 import { createDefaultPublicationSchedule, isPublicationScheduleValid } from '@presentation/core/publication-schedule';
 
 type ScheduleMap = Record<number, PublicationScheduleForm>;

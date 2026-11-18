@@ -1,5 +1,4 @@
 import { Component, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ChangeOwnPasswordUseCase } from '@application/auth/auth.usecases';
 import { errorMessage } from '@presentation/core/error-message';
@@ -8,11 +7,30 @@ import { IconComponent } from '@presentation/ui/shared/icon.component';
 
 @Component({
   selector: 'app-profile',
-  imports: [RouterLink, IconComponent, FormsModule],
+  imports: [IconComponent, FormsModule],
   template: `
-    <nav class="tabs" aria-label="Seções da conta"><a class="tab" routerLink="/perfil">Dados pessoais</a><a class="tab active" routerLink="/perfil">Segurança</a></nav>
+    <nav class="tabs" role="tablist" aria-label="Seções da conta">
+      <button class="tab" type="button" role="tab" [class.active]="activeTab() === 'personal'" [attr.aria-selected]="activeTab() === 'personal'" (click)="activeTab.set('personal')">Dados pessoais</button>
+      <button class="tab" type="button" role="tab" [class.active]="activeTab() === 'security'" [attr.aria-selected]="activeTab() === 'security'" (click)="activeTab.set('security')">Segurança</button>
+    </nav>
 
     @if (auth.user(); as u) {
+      @if (activeTab() === 'personal') {
+        <div class="account-grid">
+          <section class="card account-password">
+            <h2>Dados pessoais</h2>
+            <p class="muted">Informações associadas à sua conta.</p>
+            <div class="account-user"><span class="avatar">{{ u.name[0] }}</span><div class="grow"><strong>{{ u.name }}</strong><div class="muted">{{ u.email }} · Conta Office Total</div></div></div>
+            <div class="stack">
+              <div class="field"><strong>Nome</strong><p>{{ u.name }}</p></div>
+              <div class="field"><strong>E-mail</strong><p>{{ u.email }}</p></div>
+            </div>
+          </section>
+          <aside class="account-side">
+            <section class="card pad"><h2>Precisa atualizar seus dados?</h2><p class="muted">Entre em contato com o suporte para solicitar alterações na sua conta.</p><a class="link" href="mailto:suporte@officetotal.com.br?subject=Atualizar%20dados%20da%20conta">Falar com o suporte</a></section>
+          </aside>
+        </div>
+      } @else {
       <div class="account-grid">
       <section class="card account-password">
         <h2>Alterar minha senha</h2>
@@ -34,7 +52,7 @@ import { IconComponent } from '@presentation/ui/shared/icon.component';
         <section class="card pad"><h3>Conta Microsoft</h3><a class="link" href="https://account.microsoft.com/security" target="_blank" rel="noopener">Gerenciar senha ↗</a></section>
       </aside>
       </div>
-
+      }
       <button class="btn account-logout" type="button" (click)="auth.logout()"><app-icon name="logout" [size]="18"/> Sair da conta</button>
     }
   `,
@@ -42,6 +60,7 @@ import { IconComponent } from '@presentation/ui/shared/icon.component';
 export class ProfilePage {
   auth = inject(AuthState);
   private changePasswordUC = inject(ChangeOwnPasswordUseCase);
+  activeTab = signal<'personal' | 'security'>('security');
   passwordForm = { current: '', next: '', confirm: '' };
   passwordError = signal('');
   passwordSuccess = signal('');

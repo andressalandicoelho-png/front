@@ -1,5 +1,18 @@
 export type PublicationType = 'IMAGE' | 'VIDEO' | 'LINK' | 'MESSAGE';
 export type PublicationStatus = string; // ex.: READY, PUBLISHED, ...
+export type PublicationContentStatus = 'DRAFT' | 'LIVE' | 'EXPIRED' | 'SCHEDULED';
+
+export function publicationContentStatus(status: PublicationStatus): PublicationContentStatus {
+  const normalized = status.toUpperCase();
+  if (normalized === 'DRAFT') return 'DRAFT';
+  if (normalized === 'EXPIRED') return 'EXPIRED';
+  if (normalized === 'PUBLISHED' || normalized === 'READY') return 'LIVE';
+  return 'SCHEDULED';
+}
+
+export function isPublicationPublished(status: PublicationStatus): boolean {
+  return publicationContentStatus(status) === 'LIVE';
+}
 
 export interface Publication {
   id: number;

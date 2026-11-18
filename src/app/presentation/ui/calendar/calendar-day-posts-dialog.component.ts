@@ -92,6 +92,11 @@ const PROGRAM_COLORS = ['#159a72', '#dc8a28', '#4b78dc', '#a653be', '#d55252'];
                   <button class="icon-btn day-post-view" type="button" [attr.aria-label]="'Visualizar ' + titleFor()(entry)" title="Visualizar conteúdo" (click)="previewEntry.set(entry)">
                     <app-icon name="eye" [size]="16"/>
                   </button>
+                  @if (canAddContent()) {
+                    <button class="icon-btn day-post-edit" type="button" [attr.aria-label]="'Editar agendamento de ' + titleFor()(entry)" title="Editar agendamento" (click)="editRequested.emit(entry)">
+                      <app-icon name="edit" [size]="16"/>
+                    </button>
+                  }
                   <button class="icon-btn danger day-post-remove" type="button" [attr.aria-label]="'Remover agendamento de ' + titleFor()(entry)" title="Remover agendamento" (click)="removeRequested.emit(entry)">
                     <app-icon name="trash" [size]="17"/>
                   </button>
@@ -164,6 +169,7 @@ export class CalendarDayPostsDialogComponent implements OnChanges {
   readonly closed = output<void>();
   readonly loadRequested = output<void>();
   readonly addRequested = output<string>();
+  readonly editRequested = output<ScheduleEntry>();
   readonly removeRequested = output<ScheduleEntry>();
 
   readonly search = signal('');

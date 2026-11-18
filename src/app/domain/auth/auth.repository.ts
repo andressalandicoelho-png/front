@@ -12,3 +12,8 @@ export abstract class SessionStore {
   abstract setToken(token: string): void;
   abstract clear(): void;
 }
+
+export abstract class ProgramPlayerTokenStore {
+  abstract get(userId: number, programId: number): string | null;
+  abstract set(userId: number, programId: number, token: string): void;
+}

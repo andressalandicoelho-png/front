@@ -2,13 +2,14 @@ import { Component, OnChanges, SimpleChanges, computed, inject, input, output, s
 import { FormsModule } from '@angular/forms';
 import { AddProgramEntriesUseCase } from '@application/program/program.usecases';
 import { ListPublicationsUseCase } from '@application/publication/publication.usecases';
-import { ScheduleEntriesError, ScheduleEntriesUseCase } from '@application/schedule/schedule-entries.usecase';
+import { ScheduleEntriesUseCase } from '@application/schedule/schedule-entries.usecase';
 import { Program } from '@domain/program/program.entity';
 import { Publication } from '@domain/publication/publication.entity';
 import { ScheduleEntry } from '@domain/schedule/schedule.entity';
 import { datesBetweenInclusive } from '@domain/schedule/schedule.rules';
 import { errorMessage } from '@presentation/core/error-message';
 import { formatDate } from '@presentation/core/format';
+import { scheduleEntriesObserver } from '@presentation/core/schedule-entries-observer';
 import { completedScheduleMessage } from '@presentation/core/schedule-error-message';
 import { createDefaultPublicationSchedule, isPublicationScheduleValid, updatePublicationSchedule } from '@presentation/core/publication-schedule';
 import { ToastService } from '@presentation/core/toast.service';
@@ -183,28 +184,25 @@ export class ProgramAddEntriesDialogComponent implements OnChanges {
         .filter(date => !alreadyScheduled.has(`${publicationId}:${date}`))
         .map(date => ({ publicationId, programId: program.id, date, startTime: schedule.startTime, endTime: schedule.endTime })),
     );
-    this.scheduleEntriesUseCase.execute({ tasks }).subscribe({
-      next: event => {
-        if (event.type === 'started') {
-          this.scheduleProgress.set({ completed: 0, total: event.total });
-          return;
-        }
+    this.scheduleEntriesUseCase.execute({ tasks }).subscribe(scheduleEntriesObserver({
+      started: total => this.scheduleProgress.set({ completed: 0, total }),
+      progress: event => {
         this.scheduleProgress.set({ completed: event.completed, total: event.total });
         this.scheduledEntries.update(entries => [...entries, { publicationId: event.entry.publicationId, date: event.entry.date }]);
       },
       error: error => {
         this.saving.set(false);
-        if (!(error instanceof ScheduleEntriesError)) {
-          this.setError(errorMessage(error));
-          return;
-        }
+        this.setError(errorMessage(error));
+      },
+      scheduleError: error => {
+        this.saving.set(false);
         const title = this.publications().find(publication => publication.id === error.task.publicationId)?.title
           ?? `Conteúdo ${error.task.publicationId}`;
         const partial = completedScheduleMessage(error.completed);
         this.setError(`${errorMessage(error.originalError)} Falha ao agendar “${title}” em ${formatDate(error.task.date)}.${partial} Ajuste o período e tente novamente.`);
       },
       complete: () => this.finishAddingEntries(),
-    });
+    }));
   }
 
   private finishAddingEntries(): void {

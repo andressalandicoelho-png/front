@@ -19,6 +19,10 @@ import { IconComponent } from '@presentation/ui/shared/icon.component';
           <div class="login-heading"><h1>Entrar</h1><p class="muted">Acesse com sua conta corporativa.</p></div>
           <label class="field">E-mail<input class="input" type="email" name="email" placeholder="seuNome@officetotal.com" autocomplete="username" [(ngModel)]="email" required></label>
           <label class="field">Senha<input class="input" type="password" name="password" placeholder="Digite sua senha" autocomplete="current-password" [(ngModel)]="password" required></label>
+          @if (auth.restoreError()) {
+            <p class="error" role="alert">{{ auth.restoreError() }}</p>
+            <button class="link-button" type="button" [disabled]="loading()" (click)="restoreSession()">Tentar verificar a sessão novamente</button>
+          }
           @if (error()) { <p class="error">{{ error() }}</p> }
           <button class="btn primary block" type="submit" [disabled]="loading() || !email || !password">
             @if (loading()) { Entrando… } @else { Entrar }
@@ -29,7 +33,7 @@ import { IconComponent } from '@presentation/ui/shared/icon.component';
     </div>`,
 })
 export class LoginPage {
-  private auth = inject(AuthState);
+  readonly auth = inject(AuthState);
   private router = inject(Router);
   email = '';
   password = '';
@@ -42,6 +46,20 @@ export class LoginPage {
     this.auth.login(this.email, this.password).subscribe({
       next: () => this.router.navigate(['/calendario']),
       error: e => { this.error.set(errorMessage(e)); this.loading.set(false); },
+    });
+  }
+
+  restoreSession(): void {
+    this.loading.set(true);
+    this.auth.restore().subscribe({
+      next: restored => {
+        this.loading.set(false);
+        if (restored) this.router.navigate(['/calendario']);
+      },
+      error: error => {
+        this.loading.set(false);
+        this.error.set(errorMessage(error));
+      },
     });
   }
 }

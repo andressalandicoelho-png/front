@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { SidebarPreferencesStore } from '@domain/preferences/sidebar-preferences.store';
 import { AuthState } from '@presentation/core/auth.state';
 import { IconComponent } from '@presentation/ui/shared/icon.component';
 
@@ -54,11 +55,10 @@ import { IconComponent } from '@presentation/ui/shared/icon.component';
 })
 export class ShellComponent {
   auth = inject(AuthState);
-  private readonly sidebarWidthStorageKey = 'office-total.sidebar-width';
-  private readonly sidebarCollapsedStorageKey = 'office-total.sidebar-collapsed';
+  private readonly sidebarPreferences = inject(SidebarPreferencesStore);
   private resizingSidebar = false;
-  sidebarWidth = signal(this.loadSidebarWidth());
-  sidebarCollapsed = signal(localStorage.getItem(this.sidebarCollapsedStorageKey) === 'true');
+  sidebarWidth = signal(this.sidebarPreferences.getWidth());
+  sidebarCollapsed = signal(this.sidebarPreferences.isCollapsed());
   layoutSidebarWidth = computed(() => {
     if (this.sidebarCollapsed()) return 68;
     return this.sidebarWidth();
@@ -93,7 +93,7 @@ export class ShellComponent {
   toggleSidebar(): void {
     const collapsed = !this.sidebarCollapsed();
     this.sidebarCollapsed.set(collapsed);
-    localStorage.setItem(this.sidebarCollapsedStorageKey, String(collapsed));
+    this.sidebarPreferences.setCollapsed(collapsed);
   }
 
   startSidebarResize(event: PointerEvent): void {
@@ -102,7 +102,7 @@ export class ShellComponent {
     if (this.sidebarCollapsed()) {
       this.sidebarCollapsed.set(false);
       this.sidebarWidth.set(240);
-      localStorage.setItem(this.sidebarCollapsedStorageKey, 'false');
+      this.sidebarPreferences.setCollapsed(false);
     }
     this.resizingSidebar = true;
     const handle = event.currentTarget;
@@ -127,7 +127,7 @@ export class ShellComponent {
     if (this.sidebarCollapsed()) {
       this.sidebarCollapsed.set(false);
       this.sidebarWidth.set(240);
-      localStorage.setItem(this.sidebarCollapsedStorageKey, 'false');
+      this.sidebarPreferences.setCollapsed(false);
     }
     let step = 8;
     if (event.shiftKey) step = 24;
@@ -157,13 +157,7 @@ export class ShellComponent {
     this.sidebarWidth.set(Math.max(180, Math.min(360, Math.round(width))));
   }
 
-  private loadSidebarWidth(): number {
-    const savedWidth = Number(localStorage.getItem(this.sidebarWidthStorageKey));
-    if (Number.isFinite(savedWidth) && savedWidth >= 180 && savedWidth <= 360) return savedWidth;
-    return 240;
-  }
-
   private saveSidebarWidth(): void {
-    localStorage.setItem(this.sidebarWidthStorageKey, String(this.sidebarWidth()));
+    this.sidebarPreferences.setWidth(this.sidebarWidth());
   }
 }

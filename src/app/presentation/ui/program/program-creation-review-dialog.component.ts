@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { ModalComponent } from '../shared/modal.component';
-import { ProgramPreviewItem } from './program-preview.component';
+import { ProgramPreviewItem } from '@presentation/models/program-preview-item';
 
 @Component({
   selector: 'app-program-creation-review-dialog',

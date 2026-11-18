@@ -31,6 +31,7 @@
           (closed)="closeDayPosts()"
           (loadRequested)="load()"
           (addRequested)="scheduleDay($event)"
+          (editRequested)="editDayEntry($event)"
           (removeRequested)="remove($event)"/>
       } @else {
         <app-calendar-entry-dialog

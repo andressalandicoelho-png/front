@@ -1,4 +1,4 @@
-import { NewScheduleEntry } from './schedule.entity';
+import { NewScheduleEntry, ScheduleEntry } from './schedule.entity';
 
 const BUSINESS_TIME_ZONE = 'America/Sao_Paulo';
 
@@ -35,6 +35,72 @@ export function datesBetweenInclusive(start: string, end: string): string[] {
     current.setUTCDate(current.getUTCDate() + 1);
   }
   return dates;
+}
+
+export function fullyScheduledPublicationIds(
+  publicationIds: readonly number[],
+  programIds: readonly number[],
+  dates: readonly string[],
+  entries: readonly ScheduleEntry[],
+  startTime: string,
+  endTime: string,
+): Set<number> {
+  return new Set(publicationIds.filter(publicationId =>
+    programIds.length > 0 && dates.length > 0 &&
+    programIds.every(programId => dates.every(date =>
+      hasSchedule(entries, publicationId, programId, date, startTime, endTime))),
+  ));
+}
+
+export function overlappingScheduleEntries(
+  publicationIds: readonly number[],
+  programIds: readonly number[],
+  dates: readonly string[],
+  entries: readonly ScheduleEntry[],
+  startTime: string,
+  endTime: string,
+): ScheduleEntry[] {
+  const publications = new Set(publicationIds);
+  const programs = new Set(programIds);
+  const scheduleDates = new Set(dates);
+  const start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+  return entries.filter(entry =>
+    publications.has(entry.publicationId) &&
+    entry.programId !== null && programs.has(entry.programId) &&
+    scheduleDates.has(entry.date) &&
+    toMinutes(entry.startTime) < end &&
+    toMinutes(entry.endTime) > start &&
+    !(entry.startTime === startTime && entry.endTime === endTime),
+  );
+}
+
+export function missingScheduleEntries(
+  publicationIds: readonly number[],
+  programIds: readonly number[],
+  dates: readonly string[],
+  entries: readonly ScheduleEntry[],
+  startTime: string,
+  endTime: string,
+  turnSeconds?: number,
+): NewScheduleEntry[] {
+  return publicationIds.flatMap(publicationId => programIds.flatMap(programId =>
+    dates
+      .filter(date => !hasSchedule(entries, publicationId, programId, date, startTime, endTime))
+      .map(date => ({ publicationId, programId, date, startTime, endTime, turnSeconds })),
+  ));
+}
+
+function hasSchedule(
+  entries: readonly ScheduleEntry[],
+  publicationId: number,
+  programId: number,
+  date: string,
+  startTime: string,
+  endTime: string,
+): boolean {
+  return entries.some(entry => entry.publicationId === publicationId && entry.programId === programId &&
+    entry.date === date && entry.startTime === startTime && entry.endTime === endTime);
 }
 
 export function validateScheduleEntry(e: Partial<NewScheduleEntry>): string | null {

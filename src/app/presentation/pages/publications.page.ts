@@ -5,7 +5,7 @@ import {
   DeletePublicationUseCase, ListPublicationsUseCase, PublishPublicationUseCase, UnpublishPublicationUseCase,
 } from '@application/publication/publication.usecases';
 import {
-  DEFAULT_DISPLAY_SECONDS, MAX_MESSAGE_CONTENT_LENGTH, Publication, PublicationType,
+  DEFAULT_DISPLAY_SECONDS, isPublicationPublished, MAX_MESSAGE_CONTENT_LENGTH, Publication, PublicationContentStatus, PublicationType, publicationContentStatus,
 } from '@domain/publication/publication.entity';
 import { errorMessage } from '@presentation/core/error-message';
 import { movePage, paginate } from '@presentation/core/pagination';
@@ -16,7 +16,7 @@ import { PaginationComponent } from '@presentation/ui/shared/pagination.componen
 import { PublicationEditorComponent, PublicationEditorForm } from '@presentation/ui/publication/publication-editor.component';
 import { PublicationGridComponent } from '@presentation/ui/publication/publication-grid.component';
 
-type ContentStatusFilter = 'ALL' | 'DRAFT' | 'SCHEDULED' | 'LIVE' | 'EXPIRED';
+type ContentStatusFilter = 'ALL' | PublicationContentStatus;
 type PublicationSort = 'NEWEST' | 'OLDEST';
 
 @Component({
@@ -211,14 +211,8 @@ export class PublicationsPage implements OnInit, AfterViewInit, OnDestroy {
   previousPage(): void { movePage(this.page, this.pageCount, -1); }
   nextPage(): void { movePage(this.page, this.pageCount, 1); }
 
-  isPublished = (p: Publication) => ['PUBLISHED', 'READY'].includes(p.status.toUpperCase());
-  private contentStatus = (p: Publication): ContentStatusFilter => {
-    const status = p.status.toUpperCase();
-    if (status === 'DRAFT') return 'DRAFT';
-    if (status === 'EXPIRED') return 'EXPIRED';
-    if (this.isPublished(p)) return 'LIVE';
-    return 'SCHEDULED';
-  };
+  isPublished = (p: Publication) => isPublicationPublished(p.status);
+  private contentStatus = (p: Publication): PublicationContentStatus => publicationContentStatus(p.status);
   statusCount = (status: ContentStatusFilter) => {
     const items = this.filteredItems();
     if (status === 'ALL') return items.length;

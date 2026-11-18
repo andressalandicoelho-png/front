@@ -1,7 +1,8 @@
 import { Component, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Publication } from '@domain/publication/publication.entity';
-import { ProgramPreviewComponent, ProgramPreviewItem } from './program-preview.component';
+import { ProgramPreviewComponent } from './program-preview.component';
+import { ProgramPreviewItem } from '@presentation/models/program-preview-item';
 import { ContentPreviewComponent } from '../shared/content-preview.component';
 import { ModalComponent } from '../shared/modal.component';
 import { PublicationPickerComponent } from '../publication/publication-picker.component';
